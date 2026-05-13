@@ -3,242 +3,380 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Private Music Library</title>
+  <title>W41IT</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #121212;
-      color: white;
-      height: 100vh;
+    :root {
+      var(--bg-base): #050510;
+      --bg-elevated: #0d0d20;
+      --bg-highlight: #1a1a36;
+      --accent: #00E5FF; 
+      --accent-hover: #00b3cc;
+      --success: #00ff66;
+      --error: #ff3366;
+      --text-main: #E0E0FF;
+      --text-sub: #8B8BAE;
     }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #050510;
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    /* Add this anywhere in your CSS */
+.ctrl-btn.active {
+  color: var(--accent);
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+  transform: scale(1.1);
+}
+
     .hidden { display: none !important; }
 
-    /* Login */
+    /* --- Animations --- */
+    @keyframes fadeOutUp {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.05); visibility: hidden; }
+    }
+    @keyframes fadeInUp {
+      0% { opacity: 0; transform: translateY(30px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-5px); }
+      40%, 80% { transform: translateX(5px); }
+    }
+
+    .animate-out { animation: fadeOutUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-in { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .shake-error { animation: shake 0.4s ease-in-out; }
+
+    /* Login Page */
     #loginPage {
       height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      background: linear-gradient(135deg,#121212,#1db95422);
+      background: linear-gradient(135deg, #050510 0%, #00e5ff22 100%);
+      position: fixed;
+      width: 100%;
+      z-index: 1000;
+      transition: opacity 0.5s;
     }
     .login-box {
-      background: #181818;
-      padding: 2rem;
-      border-radius: 16px;
-      width: 320px;
-      box-shadow: 0 0 30px rgba(0,0,0,.5);
+      background: var(--bg-elevated);
+      padding: 2.5rem;
+      border-radius: 12px;
+      width: 340px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 229, 255, 0.15);
+      border: 1px solid rgba(0, 229, 255, 0.1);
+      transition: transform 0.3s;
     }
-    input {
-      width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      border: none;
-      border-radius: 8px;
-      background: #2a2a2a;
-      color: white;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 12px;
-      border: none;
-      border-radius: 24px;
-      background: #1DB954;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    /* App */
-    #app {
-      display: grid;
-      grid-template-columns: 280px 1fr;
-      height: calc(100vh - 90px);
-    }
-    .sidebar {
-      background: #000;
-      padding: 20px;
-      overflow-y: auto;
-    }
-    .sidebar h2 { color: #1DB954; }
-    .track {
-      padding: 12px;
-      margin: 8px 0;
-      border-radius: 8px;
-      cursor: pointer;
-      background: #181818;
-    }
-    .track:hover, .track.active { background: #282828; }
-
-    .main {
-      padding: 30px;
+    .login-box h2 {
+      margin-bottom: 1.5rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #888;
-      font-size: 1.2rem;
+      gap: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
     }
+    .login-box h2 i { color: var(--accent); }
+    .login-box input {
+      width: 100%;
+      padding: 14px;
+      margin: 8px 0;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      color: white;
+      transition: border 0.3s, background 0.3s;
+    }
+    .login-box input:focus {
+      outline: none;
+      border: 1px solid var(--accent);
+      background: rgba(0, 229, 255, 0.05);
+    }
+    #loginBtn {
+      width: 100%;
+      padding: 14px;
+      margin-top: 16px;
+      border: none;
+      border-radius: 500px;
+      background: var(--accent);
+      color: #000;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #loginBtn:hover {
+      background: var(--accent-hover);
+      transform: scale(1.02);
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+    }
+    #loginBtn.btn-success { background: var(--success); box-shadow: 0 0 20px rgba(0, 255, 102, 0.5); }
+    #loginBtn.btn-error { background: var(--error); color: white; box-shadow: 0 0 20px rgba(255, 51, 102, 0.5); }
 
-    .player {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 90px;
-      background: #181818;
-      border-top: 1px solid #333;
+    /* Main App Layout */
+    #app-container { display: flex; height: calc(100vh - 90px); width: 100%; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: #020208;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      padding: 10px 20px;
+      padding-top: 24px;
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
     }
-    .controls {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      align-items: center;
-      margin-bottom: 8px;
+    .nav-links { padding: 0 24px; margin-bottom: 24px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 16px;
+      color: var(--text-sub); font-weight: 600; padding: 8px 0;
+      cursor: pointer; transition: color 0.2s;
     }
-    .ctrl-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: none;
-      background: #1DB954;
-      color: black;
-      font-size: 18px;
-      cursor: pointer;
+    .nav-item:hover, .nav-item.active { color: var(--text-main); }
+    .nav-item.active i { color: var(--accent); }
+    .nav-item i { font-size: 1.2rem; }
+
+    .library-section {
+      flex: 1; background: #050510; margin: 0 8px;
+      border-radius: 8px; padding: 16px; overflow-y: auto;
     }
-    #seekbar { width: 100%; }
+    .library-header {
+      display: flex; justify-content: space-between; align-items: center;
+      color: var(--text-sub); font-weight: bold; margin-bottom: 16px;
+      font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .library-header i.fa-plus { transition: color 0.2s; padding: 4px; }
+    .library-header i.fa-plus:hover { color: var(--accent); }
+    .playlist-item {
+      padding: 8px; border-radius: 4px; color: var(--text-sub);
+      cursor: pointer; display: flex; align-items: center; gap: 12px;
+      transition: all 0.2s;
+    }
+    .playlist-item:hover { background: var(--bg-elevated); color: var(--text-main); transform: translateX(4px); }
+    .playlist-item.active { background: rgba(0, 229, 255, 0.1); color: var(--accent); }
+
+    /* Main Content Area */
+    .main-view {
+      flex: 1; background: linear-gradient(180deg, #11112b 0%, #050510 100%);
+      padding: 24px; overflow-y: auto;
+    }
+    .view-header-container {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: 24px;
+    }
+    .view-header { font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; margin: 0;}
+    
+    .btn-edit-playlist {
+      background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px solid rgba(255,255,255,0.1);
+      padding: 8px 16px; border-radius: 500px; cursor: pointer; font-weight: bold;
+      transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+    }
+    .btn-edit-playlist:hover { background: rgba(0, 229, 255, 0.1); border-color: var(--accent); color: var(--accent); }
+
+    .track-list-header {
+      display: grid; grid-template-columns: 40px 1fr 100px;
+      color: var(--text-sub); padding: 8px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      margin-bottom: 12px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;
+    }
+
+    .track {
+      display: grid; grid-template-columns: 40px 1fr 100px;
+      align-items: center; padding: 8px 16px; border-radius: 6px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .track:hover { background: rgba(0, 229, 255, 0.05); }
+    .track.active { background: rgba(0, 229, 255, 0.1); color: var(--accent); }
+    .track.active .track-title { color: var(--accent); }
+    
+    .track-num { color: var(--text-sub); font-size: 0.9rem; }
+    .track-info { display: flex; flex-direction: column; }
+    .track-title { font-weight: 500; color: var(--text-main); }
+    .track-meta { font-size: 0.85rem; color: var(--text-sub); margin-top: 4px; }
+    .track-genre { color: var(--accent); font-weight: 600; font-size: 0.75rem; border: 1px solid rgba(0,229,255,0.3); padding: 2px 6px; border-radius: 4px; margin-left: 8px;}
+    
+    /* Player Bar */
+    .player {
+      height: 90px; background: var(--bg-elevated); border-top: 1px solid rgba(255, 255, 255, 0.05);
+      display: grid; grid-template-columns: 30% 40% 30%; padding: 0 16px; align-items: center; z-index: 100;
+    }
+
+    .now-playing { display: flex; align-items: center; gap: 14px; }
+    .album-art {
+      width: 56px; height: 56px; background: linear-gradient(135deg, var(--bg-highlight), #050510);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
+      display: flex; align-items: center; justify-content: center; color: var(--text-sub);
+    }
+    .np-info { display: flex; flex-direction: column; overflow: hidden; }
+    .np-title { font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
+    .np-artist { font-size: 0.8rem; color: var(--text-sub); }
+
+    .player-controls { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .buttons { display: flex; align-items: center; gap: 24px; }
+    .ctrl-btn { background: none; border: none; color: var(--text-sub); font-size: 1.1rem; cursor: pointer; transition: color 0.2s, transform 0.1s; }
+    .ctrl-btn:hover { color: var(--accent); transform: scale(1.1); }
+    .play-btn {
+      background: var(--text-main); color: #050510; width: 36px; height: 36px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; transition: all 0.2s;
+    }
+    .play-btn:hover { transform: scale(1.05); background: var(--accent); box-shadow: 0 0 10px rgba(0, 229, 255, 0.5); }
+
+    .progress-container { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 600px; }
+    .time { font-size: 0.75rem; color: var(--text-sub); min-width: 40px; text-align: center; }
+    
+    input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; outline: none; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; opacity: 0; transition: opacity 0.2s, transform 0.1s; }
+    input[type=range]:hover::-webkit-slider-thumb { opacity: 1; transform: scale(1.2); }
+
+    .right-controls { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+    .volume-bar { width: 100px; }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 5, 0.85); backdrop-filter: blur(4px);
+      display: flex; justify-content: center; align-items: center; z-index: 2000;
+    }
+    .modal-content {
+      background: var(--bg-elevated); padding: 24px; border-radius: 12px;
+      width: 450px; max-height: 80vh; display: flex; flex-direction: column;
+      border: 1px solid rgba(0, 229, 255, 0.2); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    }
+    .modal-content h3 { margin-bottom: 16px; color: var(--accent); letter-spacing: 1px; }
+    .modal-content input[type="text"] {
+      width: 100%; padding: 12px; margin-bottom: 16px; background: rgba(255, 255, 255, 0.05);
+      border: 1px solid transparent; color: white; border-radius: 6px; outline: none;
+    }
+    .modal-content input[type="text"]:focus { border: 1px solid var(--accent); }
+    .track-selection-area {
+      flex: 1; overflow-y: auto; margin-bottom: 16px; background: #050510;
+      padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);
+    }
+    .track-checkbox-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px; cursor: pointer;
+      border-radius: 4px; color: var(--text-sub); transition: background 0.2s;
+    }
+    .track-checkbox-item:hover { background: rgba(0, 229, 255, 0.05); color: var(--text-main); }
+    .track-checkbox-item input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; width: 16px; height: 16px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 12px; }
+    .modal-actions button { padding: 10px 20px; border: none; border-radius: 500px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+    .btn-cancel { background: transparent; color: var(--text-sub); border: 1px solid rgba(255,255,255,0.1); }
+    .btn-cancel:hover { background: rgba(255,255,255,0.05); color: white; }
+    .btn-save { background: var(--accent); color: #000; box-shadow: 0 0 10px rgba(0, 229, 255, 0.2); }
+    .btn-save:hover { background: var(--accent-hover); box-shadow: 0 0 15px rgba(0, 229, 255, 0.5); }
+
   </style>
 </head>
 <body>
 
 <div id="loginPage">
   <div class="login-box">
-    <h2>Private Library</h2>
-    <input id="username" placeholder="Username">
-    <input id="password" type="password" placeholder="Password">
-    <button onclick="login()">Login</button>
+    <h2><i class="fas fa-wave-square"></i> W41IT</h2>
+    <input id="username" placeholder="Username" autocomplete="off">
+    <input id="password" type="password" placeholder="Password" onkeypress="handleKeyPress(event)">
+    <button id="loginBtn" onclick="login()">Enter System</button>
   </div>
 </div>
 
 <div id="mainPage" class="hidden">
-  <div id="app">
+  <div id="app-container">
+    
     <div class="sidebar">
-      <h2>Your Library</h2>
-      <div id="trackList"></div>
+      <div class="nav-links">
+        <div class="nav-item active" id="navAllTracks" onclick="showAllTracks()">
+          <i class="fas fa-satellite-dish"></i> Database
+        </div>
+      </div>
+      
+      <div class="library-section">
+        <div class="library-header">
+          <span><i class="fas fa-layer-group"></i> Collections</span>
+          <i class="fas fa-plus" style="cursor:pointer;" title="Create Playlist" onclick="openPlaylistModal()"></i>
+        </div>
+        <div id="playlists">
+          </div>
+      </div>
     </div>
-    <div class="main">
-      Pick a track from the left 🎵
+
+    <div class="main-view">
+      <div class="view-header-container">
+        <h1 class="view-header" id="viewTitle">All Tracks</h1>
+        <button id="editPlaylistBtn" class="btn-edit-playlist hidden" onclick="openEditModal()">
+          <i class="fas fa-pen"></i> Add/Edit Songs
+        </button>
+      </div>
+      
+      <div class="track-list-header">
+        <div>#</div>
+        <div>Signal Identifier</div>
+        <div><i class="far fa-clock"></i></div>
+      </div>
+      
+      <div id="trackList">
+        </div>
     </div>
   </div>
 
   <div class="player">
-    <div class="controls">
-      <button class="ctrl-btn" onclick="prevTrack()">⏮</button>
-      <button class="ctrl-btn" onclick="togglePlay()">⏯</button>
-      <button class="ctrl-btn" onclick="nextTrack()">⏭</button>
+    <div class="now-playing">
+      <div class="album-art" id="npArt"><i class="fas fa-bolt"></i></div>
+      <div class="np-info">
+        <span class="np-title" id="npTitle">System Idle</span>
+        <span class="np-artist" id="npArtist">--</span>
+      </div>
     </div>
-    <input id="seekbar" type="range" value="0" min="0" max="100">
+
+    <div class="player-controls">
+    <div class="buttons">
+  <button class="ctrl-btn" id="shuffleBtn" onclick="toggleShuffle()"><i class="fas fa-random"></i></button>
+  <button class="ctrl-btn" onclick="prevTrack()"><i class="fas fa-step-backward"></i></button>
+  <button class="ctrl-btn play-btn" onclick="togglePlay()"><i class="fas fa-play" id="playIcon"></i></button>
+  <button class="ctrl-btn" onclick="nextTrack()"><i class="fas fa-step-forward"></i></button>
+  <button class="ctrl-btn" id="repeatBtn" onclick="toggleRepeat()"><i class="fas fa-redo-alt"></i></button>
+</div>
+      <div class="progress-container">
+        <span class="time" id="currentTime">0:00</span>
+        <input id="seekbar" type="range" value="0" min="0" max="100">
+        <span class="time" id="totalTime">0:00</span>
+      </div>
+    </div>
+
+    <div class="right-controls">
+      <i class="fas fa-volume-up" style="color:var(--text-sub); font-size: 0.9rem;"></i>
+      <input id="volumebar" class="volume-bar" type="range" value="100" min="0" max="100">
+    </div>
+  </div>
+</div>
+
+<div id="playlistModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <h3 id="modalTitle">CREATE PLAYLIST</h3>
+    <input type="hidden" id="editPlaylistIndex" value="-1">
+    <input type="text" id="newPlaylistName" placeholder="Collection Designation..." autocomplete="off">
+    
+    <div class="track-selection-area" id="modalTrackSelection">
+      </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closePlaylistModal()">Cancel</button>
+      <button class="btn-save" id="modalSaveBtn" onclick="savePlaylist()">Save Playlist</button>
+    </div>
   </div>
 </div>
 
 <audio id="audio"></audio>
-
-<script>
-  const USERNAME = 'admin';
-  const PASSWORD = 'admin';
-
-  let tracks = [];
-
-  async function fetchTracks() {
-    try {
-      const response = await fetch('files/tracks.json');
-      tracks = await response.json();
-      loadTracks();
-      if (tracks.length > 0) {
-        loadTrack(0);
-      }
-    } catch (err) {
-      console.error('Failed to load track list', err);
-      alert('Could not load music library');
-    }
-  }
-
-  let currentTrack = 0;
-  const audio = document.getElementById('audio');
-  const seekbar = document.getElementById('seekbar');
-
-  function login() {
-    const u = document.getElementById('username').value;
-    const p = document.getElementById('password').value;
-
-    if (u === USERNAME && p === PASSWORD) {
-      document.getElementById('loginPage').classList.add('hidden');
-      document.getElementById('mainPage').classList.remove('hidden');
-      fetchTracks();
-    } else {
-      alert('Wrong credentials');
-    }
-  }
-
-  function loadTracks() {
-    const list = document.getElementById('trackList');
-    list.innerHTML = '';
-    tracks.forEach((t, i) => {
-      const div = document.createElement('div');
-      div.className = 'track';
-      div.innerText = t.name;
-      div.onclick = () => loadTrack(i, true);
-      list.appendChild(div);
-    });
-  }
-
-  function highlightTrack() {
-    document.querySelectorAll('.track').forEach((el, i) => {
-      el.classList.toggle('active', i === currentTrack);
-    });
-  }
-
-  function loadTrack(i, autoplay=false) {
-    currentTrack = i;
-    audio.src = tracks[i].file;
-    highlightTrack();
-    if (autoplay) audio.play();
-  }
-
-  function togglePlay() {
-    if (audio.paused) audio.play();
-    else audio.pause();
-  }
-
-  function nextTrack() {
-    currentTrack = (currentTrack + 1) % tracks.length;
-    loadTrack(currentTrack, true);
-  }
-
-  function prevTrack() {
-    currentTrack = (currentTrack - 1 + tracks.length) % tracks.length;
-    loadTrack(currentTrack, true);
-  }
-
-  audio.addEventListener('timeupdate', () => {
-    if (audio.duration) {
-      seekbar.value = (audio.currentTime / audio.duration) * 100;
-    }
-  });
-
-  seekbar.addEventListener('input', () => {
-    if (audio.duration) {
-      audio.currentTime = (seekbar.value / 100) * audio.duration;
-    }
-  });
-
-  audio.addEventListener('ended', nextTrack);
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>
-
