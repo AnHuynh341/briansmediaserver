@@ -112,6 +112,109 @@
     .animate-out { animation: fadeOutUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     .animate-in { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     .shake-error { animation: shake 0.4s ease-in-out; }
+    /* --- Responsive Adjustments --- */
+@media (max-width: 768px) {
+    /* Login Box */
+    .login-box {
+        width: 90%;
+        padding: 1.5rem;
+    }
+
+    /* Layout */
+    #app-container {
+        flex-direction: column;
+    }
+
+    /* Sidebar as a Drawer */
+    .sidebar {
+        position: fixed;
+        left: -100%;
+        top: 0;
+        bottom: 90px;
+        width: 80%;
+        z-index: 1000;
+        transition: 0.3s ease-in-out;
+        box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+    }
+
+    .sidebar.mobile-active {
+        left: 0;
+    }
+
+    /* Main View */
+    .main-view {
+        padding: 16px;
+    }
+
+    .view-header {
+        font-size: 1.8rem;
+    }
+
+    /* Track List Adjustments */
+    .track-list-header, .track {
+        grid-template-columns: 30px 1fr 60px; /* Slimmer columns */
+    }
+
+    .track-genre {
+        display: none; /* Hide genre on mobile to save space */
+    }
+
+    /* Player Bar for Mobile */
+    .player {
+        grid-template-columns: 1fr 120px; /* Focus on song info and play buttons */
+        height: 100px;
+        padding: 0 12px;
+    }
+
+    .right-controls {
+        display: none; /* Mobile users use physical volume buttons */
+    }
+
+    .player-controls {
+        align-items: flex-end;
+    }
+
+    .buttons {
+        gap: 12px;
+    }
+
+    #shuffleBtn, #repeatBtn {
+        display: none; /* Hide extra controls to declutter */
+    }
+
+    .progress-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        padding: 0;
+    }
+
+    .progress-container .time {
+        display: none; /* Hide time numbers to keep it clean */
+    }
+
+    input[type=range] {
+        height: 3px;
+        border-radius: 0;
+    }
+
+    /* Mobile Menu Toggle Button */
+    #mobileMenuBtn {
+        display: block !important;
+        background: none;
+        border: none;
+        color: var(--accent);
+        font-size: 1.5rem;
+        margin-bottom: 10px;
+        cursor: pointer;
+    }
+}
+
+/* Hide mobile button by default on desktop */
+#mobileMenuBtn {
+    display: none;
+}
 
     /* Login Page */
     #loginPage {
