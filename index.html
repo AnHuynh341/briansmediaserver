@@ -29,18 +29,74 @@
       display: flex;
       flex-direction: column;
     }
-    /* Add this anywhere in your CSS */
-.ctrl-btn.active {
-  color: var(--accent);
-  text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
-  transform: scale(1.1);
+    /* Styling for the Repeat One indicator */
+#repeatBtn {
+  position: relative;
 }
+
+#repeatBtn[data-repeat-one="true"]::after {
+  content: '1';
+  position: absolute;
+  top: -2px;
+  right: -5px;
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--bg-base);
+  color: var(--success);
+  border: 1px solid var(--success);
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Drag & Drop Styles */
+    .drop-zone {
+      border: 2px dashed rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 32px 16px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.02);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .drop-zone.dragover, .drop-zone:hover {
+      border-color: var(--accent);
+      background: rgba(0, 229, 255, 0.05);
+    }
+    .drop-zone i {
+      font-size: 2rem;
+      color: var(--text-sub);
+      transition: color 0.2s;
+    }
+    .drop-zone.dragover i, .drop-zone:hover i {
+      color: var(--accent);
+    }
+    #fileNameDisplay {
+      font-size: 0.85rem;
+      color: var(--success);
+      font-weight: bold;
+      word-break: break-all;
+      text-align: center;
+    }
+    .ctrl-btn.active {
+      color: var(--accent);
+      text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+      transform: scale(1.1);
+    }
 
     .hidden { display: none !important; }
 
     /* --- Animations --- */
     @keyframes fadeOutUp {
-      0% { opacity: 1; transform: scale(1); }
+      0% { opacity: 1; transform: scale(1); } 
       100% { opacity: 0; transform: scale(1.05); visibility: hidden; }
     }
     @keyframes fadeInUp {
@@ -117,11 +173,7 @@
       cursor: pointer;
       transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    #loginBtn:hover {
-      background: var(--accent-hover);
-      transform: scale(1.02);
-      box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
-    }
+    #loginBtn:hover { background: var(--accent-hover); transform: scale(1.02); box-shadow: 0 0 15px rgba(0, 229, 255, 0.4); }
     #loginBtn.btn-success { background: var(--success); box-shadow: 0 0 20px rgba(0, 255, 102, 0.5); }
     #loginBtn.btn-error { background: var(--error); color: white; box-shadow: 0 0 20px rgba(255, 51, 102, 0.5); }
 
@@ -140,12 +192,12 @@
     .nav-links { padding: 0 24px; margin-bottom: 24px; }
     .nav-item {
       display: flex; align-items: center; gap: 16px;
-      color: var(--text-sub); font-weight: 600; padding: 8px 0;
+      color: var(--text-sub); font-weight: 600; padding: 10px 0;
       cursor: pointer; transition: color 0.2s;
     }
     .nav-item:hover, .nav-item.active { color: var(--text-main); }
     .nav-item.active i { color: var(--accent); }
-    .nav-item i { font-size: 1.2rem; }
+    .nav-item i { font-size: 1.2rem; width: 24px; text-align: center; }
 
     .library-section {
       flex: 1; background: #050510; margin: 0 8px;
@@ -255,11 +307,16 @@
       border: 1px solid rgba(0, 229, 255, 0.2); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
     }
     .modal-content h3 { margin-bottom: 16px; color: var(--accent); letter-spacing: 1px; }
-    .modal-content input[type="text"] {
+    
+    /* Shared Input Styles for Modals */
+    .modal-content input[type="text"], .modal-content select, .modal-content input[type="file"] {
       width: 100%; padding: 12px; margin-bottom: 16px; background: rgba(255, 255, 255, 0.05);
-      border: 1px solid transparent; color: white; border-radius: 6px; outline: none;
+      border: 1px solid transparent; color: white; border-radius: 6px; outline: none; font-family: inherit;
     }
-    .modal-content input[type="text"]:focus { border: 1px solid var(--accent); }
+    .modal-content input[type="text"]:focus, .modal-content select:focus { border: 1px solid var(--accent); }
+    .modal-content select option { background: var(--bg-elevated); color: white; }
+    .modal-content label { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 4px; display: block; text-transform: uppercase; letter-spacing: 1px;}
+
     .track-selection-area {
       flex: 1; overflow-y: auto; margin-bottom: 16px; background: #050510;
       padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);
@@ -270,12 +327,13 @@
     }
     .track-checkbox-item:hover { background: rgba(0, 229, 255, 0.05); color: var(--text-main); }
     .track-checkbox-item input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; width: 16px; height: 16px; }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 12px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
     .modal-actions button { padding: 10px 20px; border: none; border-radius: 500px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
     .btn-cancel { background: transparent; color: var(--text-sub); border: 1px solid rgba(255,255,255,0.1); }
     .btn-cancel:hover { background: rgba(255,255,255,0.05); color: white; }
     .btn-save { background: var(--accent); color: #000; box-shadow: 0 0 10px rgba(0, 229, 255, 0.2); }
     .btn-save:hover { background: var(--accent-hover); box-shadow: 0 0 15px rgba(0, 229, 255, 0.5); }
+    .status-text { font-size: 0.85rem; text-align: center; margin-bottom: 12px; font-weight: bold;}
 
   </style>
 </head>
@@ -297,6 +355,9 @@
       <div class="nav-links">
         <div class="nav-item active" id="navAllTracks" onclick="showAllTracks()">
           <i class="fas fa-satellite-dish"></i> Database
+        </div>
+        <div class="nav-item" onclick="openUploadModal()">
+          <i class="fas fa-cloud-upload-alt"></i> Upload Signal
         </div>
       </div>
       
@@ -376,7 +437,46 @@
   </div>
 </div>
 
+<div id="uploadModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <h3>TRANSMIT NEW SIGNAL</h3>
+    
+<div id="dropZone" class="drop-zone">
+      <i class="fas fa-cloud-upload-alt"></i>
+      <span style="font-weight: bold; color: var(--text-main);">Drag & Drop .mp3 here</span>
+      <span style="font-size: 0.75rem; color: var(--text-sub);">or click to browse</span>
+      <div id="fileNameDisplay"></div>
+      <input type="file" id="uploadFileInput" accept=".mp3" style="display: none;">
+    </div>
+    
+    <label>Track Name</label>
+    <input type="text" id="uploadTrackName" placeholder="E.g., Night Dancer" autocomplete="off">
+    
+    <label>Artist Name</label>
+    <input type="text" id="uploadArtistName" placeholder="E.g., imase" autocomplete="off">
+    
+    <label>Genre</label>
+    <select id="uploadGenre">
+      <option value="J-POP">J-POP</option>
+      <option value="V-POP">V-POP</option>
+      <option value="US-UK">US-UK</option>
+      <option value="EDM">EDM</option>
+      <option value="Other">Other</option>
+    </select>
+
+    <div id="uploadStatus" class="status-text"></div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeUploadModal()">Abort</button>
+      <button class="btn-save" id="startUploadBtn">Transmit to Cloud</button>
+    </div>
+  </div>
+</div>
+
 <audio id="audio"></audio>
+
+<script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.1"></script>
+
 <script src="script.js"></script>
 </body>
 </html>
