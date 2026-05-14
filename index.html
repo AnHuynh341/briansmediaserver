@@ -112,7 +112,7 @@
     .animate-out { animation: fadeOutUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     .animate-in { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     .shake-error { animation: shake 0.4s ease-in-out; }
-    /* --- Responsive Adjustments --- */
+/* --- Responsive Adjustments --- */
 @media (max-width: 768px) {
     /* Login Box */
     .login-box {
@@ -131,7 +131,7 @@
         left: -100%;
         top: 0;
         bottom: 90px;
-        width: 80%;
+        width: 85%;
         z-index: 1000;
         transition: 0.3s ease-in-out;
         box-shadow: 10px 0 30px rgba(0,0,0,0.5);
@@ -141,33 +141,56 @@
         left: 0;
     }
 
-    /* Main View */
+    /* Main View & Header */
     .main-view {
         padding: 16px;
+    }
+
+    .view-header-container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
     }
 
     .view-header {
         font-size: 1.8rem;
     }
 
+    .btn-edit-playlist {
+        width: 100%; /* Make button easy to tap */
+        justify-content: center;
+        padding: 12px;
+    }
+
+    /* Modals (Upload & Playlist) */
+    .modal-content {
+        width: 95%;
+        max-height: 90vh;
+        padding: 16px;
+    }
+
+    .track-selection-area {
+        max-height: 200px;
+    }
+
     /* Track List Adjustments */
     .track-list-header, .track {
-        grid-template-columns: 30px 1fr 60px; /* Slimmer columns */
+        grid-template-columns: 30px 1fr 60px;
     }
 
     .track-genre {
-        display: none; /* Hide genre on mobile to save space */
+        display: none;
     }
 
     /* Player Bar for Mobile */
     .player {
-        grid-template-columns: 1fr 120px; /* Focus on song info and play buttons */
+        grid-template-columns: 1fr 100px;
         height: 100px;
         padding: 0 12px;
     }
 
     .right-controls {
-        display: none; /* Mobile users use physical volume buttons */
+        display: none;
     }
 
     .player-controls {
@@ -179,7 +202,7 @@
     }
 
     #shuffleBtn, #repeatBtn {
-        display: none; /* Hide extra controls to declutter */
+        display: none;
     }
 
     .progress-container {
@@ -191,11 +214,11 @@
     }
 
     .progress-container .time {
-        display: none; /* Hide time numbers to keep it clean */
+        display: none;
     }
 
     input[type=range] {
-        height: 3px;
+        height: 4px;
         border-radius: 0;
     }
 
@@ -206,14 +229,9 @@
         border: none;
         color: var(--accent);
         font-size: 1.5rem;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
         cursor: pointer;
     }
-}
-
-/* Hide mobile button by default on desktop */
-#mobileMenuBtn {
-    display: none;
 }
 
     /* Login Page */
