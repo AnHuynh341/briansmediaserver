@@ -339,49 +339,39 @@ document.getElementById('startUploadBtn').addEventListener('click', async functi
     let successCount = 0;
 
     // Loop through every file selected
-    for (let i = 0; i < files.length; i++) {
+for (let i = 0; i < files.length; i++) {
       const file = files[i];
       // Automatically generate the track name by removing the .mp3 extension
       const trackName = file.name.replace(/\.[^/.]+$/, ""); 
 
+      // 1. Upload the audio file to Appwrite Storage
       status.innerText = `UPLOADING [${i + 1}/${files.length}]: ${trackName}...`;
       status.style.color = "var(--accent)";
-
-      // 1. Send file to Appwrite Storage Vault
+      
       const uploadedFile = await storage.createFile(BUCKET_ID, ID.unique(), file);
       const fileResult = storage.getFileView(BUCKET_ID, uploadedFile.$id);
 
-      status.innerText = `SYNCING [${i + 1}/${files.length}]: ${trackName}...`;
+      // 2. Fetch the Artwork BEFORE saving to the database
+      status.innerText = `MATCHING ARTWORK [${i + 1}/${files.length}]: ${trackName}...`;
+      let fetchedCover = await fetchCoverArt(trackName, artistName);
+      
+      // If iTunes fails, use the sleek default fallback
+      if (!fetchedCover) {
+        fetchedCover = "https://via.placeholder.com/600x600/0f172a/00ffcc?text=NO+COVER+DETECTED";
+      }
 
-      // 2. Create the Database Record
+      // 3. Create ONE Database Record containing both the audio and the cover
+      status.innerText = `SYNCING [${i + 1}/${files.length}]: ${trackName}...`;
       await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
         name: trackName, 
-        artist: artistName, // Applies the same artist to the whole batch
-        genre: genre,       // Applies the same genre to the whole batch
-        fileUrl: fileResult.href
+        artist: artistName, 
+        genre: genre,       
+        fileUrl: fileResult.href,
+        coverUrl: fetchedCover // Both successful matches and fallbacks get saved here
       });
 
       successCount++;
     }
-
-    status.innerText = `TRANSMISSION COMPLETE. ${successCount} signals added.`;
-    status.style.color = "var(--success)";
-
-    setTimeout(() => {
-      closeUploadModal();
-      fetchTracks();
-      this.disabled = false;
-      document.getElementById('uploadFileInput').value = ""; // Clear input
-    }, 2000);
-
-  } catch (error) {
-    console.error("BATCH UPLOAD ERROR:", error);
-    status.innerText = "FAILED: " + (error.message || "Connection Lost");
-    status.style.color = "var(--error)";
-    this.disabled = false;
-  }
-});
-
 // ==========================================
 // UI — VIEWS
 // ==========================================
@@ -700,4 +690,32 @@ if (searchInput) {
     renderPlaylists(); // Removes the highlight from any active playlists
     renderTrackList(); // Draws the matching tracks
   });
+}
+
+// ==========================================
+// iTUNES API ARTWORK MATCHER
+// ==========================================
+
+async function fetchCoverArt(trackName, artistName) {
+  try {
+    // Combine track and artist for a highly accurate search
+    const query = encodeURIComponent(`${trackName} ${artistName}`);
+    
+    // Call the free iTunes Search API
+    const response = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
+    const data = await response.json();
+
+    // If iTunes found a match
+    if (data.results && data.results.length > 0) {
+      const lowResUrl = data.results[0].artworkUrl100;
+      // Upgrade Apple's 100x100 thumbnail to a high-quality 600x600 image
+      return lowResUrl.replace('100x100bb.jpg', '600x600bb.jpg'); 
+    }
+    
+    // If no match is found, return null so we can use a fallback
+    return null; 
+  } catch (error) {
+    console.error("iTunes Match Failed:", error);
+    return null;
+  }
 }
