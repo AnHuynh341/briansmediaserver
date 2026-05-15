@@ -327,40 +327,55 @@ function handleFileSelection() {
 }
 
 document.getElementById('startUploadBtn').addEventListener('click', async function () {
-  const file = uploadFileInput.files[0];
-  const trackName = document.getElementById('uploadTrackName').value.trim();
+  const files = uploadFileInput.files; // Now grabs an array of files
   const artistName = document.getElementById('uploadArtistName').value.trim() || "Unknown Artist";
-  const genre = document.getElementById('uploadGenre').value;
+  const genre = document.getElementById('uploadGenre').value || "J-POP";
   const status = document.getElementById('uploadStatus');
 
-  if (!file || !trackName) return alert("Please select a file and enter a name.");
+  if (files.length === 0) return alert("Please select at least one file.");
 
   try {
-    status.innerText = "AUTHENTICATING SESSION...";
     this.disabled = true;
+    let successCount = 0;
 
-    status.innerText = "UPLOADING MP3 TO VAULT...";
-    status.style.color = "var(--accent)";
+    // Loop through every file selected
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      // Automatically generate the track name by removing the .mp3 extension
+      const trackName = file.name.replace(/\.[^/.]+$/, ""); 
 
-    const uploadedFile = await storage.createFile(BUCKET_ID, ID.unique(), file);
-    const fileResult = storage.getFileView(BUCKET_ID, uploadedFile.$id);
+      status.innerText = `UPLOADING [${i + 1}/${files.length}]: ${trackName}...`;
+      status.style.color = "var(--accent)";
 
-    status.innerText = "SYNCING TO DATABASE...";
+      // 1. Send file to Appwrite Storage Vault
+      const uploadedFile = await storage.createFile(BUCKET_ID, ID.unique(), file);
+      const fileResult = storage.getFileView(BUCKET_ID, uploadedFile.$id);
 
-    await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
-      name: trackName, artist: artistName, genre: genre, fileUrl: fileResult.href
-    });
+      status.innerText = `SYNCING [${i + 1}/${files.length}]: ${trackName}...`;
 
-    status.innerText = "TRANSMISSION COMPLETE.";
+      // 2. Create the Database Record
+      await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
+        name: trackName, 
+        artist: artistName, // Applies the same artist to the whole batch
+        genre: genre,       // Applies the same genre to the whole batch
+        fileUrl: fileResult.href
+      });
+
+      successCount++;
+    }
+
+    status.innerText = `TRANSMISSION COMPLETE. ${successCount} signals added.`;
     status.style.color = "var(--success)";
 
     setTimeout(() => {
       closeUploadModal();
       fetchTracks();
       this.disabled = false;
-    }, 1500);
+      document.getElementById('uploadFileInput').value = ""; // Clear input
+    }, 2000);
+
   } catch (error) {
-    console.error("DEBUG ERROR:", error);
+    console.error("BATCH UPLOAD ERROR:", error);
     status.innerText = "FAILED: " + (error.message || "Connection Lost");
     status.style.color = "var(--error)";
     this.disabled = false;
