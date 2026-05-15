@@ -24,15 +24,19 @@ let userPlaylists = [];
 let currentUser = null; 
 let currentUserRole = null; 
 let currentUserId = null; 
+let isSeeking = false; // <-- ADDED: Fixes the timeline tug-of-war
 
 const audio = document.getElementById('audio');
 const seekbar = document.getElementById('seekbar');
 const volumebar = document.getElementById('volumebar');
 const playIcon = document.getElementById('playIcon');
 
-// ==========================================
-// AUTHENTICATION
-// ==========================================
+// Load saved volume from local storage on startup
+const savedVolume = localStorage.getItem('userVolume');
+if (savedVolume) {
+    audio.volume = savedVolume;
+    if (volumebar) volumebar.value = savedVolume * 100;
+}
 
 // ==========================================
 // AUTHENTICATION
@@ -45,7 +49,6 @@ function handleKeyPress(e) {
 async function login() {
   const btn = document.getElementById('loginBtn');
 
-  // Check inputs directly from the DOM
   if (!document.getElementById('username').value.trim() || !document.getElementById('password').value) return;
   
   btn.style.pointerEvents = 'none';
@@ -53,11 +56,8 @@ async function login() {
 
   try {
     const account = new Appwrite.Account(client);
-    try { await account.createAnonymousSession(); } catch (e) {
-      // Session likely already exists, which is fine.
-    }
+    try { await account.createAnonymousSession(); } catch (e) {}
 
-    // Query the database directly using the input value
     const response = await databases.listDocuments(DATABASE_ID, USERS_COLLECTION_ID, [
       Query.equal("username", document.getElementById('username').value.trim())
     ]);
@@ -65,7 +65,6 @@ async function login() {
     if (response.documents.length === 0) throw new Error("User not found");
     const userDoc = response.documents[0];
 
-    // Validate password directly against the input
     if (userDoc.password !== document.getElementById('password').value) throw new Error("Invalid password");
 
     currentUser = userDoc.username;
@@ -76,7 +75,6 @@ async function login() {
     btn.innerHTML = '<i class="fas fa-unlock-alt"></i> ACCESS GRANTED';
 
     setTimeout(() => {
-      // Triggers if the DB boolean is true
       if (userDoc.forceChange) {
         document.getElementById('changePasswordModal').classList.remove('hidden');
       } else {
@@ -98,6 +96,7 @@ async function login() {
     }, 1500);
   }
 }
+
 function grantAccess() {
   document.getElementById('loginPage').classList.add('animate-out');
   setTimeout(() => {
@@ -105,7 +104,6 @@ function grantAccess() {
     document.getElementById('mainPage').classList.remove('hidden');
     document.getElementById('mainPage').classList.add('animate-in');
     
-    // Hide upload for normal users
     if (currentUserRole !== 'admin') {
       const uploadNav = document.querySelector('.nav-links .nav-item:nth-child(2)');
       if(uploadNav) uploadNav.style.display = 'none';
@@ -119,7 +117,6 @@ function grantAccess() {
 async function updatePassword() {
   const btn = document.querySelector('#changePasswordModal .btn-save');
 
-  // Validate directly from the DOM elements
   if (document.getElementById('newPassword').value.length < 6) {
       return alert("Password must be at least 6 characters.");
   }
@@ -137,7 +134,6 @@ async function updatePassword() {
     document.getElementById('changePasswordModal').classList.add('hidden');
     grantAccess(); 
   } catch (error) {
-    console.error("Update Document Error:", error);
     alert("Error updating security: " + error.message);
     btn.innerText = "Update Security";
   }
@@ -153,8 +149,14 @@ async function fetchTracks() {
       Query.orderAsc("$createdAt")
     ]);
     
+    // ADDED: Mapping the coverUrl so the player can use it
     allTracks = response.documents.map(doc => ({
-      id: doc.$id, name: doc.name, artist: doc.artist, genre: doc.genre, file: doc.fileUrl
+      id: doc.$id, 
+      name: doc.name, 
+      artist: doc.artist, 
+      genre: doc.genre, 
+      file: doc.fileUrl,
+      cover: doc.coverUrl || "https://via.placeholder.com/600x600/0f172a/00ffcc?text=NO+COVER"
     }));
 
     if (allTracks.length > 0 && !audio.src) {
@@ -193,7 +195,7 @@ async function fetchPlaylists() {
 }
 
 // ==========================================
-// PLAYLIST MODAL LOGIC (Create & Edit)
+// PLAYLIST MODAL LOGIC 
 // ==========================================
 
 function openPlaylistModal() {
@@ -206,13 +208,10 @@ function openPlaylistModal() {
 
 function openEditModal() {
   if (currentViewPlaylistIndex === -1) return alert("Please select a collection first.");
-
   const pl = userPlaylists[currentViewPlaylistIndex];
-
   document.getElementById('modalTitle').innerText = `EDITING: ${pl.name.toUpperCase()}`;
   document.getElementById('newPlaylistName').value = pl.name;
   document.getElementById('editPlaylistIndex').value = currentViewPlaylistIndex;
-  
   buildModalTrackList(pl.ids);
   document.getElementById('playlistModal').classList.remove('hidden');
 }
@@ -240,7 +239,6 @@ function closePlaylistModal() {
 async function savePlaylist() {
   const nameInput = document.getElementById('newPlaylistName').value.trim();
   const editIndex = parseInt(document.getElementById('editPlaylistIndex').value);
-  
   const checkboxes = document.querySelectorAll('.playlist-checkbox:checked');
   const selectedIds = Array.from(checkboxes).map(cb => cb.value);
 
@@ -253,13 +251,11 @@ async function savePlaylist() {
     btn.innerText = "SAVING...";
 
     if (editIndex > -1) {
-      // UPDATE
       const playlistId = userPlaylists[editIndex].id;
       await databases.updateDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, playlistId, {
         name: nameInput, trackIds: selectedIds
       });
     } else {
-      // CREATE
       await databases.createDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, ID.unique(), {
         name: nameInput, trackIds: selectedIds, owner: currentUser
       });
@@ -267,7 +263,6 @@ async function savePlaylist() {
 
     closePlaylistModal();
     await fetchPlaylists(); 
-    
     if (editIndex > -1) loadPlaylist(editIndex);
     
     btn.disabled = false;
@@ -327,7 +322,7 @@ function handleFileSelection() {
 }
 
 document.getElementById('startUploadBtn').addEventListener('click', async function () {
-  const files = uploadFileInput.files; // Now grabs an array of files
+  const files = uploadFileInput.files; 
   const artistName = document.getElementById('uploadArtistName').value.trim() || "Unknown Artist";
   const genre = document.getElementById('uploadGenre').value || "J-POP";
   const status = document.getElementById('uploadStatus');
@@ -338,40 +333,54 @@ document.getElementById('startUploadBtn').addEventListener('click', async functi
     this.disabled = true;
     let successCount = 0;
 
-    // Loop through every file selected
-for (let i = 0; i < files.length; i++) {
+    // ADDED: Re-constructed the missing loop closure and catch blocks
+    for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      // Automatically generate the track name by removing the .mp3 extension
       const trackName = file.name.replace(/\.[^/.]+$/, ""); 
 
-      // 1. Upload the audio file to Appwrite Storage
       status.innerText = `UPLOADING [${i + 1}/${files.length}]: ${trackName}...`;
       status.style.color = "var(--accent)";
       
       const uploadedFile = await storage.createFile(BUCKET_ID, ID.unique(), file);
       const fileResult = storage.getFileView(BUCKET_ID, uploadedFile.$id);
 
-      // 2. Fetch the Artwork BEFORE saving to the database
       status.innerText = `MATCHING ARTWORK [${i + 1}/${files.length}]: ${trackName}...`;
       let fetchedCover = await fetchCoverArt(trackName, artistName);
       
-      // If iTunes fails, use the sleek default fallback
       if (!fetchedCover) {
         fetchedCover = "https://via.placeholder.com/600x600/0f172a/00ffcc?text=NO+COVER+DETECTED";
       }
 
-      // 3. Create ONE Database Record containing both the audio and the cover
       status.innerText = `SYNCING [${i + 1}/${files.length}]: ${trackName}...`;
       await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
         name: trackName, 
         artist: artistName, 
         genre: genre,       
         fileUrl: fileResult.href,
-        coverUrl: fetchedCover // Both successful matches and fallbacks get saved here
+        coverUrl: fetchedCover 
       });
 
       successCount++;
     }
+
+    status.innerText = `TRANSMISSION COMPLETE. ${successCount} signals added.`;
+    status.style.color = "var(--success)";
+
+    setTimeout(() => {
+      closeUploadModal();
+      fetchTracks();
+      this.disabled = false;
+      document.getElementById('uploadFileInput').value = ""; 
+    }, 2000);
+
+  } catch (error) {
+    console.error("BATCH UPLOAD ERROR:", error);
+    status.innerText = "FAILED: " + (error.message || "Connection Lost");
+    status.style.color = "var(--error)";
+    this.disabled = false;
+  }
+});
+
 // ==========================================
 // UI — VIEWS
 // ==========================================
@@ -417,7 +426,6 @@ function loadPlaylist(index) {
   const pl = userPlaylists[index];
   document.getElementById('viewTitle').innerText = pl.name;
   
-  // Show Edit button ONLY if the user owns it
   if (pl.owner === currentUser) {
       document.getElementById('editPlaylistBtn').classList.remove('hidden');
   } else {
@@ -466,12 +474,38 @@ function loadTrack(i, autoplay = false) {
   if (i < 0 || i >= allTracks.length) return;
   currentTrackIndex = i;
   const track = allTracks[i];
+  
   audio.src = track.file;
   document.getElementById('npTitle').innerText = track.name;
   document.getElementById('npArtist').innerText = track.artist;
+  
+  // ADDED: Display the Cover Art in the UI
+  const coverArtEl = document.getElementById('npCover');
+  if (coverArtEl) coverArtEl.src = track.cover;
+
   renderTrackList();
-  if (autoplay) { audio.play(); playIcon.className = 'fas fa-pause'; }
-  else { playIcon.className = 'fas fa-play'; }
+  
+  if (autoplay) { 
+      audio.play(); 
+      playIcon.className = 'fas fa-pause'; 
+  } else { 
+      playIcon.className = 'fas fa-play'; 
+  }
+
+  // OPTIONAL BONUS: Native OS Media Controls implementation!
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.name,
+      artist: track.artist,
+      album: track.genre, 
+      artwork: [{ src: track.cover, sizes: '600x600', type: 'image/jpeg' }]
+    });
+
+    navigator.mediaSession.setActionHandler('play', togglePlay);
+    navigator.mediaSession.setActionHandler('pause', togglePlay);
+    navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
+    navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack(false));
+  }
 }
 
 function togglePlay() {
@@ -575,28 +609,51 @@ function prevTrack() {
 }
 
 // ==========================================
-// AUDIO EVENT LISTENERS
+// AUDIO EVENT LISTENERS & TIMELINE
 // ==========================================
 
 audio.addEventListener('ended', () => nextTrack(true));
-
-audio.addEventListener('timeupdate', () => {
-  if (audio.duration) {
-    seekbar.value = (audio.currentTime / audio.duration) * 100;
-    document.getElementById('currentTime').innerText = formatTime(audio.currentTime);
-  }
-});
 
 audio.addEventListener('loadedmetadata', () => {
   document.getElementById('totalTime').innerText = formatTime(audio.duration);
 });
 
+// ADDED: The fixed timeline logic to prevent snapping back to 0:00
+seekbar.addEventListener('mousedown', () => { isSeeking = true; });
+seekbar.addEventListener('touchstart', () => { isSeeking = true; }, {passive: true});
+
 seekbar.addEventListener('input', () => {
-  audio.currentTime = (seekbar.value / 100) * audio.duration;
+  if (audio.duration) {
+    const seekTime = (seekbar.value / 100) * audio.duration;
+    document.getElementById('currentTime').innerText = formatTime(seekTime);
+  }
+});
+
+seekbar.addEventListener('mouseup', () => {
+  if (audio.duration) {
+    audio.currentTime = (seekbar.value / 100) * audio.duration;
+  }
+  isSeeking = false;
+});
+seekbar.addEventListener('touchend', () => {
+  if (audio.duration) {
+    audio.currentTime = (seekbar.value / 100) * audio.duration;
+  }
+  isSeeking = false;
+});
+
+audio.addEventListener('timeupdate', () => {
+  // Only update visually if the user isn't dragging the bar
+  if (audio.duration && !isSeeking) {
+    seekbar.value = (audio.currentTime / audio.duration) * 100;
+    document.getElementById('currentTime').innerText = formatTime(audio.currentTime);
+  }
 });
 
 volumebar.addEventListener('input', () => {
   audio.volume = volumebar.value / 100;
+  // Save volume preference
+  localStorage.setItem('userVolume', audio.volume); 
 });
 
 function formatTime(seconds) {
@@ -611,24 +668,20 @@ function formatTime(seconds) {
 // ==========================================
 
 document.addEventListener('keydown', function(event) {
-  // 1. Check if the user is currently typing in an input field
   const activeTag = document.activeElement.tagName;
   const isTyping = (activeTag === 'INPUT' || activeTag === 'TEXTAREA');
 
-  // If they are typing, do nothing and let them type
   if (isTyping) return;
 
-  // 2. Handle the specific key presses
   switch(event.code) {
     case 'Space':
-      event.preventDefault(); // Stops the spacebar from scrolling the page down
+      event.preventDefault(); 
       togglePlay();
       break;
 
     case 'ArrowRight':
       event.preventDefault();
       if (audio.src && audio.duration) {
-         // Skip forward 5 seconds, but don't go past the total duration
          audio.currentTime = Math.min(audio.currentTime + 5, audio.duration);
       }
       break;
@@ -636,17 +689,12 @@ document.addEventListener('keydown', function(event) {
     case 'ArrowLeft':
       event.preventDefault();
       if (audio.src) {
-         // Skip backward 5 seconds, but don't drop below 0
          audio.currentTime = Math.max(audio.currentTime - 5, 0);
       }
       break;
   }
 });
-const savedVolume = localStorage.getItem('userVolume');
-if (savedVolume) {
-    audio.volume = savedVolume;
-    volumebar.value = savedVolume * 100;
-}
+
 // ==========================================
 // INSTANT SEARCH ENGINE
 // ==========================================
@@ -655,19 +703,15 @@ const searchInput = document.getElementById('searchInput');
 
 if (searchInput) {
   searchInput.addEventListener('input', function(e) {
-    // 1. Get the typed text and make it lowercase for easy matching
     const query = e.target.value.toLowerCase().trim();
 
-    // 2. If the user clears the search box, reset back to normal "All Tracks"
     if (query === "") {
-        showAllTracks(); // Reuses your existing function!
+        showAllTracks(); 
         return;
     }
 
-    // 3. Force the view to global search (ignoring specific playlists)
     currentViewPlaylistIndex = -1;
     
-    // Update the UI headers to show we are searching
     const navAll = document.getElementById('navAllTracks');
     if (navAll) navAll.classList.add('active');
     
@@ -677,18 +721,15 @@ if (searchInput) {
     const editBtn = document.getElementById('editPlaylistBtn');
     if (editBtn) editBtn.classList.add('hidden');
     
-    // 4. The Magic: Filter the tracks instantly
     currentPlaylistTracks = allTracks.filter(track => {
       const matchName = track.name.toLowerCase().includes(query);
       const matchArtist = track.artist.toLowerCase().includes(query);
-      // You can add matchGenre here too if you want!
       
       return matchName || matchArtist;
     });
 
-    // 5. Re-render the screen with the filtered results
-    renderPlaylists(); // Removes the highlight from any active playlists
-    renderTrackList(); // Draws the matching tracks
+    renderPlaylists(); 
+    renderTrackList(); 
   });
 }
 
@@ -698,21 +739,15 @@ if (searchInput) {
 
 async function fetchCoverArt(trackName, artistName) {
   try {
-    // Combine track and artist for a highly accurate search
     const query = encodeURIComponent(`${trackName} ${artistName}`);
-    
-    // Call the free iTunes Search API
     const response = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
     const data = await response.json();
 
-    // If iTunes found a match
     if (data.results && data.results.length > 0) {
       const lowResUrl = data.results[0].artworkUrl100;
-      // Upgrade Apple's 100x100 thumbnail to a high-quality 600x600 image
       return lowResUrl.replace('100x100bb.jpg', '600x600bb.jpg'); 
     }
     
-    // If no match is found, return null so we can use a fallback
     return null; 
   } catch (error) {
     console.error("iTunes Match Failed:", error);

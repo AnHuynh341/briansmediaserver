@@ -142,9 +142,10 @@
    ========================================== */
 .search-container {
   position: relative;
-  margin: 15px 20px;
+  margin: 0 0 20px 0; /* Removes side margins, adds space below it */
   display: flex;
   align-items: center;
+  width: 100%; /* Ensures it stretches across the top */
 }
 
 .search-container i {
@@ -799,10 +800,6 @@
         <div id="playlists"></div>
       </div>
     </div>
-<div class="search-container">
-  <i class="fas fa-search"></i>
-  <input type="text" id="searchInput" placeholder="Search signals or artists...">
-</div>
     <div class="main-view">
       <div class="view-header-container">
         <div style="display:flex; align-items:center; gap:12px; min-width:0;">
@@ -812,6 +809,12 @@
                   style="display:none; background:none; border:none; color:var(--accent); font-size:1.4rem; cursor:pointer; flex-shrink:0;">
             <i class="fas fa-bars"></i>
           </button>
+          <div class="main-content">
+  
+  <div class="search-container">
+    <i class="fas fa-search"></i>
+    <input type="text" id="searchInput" placeholder="Search signals or artists...">
+  </div>
           <h1 class="view-header" id="viewTitle">All Tracks</h1>
         </div>
         <button id="editPlaylistBtn" class="btn-edit-playlist hidden" onclick="openEditModal()">
