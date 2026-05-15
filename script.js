@@ -42,8 +42,8 @@ function handleKeyPress(e) {
 }
 
 async function login() {
-  // NOTE: .toLowerCase() means your Appwrite DB usernames MUST be lowercase!
-  const u = document.getElementById('username').value.trim().toLowerCase();
+  // FIX 1: Removed .toLowerCase() to support adminL, adminB, etc.
+  const u = document.getElementById('username').value.trim();
   const p = document.getElementById('password').value;
   const btn = document.getElementById('loginBtn');
 
@@ -53,7 +53,9 @@ async function login() {
 
   try {
     const account = new Appwrite.Account(client);
-    try { await account.createAnonymousSession(); } catch (e) {}
+    try { await account.createAnonymousSession(); } catch (e) {
+      // Session likely already exists, which is fine.
+    }
 
     const response = await databases.listDocuments(DATABASE_ID, USERS_COLLECTION_ID, [
       Query.equal("username", u)
@@ -72,6 +74,7 @@ async function login() {
     btn.innerHTML = '<i class="fas fa-unlock-alt"></i> ACCESS GRANTED';
 
     setTimeout(() => {
+      // Triggers if the DB boolean is true
       if (userDoc.forceChange) {
         document.getElementById('changePasswordModal').classList.remove('hidden');
       } else {
@@ -80,6 +83,7 @@ async function login() {
     }, 800);
 
   } catch (error) {
+    console.error("Login Error:", error); // Added for debugging
     btn.classList.add('btn-error');
     btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ACCESS DENIED';
     document.querySelector('.login-box').classList.add('shake-error');
@@ -121,6 +125,7 @@ async function updatePassword() {
 
   btn.innerText = "UPDATING...";
   try {
+    // FIX 2: Ensure Appwrite Collection permissions allow "Guests" or "Any" to UPDATE
     await databases.updateDocument(DATABASE_ID, USERS_COLLECTION_ID, currentUserId, {
       password: p1,
       forceChange: false
@@ -129,6 +134,7 @@ async function updatePassword() {
     document.getElementById('changePasswordModal').classList.add('hidden');
     grantAccess(); 
   } catch (error) {
+    console.error("Update Document Error:", error); // Check your F12 Console if this fails!
     alert("Error updating security: " + error.message);
     btn.innerText = "Update Security";
   }
