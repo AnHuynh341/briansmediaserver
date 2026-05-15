@@ -619,31 +619,27 @@ audio.addEventListener('loadedmetadata', () => {
 });
 
 // ADDED: The fixed timeline logic to prevent snapping back to 0:00
-seekbar.addEventListener('mousedown', () => { isSeeking = true; });
-seekbar.addEventListener('touchstart', () => { isSeeking = true; }, {passive: true});
-
 seekbar.addEventListener('input', () => {
+  isSeeking = true; // Tell the audio player to stop fighting us
+  
   if (audio.duration) {
     const seekTime = (seekbar.value / 100) * audio.duration;
     document.getElementById('currentTime').innerText = formatTime(seekTime);
   }
 });
 
-seekbar.addEventListener('mouseup', () => {
+// 2. CHANGE: Fires exactly once when you let go of the slider
+seekbar.addEventListener('change', () => {
   if (audio.duration) {
     audio.currentTime = (seekbar.value / 100) * audio.duration;
   }
-  isSeeking = false;
-});
-seekbar.addEventListener('touchend', () => {
-  if (audio.duration) {
-    audio.currentTime = (seekbar.value / 100) * audio.duration;
-  }
-  isSeeking = false;
+  
+  isSeeking = false; // Give control back to the audio player
 });
 
+// 3. TIMEUPDATE: Moves the bar naturally while playing
 audio.addEventListener('timeupdate', () => {
-  // Only update visually if the user isn't dragging the bar
+  // Only update visually if the user IS NOT currently dragging the bar
   if (audio.duration && !isSeeking) {
     seekbar.value = (audio.currentTime / audio.duration) * 100;
     document.getElementById('currentTime').innerText = formatTime(audio.currentTime);
