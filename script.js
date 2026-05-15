@@ -1,5 +1,4 @@
-const USERNAME = 'admin';
-const PASSWORD = 'admin';
+
 
 const { Client, Databases, Storage, ID, Query } = Appwrite;
 
@@ -15,6 +14,7 @@ const DATABASE_ID = '6a05cc43000fdc34115a';
 const BUCKET_ID = '6a05cdb0000bc961b45f';
 const COLLECTION_ID = 'tracks';
 const PLAYLIST_COLLECTION_ID = 'playlists';
+const USERS_COLLECTION_ID = 'users';
 
 let allTracks = [];
 let currentPlaylistTracks = [];
@@ -23,6 +23,9 @@ let currentViewPlaylistIndex = -1;
 let isShuffle = false;
 let repeatMode = 0; // 0: Off, 1: Repeat All, 2: Repeat One
 let userPlaylists = [];
+let currentUser = null; // Store the logged-in user's name
+let currentUserRole = null; // Store if they are admin or user
+let currentUserId = null; // Store the DB document ID for the user
 
 const audio = document.getElementById('audio');
 const seekbar = document.getElementById('seekbar');
@@ -37,44 +40,102 @@ function handleKeyPress(e) {
   if (e.key === 'Enter') login();
 }
 
-function login() {
-  const u = document.getElementById('username').value;
+async function login() {
+  const u = document.getElementById('username').value.trim().toLowerCase();
   const p = document.getElementById('password').value;
   const btn = document.getElementById('loginBtn');
-  const loginBox = document.querySelector('.login-box');
 
-  if (btn.style.pointerEvents === 'none') return;
+  if (!u || !p) return;
   btn.style.pointerEvents = 'none';
   btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> AUTHENTICATING...';
 
+  try {
+    // 1. Establish Anonymous Session to talk to DB
+    const account = new Appwrite.Account(client);
+    try { await account.createAnonymousSession(); } catch (e) {}
+
+    // 2. Find the user in the database
+    const response = await databases.listDocuments(DATABASE_ID, USERS_COLLECTION_ID, [
+      Query.equal("username", u)
+    ]);
+
+    if (response.documents.length === 0) throw new Error("User not found");
+    const userDoc = response.documents[0];
+
+    // 3. Check password
+    if (userDoc.password !== p) throw new Error("Invalid password");
+
+    // 4. Set global variables
+    currentUser = userDoc.username;
+    currentUserRole = userDoc.role;
+    currentUserId = userDoc.$id;
+
+    btn.classList.add('btn-success');
+    btn.innerHTML = '<i class="fas fa-unlock-alt"></i> ACCESS GRANTED';
+
+    setTimeout(() => {
+      // 5. Force Password Change check
+      if (userDoc.forceChange) {
+        document.getElementById('changePasswordModal').classList.remove('hidden');
+      } else {
+        grantAccess();
+      }
+    }, 800);
+
+  } catch (error) {
+    btn.classList.add('btn-error');
+    btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ACCESS DENIED';
+    document.querySelector('.login-box').classList.add('shake-error');
+    setTimeout(() => {
+      btn.classList.remove('btn-error');
+      document.querySelector('.login-box').classList.remove('shake-error');
+      btn.innerHTML = 'Enter System';
+      btn.style.pointerEvents = 'auto';
+      document.getElementById('password').value = '';
+    }, 1500);
+  }
+}
+
+// Helper to transition into the app
+function grantAccess() {
+  document.getElementById('loginPage').classList.add('animate-out');
   setTimeout(() => {
-    if (u === USERNAME && p === PASSWORD) {
-      btn.classList.add('btn-success');
-      btn.innerHTML = '<i class="fas fa-unlock-alt"></i> ACCESS GRANTED';
-      setTimeout(() => {
-        document.getElementById('loginPage').classList.add('animate-out');
-        setTimeout(() => {
-          document.getElementById('loginPage').style.display = 'none';
-          const mainPage = document.getElementById('mainPage');
-          mainPage.classList.remove('hidden');
-          mainPage.classList.add('animate-in');
-          fetchTracks();
-          fetchPlaylists();
-        }, 600);
-      }, 800);
-    } else {
-      btn.classList.add('btn-error');
-      btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ACCESS DENIED';
-      loginBox.classList.add('shake-error');
-      setTimeout(() => {
-        btn.classList.remove('btn-error');
-        loginBox.classList.remove('shake-error');
-        btn.innerHTML = 'Enter System';
-        btn.style.pointerEvents = 'auto';
-        document.getElementById('password').value = '';
-      }, 1500);
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('mainPage').classList.remove('hidden');
+    document.getElementById('mainPage').classList.add('animate-in');
+    
+    // Check Role: Hide the upload button if it's a standard user
+    if (currentUserRole !== 'admin') {
+      const uploadNav = document.querySelector('.nav-links .nav-item:nth-child(2)');
+      if(uploadNav) uploadNav.style.display = 'none';
     }
-  }, 1200);
+
+    fetchTracks();
+    fetchPlaylists();
+  }, 600);
+}
+
+async function updatePassword() {
+  const p1 = document.getElementById('newPassword').value;
+  const p2 = document.getElementById('confirmPassword').value;
+  const btn = document.querySelector('#changePasswordModal .btn-save');
+
+  if (p1.length < 6) return alert("Password must be at least 6 characters.");
+  if (p1 !== p2) return alert("Passwords do not match.");
+
+  btn.innerText = "UPDATING...";
+  try {
+    await databases.updateDocument(DATABASE_ID, USERS_COLLECTION_ID, currentUserId, {
+      password: p1,
+      forceChange: false
+    });
+    
+    document.getElementById('changePasswordModal').classList.add('hidden');
+    grantAccess(); // Let them in!
+  } catch (error) {
+    alert("Error updating security: " + error.message);
+    btn.innerText = "Update Security";
+  }
 }
 
 // ==========================================
