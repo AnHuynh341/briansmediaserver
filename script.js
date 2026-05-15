@@ -1,5 +1,3 @@
-
-
 const { Client, Databases, Storage, ID, Query } = Appwrite;
 
 const client = new Client();
@@ -14,7 +12,7 @@ const DATABASE_ID = '6a05cc43000fdc34115a';
 const BUCKET_ID = '6a05cdb0000bc961b45f';
 const COLLECTION_ID = 'tracks';
 const PLAYLIST_COLLECTION_ID = 'playlists';
-const USERS_COLLECTION_ID = 'users';
+const USERS_COLLECTION_ID = 'users'; // <--- MUST MATCH YOUR DASHBOARD ID
 
 let allTracks = [];
 let currentPlaylistTracks = [];
@@ -180,12 +178,23 @@ async function fetchTracks() {
 
 async function fetchPlaylists() {
   try {
-    const response = await databases.listDocuments(DATABASE_ID, PLAYLIST_COLLECTION_ID);
+    let queries = [];
+    
+    // --- ADMIN GOD MODE LOGIC ---
+    // If not admin, only fetch playlists owned by this specific user
+    if (currentUserRole !== 'admin') {
+      queries.push(Query.equal("owner", currentUser));
+    }
+
+    const response = await databases.listDocuments(DATABASE_ID, PLAYLIST_COLLECTION_ID, queries);
+    
     userPlaylists = response.documents.map(doc => ({
       id: doc.$id,
       name: doc.name,
-      ids: doc.trackIds
+      ids: doc.trackIds,
+      owner: doc.owner || 'unknown' // Capture ownership
     }));
+    
     renderPlaylists();
   } catch (error) {
     console.error("Playlist Fetch Error:", error);
@@ -194,29 +203,50 @@ async function fetchPlaylists() {
 
 async function savePlaylist() {
   const nameInput = document.getElementById('newPlaylistName').value.trim();
-  if (!nameInput) return alert("Designation required.");
-
+  const editIndex = parseInt(document.getElementById('editPlaylistIndex').value);
+  
   const checkboxes = document.querySelectorAll('.playlist-checkbox:checked');
   const selectedIds = Array.from(checkboxes).map(cb => cb.value);
-  const editIndex = parseInt(document.getElementById('editPlaylistIndex').value);
+
+  if (!nameInput) return alert("Collection name is required.");
+  if (selectedIds.length === 0) return alert("Please select at least one signal.");
 
   try {
+    const btn = document.getElementById('modalSaveBtn');
+    btn.disabled = true;
+    btn.innerText = "SAVING...";
+
     if (editIndex > -1) {
+      // --- UPDATE EXISTING PLAYLIST ---
       const playlistId = userPlaylists[editIndex].id;
+      
       await databases.updateDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, playlistId, {
         name: nameInput,
         trackIds: selectedIds
+        // Owner stays the same on update
       });
+      
     } else {
+      // --- CREATE NEW PLAYLIST ---
       await databases.createDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, ID.unique(), {
         name: nameInput,
-        trackIds: selectedIds
+        trackIds: selectedIds,
+        owner: currentUser // Attach the current user as the owner
       });
     }
+
+    // Refresh everything
     closePlaylistModal();
-    fetchPlaylists();
+    await fetchPlaylists(); // Reload the sidebar from Appwrite
+    
+    if (editIndex > -1) loadPlaylist(editIndex);
+    
+    btn.disabled = false;
+    btn.innerText = "Save Playlist";
+
   } catch (error) {
-    alert("Failed to save playlist: " + error.message);
+    alert("Database Error: " + error.message);
+    document.getElementById('modalSaveBtn').disabled = false;
   }
 }
 
@@ -322,10 +352,26 @@ document.getElementById('startUploadBtn').addEventListener('click', async functi
 function renderPlaylists() {
   const container = document.getElementById('playlists');
   container.innerHTML = '';
+  
   userPlaylists.forEach((pl, index) => {
     const div = document.createElement('div');
     div.className = `playlist-item ${currentViewPlaylistIndex === index ? 'active' : ''}`;
-    div.innerHTML = `<i class="fas fa-folder-open"></i> ${pl.name}`;
+    
+    // --- LOCK ICON LOGIC ---
+    const isMine = (pl.owner === currentUser);
+
+    if (isMine) {
+      // Standard view for your own playlists
+      div.innerHTML = `<i class="fas fa-folder-open"></i> ${pl.name}`;
+    } else {
+      // Admin view for OTHER people's private playlists
+      div.innerHTML = `
+        <i class="fas fa-lock" style="color: var(--error); font-size: 0.85rem;"></i> 
+        <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pl.name}</span>
+        <span style="font-size: 0.7rem; color: var(--text-sub); font-weight: bold; text-transform: uppercase;">${pl.owner}</span>
+      `;
+    }
+
     div.onclick = () => loadPlaylist(index);
     container.appendChild(div);
   });
@@ -346,7 +392,14 @@ function loadPlaylist(index) {
   document.getElementById('navAllTracks').classList.remove('active');
   const pl = userPlaylists[index];
   document.getElementById('viewTitle').innerText = pl.name;
-  document.getElementById('editPlaylistBtn').classList.remove('hidden');
+  
+  // Only allow editing if it's YOUR playlist (or you can remove this check if admins can edit everything)
+  if (pl.owner === currentUser) {
+      document.getElementById('editPlaylistBtn').classList.remove('hidden');
+  } else {
+      document.getElementById('editPlaylistBtn').classList.add('hidden');
+  }
+  
   currentPlaylistTracks = allTracks.filter(track => pl.ids.includes(track.id));
   renderPlaylists();
   renderTrackList();
@@ -361,11 +414,14 @@ function openPlaylistModal() {
 }
 
 function openEditModal() {
-  if (currentViewPlaylistIndex === -1) return;
+  if (currentViewPlaylistIndex === -1) return alert("Please select a collection first.");
+
   const pl = userPlaylists[currentViewPlaylistIndex];
-  document.getElementById('modalTitle').innerText = 'EDIT PLAYLIST';
+
+  document.getElementById('modalTitle').innerText = `EDITING: ${pl.name.toUpperCase()}`;
   document.getElementById('newPlaylistName').value = pl.name;
   document.getElementById('editPlaylistIndex').value = currentViewPlaylistIndex;
+  
   buildModalTrackList(pl.ids);
   document.getElementById('playlistModal').classList.remove('hidden');
 }
@@ -650,79 +706,4 @@ function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s < 10 ? '0' : ''}${s}`;
-}
-
-// This function runs when you click your "Add/Edit Songs" button
-function openEditModal() {
-  // 1. Safety check: make sure we are actually looking at a playlist
-  if (currentViewPlaylistIndex === -1) return alert("Please select a collection first.");
-
-  const pl = userPlaylists[currentViewPlaylistIndex];
-
-  // 2. Change the modal title to reflect the current playlist
-  document.getElementById('modalTitle').innerText = `EDITING: ${pl.name.toUpperCase()}`;
-  
-  // 3. Pre-fill the name input with the playlist's current name
-  document.getElementById('newPlaylistName').value = pl.name;
-  
-  // 4. Tell the Save button which playlist we are editing (using the hidden input)
-  document.getElementById('editPlaylistIndex').value = currentViewPlaylistIndex;
-  
-  // 5. Build the list of tracks and check the ones already in the playlist
-  buildModalTrackList(pl.ids);
-  
-  // 6. Show the modal
-  document.getElementById('playlistModal').classList.remove('hidden');
-}
-
-async function savePlaylist() {
-  const nameInput = document.getElementById('newPlaylistName').value.trim();
-  const editIndex = parseInt(document.getElementById('editPlaylistIndex').value);
-  
-  // Get all checked IDs from the modal
-  const checkboxes = document.querySelectorAll('.playlist-checkbox:checked');
-  const selectedIds = Array.from(checkboxes).map(cb => cb.value);
-
-  if (!nameInput) return alert("Collection name is required.");
-  if (selectedIds.length === 0) return alert("Please select at least one signal.");
-
-  try {
-    const btn = document.getElementById('modalSaveBtn');
-    btn.disabled = true;
-    btn.innerText = "SAVING...";
-
-    if (editIndex > -1) {
-      // --- UPDATE EXISTING PLAYLIST ---
-      const playlistId = userPlaylists[editIndex].id;
-      
-      await databases.updateDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, playlistId, {
-        name: nameInput,
-        trackIds: selectedIds
-      });
-      
-      console.log("Collection Updated successfully.");
-    } else {
-      // --- CREATE NEW PLAYLIST ---
-      await databases.createDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, ID.unique(), {
-        name: nameInput,
-        trackIds: selectedIds
-      });
-      
-      console.log("New Collection Created.");
-    }
-
-    // Refresh everything
-    closePlaylistModal();
-    await fetchPlaylists(); // Reload the sidebar from Appwrite
-    
-    // If we were editing, stay on that playlist view to see the changes
-    if (editIndex > -1) loadPlaylist(editIndex);
-    
-    btn.disabled = false;
-    btn.innerText = "Save Playlist";
-
-  } catch (error) {
-    alert("Database Error: " + error.message);
-    document.getElementById('modalSaveBtn').disabled = false;
-  }
 }
