@@ -615,3 +615,89 @@ function formatTime(seconds) {
   const s = Math.floor(seconds % 60);
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
+
+// ==========================================
+// GLOBAL KEYBOARD SHORTCUTS
+// ==========================================
+
+document.addEventListener('keydown', function(event) {
+  // 1. Check if the user is currently typing in an input field
+  const activeTag = document.activeElement.tagName;
+  const isTyping = (activeTag === 'INPUT' || activeTag === 'TEXTAREA');
+
+  // If they are typing, do nothing and let them type
+  if (isTyping) return;
+
+  // 2. Handle the specific key presses
+  switch(event.code) {
+    case 'Space':
+      event.preventDefault(); // Stops the spacebar from scrolling the page down
+      togglePlay();
+      break;
+
+    case 'ArrowRight':
+      event.preventDefault();
+      if (audio.src && audio.duration) {
+         // Skip forward 5 seconds, but don't go past the total duration
+         audio.currentTime = Math.min(audio.currentTime + 5, audio.duration);
+      }
+      break;
+
+    case 'ArrowLeft':
+      event.preventDefault();
+      if (audio.src) {
+         // Skip backward 5 seconds, but don't drop below 0
+         audio.currentTime = Math.max(audio.currentTime - 5, 0);
+      }
+      break;
+  }
+});
+const savedVolume = localStorage.getItem('userVolume');
+if (savedVolume) {
+    audio.volume = savedVolume;
+    volumebar.value = savedVolume * 100;
+}
+// ==========================================
+// INSTANT SEARCH ENGINE
+// ==========================================
+
+const searchInput = document.getElementById('searchInput');
+
+if (searchInput) {
+  searchInput.addEventListener('input', function(e) {
+    // 1. Get the typed text and make it lowercase for easy matching
+    const query = e.target.value.toLowerCase().trim();
+
+    // 2. If the user clears the search box, reset back to normal "All Tracks"
+    if (query === "") {
+        showAllTracks(); // Reuses your existing function!
+        return;
+    }
+
+    // 3. Force the view to global search (ignoring specific playlists)
+    currentViewPlaylistIndex = -1;
+    
+    // Update the UI headers to show we are searching
+    const navAll = document.getElementById('navAllTracks');
+    if (navAll) navAll.classList.add('active');
+    
+    const viewTitle = document.getElementById('viewTitle');
+    if (viewTitle) viewTitle.innerText = `Search Results: "${query}"`;
+    
+    const editBtn = document.getElementById('editPlaylistBtn');
+    if (editBtn) editBtn.classList.add('hidden');
+    
+    // 4. The Magic: Filter the tracks instantly
+    currentPlaylistTracks = allTracks.filter(track => {
+      const matchName = track.name.toLowerCase().includes(query);
+      const matchArtist = track.artist.toLowerCase().includes(query);
+      // You can add matchGenre here too if you want!
+      
+      return matchName || matchArtist;
+    });
+
+    // 5. Re-render the screen with the filtered results
+    renderPlaylists(); // Removes the highlight from any active playlists
+    renderTrackList(); // Draws the matching tracks
+  });
+}
