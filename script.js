@@ -1,6 +1,3 @@
-const USERNAME = 'admin';
-const PASSWORD = 'admin';
-
 const { Client, Databases, Storage, ID, Query } = Appwrite;
 
 const client = new Client();
@@ -37,17 +34,20 @@ const playIcon = document.getElementById('playIcon');
 // AUTHENTICATION
 // ==========================================
 
+// ==========================================
+// AUTHENTICATION
+// ==========================================
+
 function handleKeyPress(e) {
   if (e.key === 'Enter') login();
 }
 
 async function login() {
-  // FIX 1: Removed .toLowerCase() to support adminL, adminB, etc.
-  const u = document.getElementById('username').value.trim();
-  const p = document.getElementById('password').value;
   const btn = document.getElementById('loginBtn');
 
-  if (!u || !p) return;
+  // Check inputs directly from the DOM
+  if (!document.getElementById('username').value.trim() || !document.getElementById('password').value) return;
+  
   btn.style.pointerEvents = 'none';
   btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> AUTHENTICATING...';
 
@@ -57,14 +57,16 @@ async function login() {
       // Session likely already exists, which is fine.
     }
 
+    // Query the database directly using the input value
     const response = await databases.listDocuments(DATABASE_ID, USERS_COLLECTION_ID, [
-      Query.equal("username", u)
+      Query.equal("username", document.getElementById('username').value.trim())
     ]);
 
     if (response.documents.length === 0) throw new Error("User not found");
     const userDoc = response.documents[0];
 
-    if (userDoc.password !== p) throw new Error("Invalid password");
+    // Validate password directly against the input
+    if (userDoc.password !== document.getElementById('password').value) throw new Error("Invalid password");
 
     currentUser = userDoc.username;
     currentUserRole = userDoc.role;
@@ -83,7 +85,7 @@ async function login() {
     }, 800);
 
   } catch (error) {
-    console.error("Login Error:", error); // Added for debugging
+    console.error("Login Error:", error); 
     btn.classList.add('btn-error');
     btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ACCESS DENIED';
     document.querySelector('.login-box').classList.add('shake-error');
@@ -96,7 +98,6 @@ async function login() {
     }, 1500);
   }
 }
-
 function grantAccess() {
   document.getElementById('loginPage').classList.add('animate-out');
   setTimeout(() => {
@@ -116,25 +117,27 @@ function grantAccess() {
 }
 
 async function updatePassword() {
-  const p1 = document.getElementById('newPassword').value;
-  const p2 = document.getElementById('confirmPassword').value;
   const btn = document.querySelector('#changePasswordModal .btn-save');
 
-  if (p1.length < 6) return alert("Password must be at least 6 characters.");
-  if (p1 !== p2) return alert("Passwords do not match.");
+  // Validate directly from the DOM elements
+  if (document.getElementById('newPassword').value.length < 6) {
+      return alert("Password must be at least 6 characters.");
+  }
+  if (document.getElementById('newPassword').value !== document.getElementById('confirmPassword').value) {
+      return alert("Passwords do not match.");
+  }
 
   btn.innerText = "UPDATING...";
   try {
-    // FIX 2: Ensure Appwrite Collection permissions allow "Guests" or "Any" to UPDATE
     await databases.updateDocument(DATABASE_ID, USERS_COLLECTION_ID, currentUserId, {
-      password: p1,
+      password: document.getElementById('newPassword').value,
       forceChange: false
     });
     
     document.getElementById('changePasswordModal').classList.add('hidden');
     grantAccess(); 
   } catch (error) {
-    console.error("Update Document Error:", error); // Check your F12 Console if this fails!
+    console.error("Update Document Error:", error);
     alert("Error updating security: " + error.message);
     btn.innerText = "Update Security";
   }
