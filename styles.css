@@ -959,3 +959,63 @@ html, body {
     padding-left: 4px;
     transition: all 0.2s;
 }
+/* ==========================================
+   MOBILE RESPONSIVENESS (Screens under 768px)
+   ========================================== */
+@media screen and (max-width: 768px) {
+    /* 1. Prevent horizontal scrolling / zooming */
+    body, html {
+        overflow-x: hidden;
+        width: 100%;
+    }
+
+    /* 2. Stack the layout vertically (Assuming a flex container) */
+    #app-container, #mainPage {
+        flex-direction: column !important;
+        display: flex !important;
+        height: auto !important;
+    }
+
+    /* 3. Fix the Sidebar */
+    .sidebar {
+        width: 100% !important;
+        height: auto !important;
+        position: relative !important;
+        min-height: unset !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 15px !important;
+        z-index: 10;
+    }
+
+    /* 4. Fix the Main Tracklist View */
+    .main-view {
+        width: 100% !important;
+        margin-left: 0 !important; /* Removes desktop left-margins */
+        padding: 15px !important;
+        padding-bottom: 140px !important; /* Ensures the bottom player doesn't cover the last song */
+    }
+
+    /* 5. Fix the Bottom Player Bar */
+    /* Adjust this class name to whatever your bottom player uses (e.g., .player, #player-bar) */
+    .player-container, #bottom-player {
+        flex-wrap: wrap !important;
+        height: auto !important;
+        padding: 15px 10px !important;
+        gap: 10px;
+        justify-content: center !important;
+    }
+
+    /* 6. Fix Track Items so text doesn't overflow */
+    .track-item {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 8px;
+        padding: 12px !important;
+    }
+
+    /* 7. Shrink the Toggle Switch text slightly for small screens */
+    .switch-label {
+        font-size: 0.7rem;
+    }
+}
