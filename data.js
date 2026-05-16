@@ -10,32 +10,26 @@
 // APPWRITE — FETCHING
 // ==========================================
 
+
 async function fetchTracks() {
     try {
-        // Try to get JWT but don't crash if it fails
-        let jwtToken = '';
-        try {
-            const jwt = await account.createJWT();
-            jwtToken = jwt.jwt;
-        } catch (jwtError) {
-            console.warn('JWT generation failed, trying without:', jwtError.message);
-        }
-
+        // 1. Fetch metadata directly from Appwrite database table
         const response = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
             Query.orderAsc("$createdAt"),
             Query.limit(500)
         ]);
 
+        // 2. Map the data directly
         allTracks = response.documents.map(doc => ({
             id: doc.$id,
             name: doc.name,
             artist: doc.artist,
             genre: doc.genre,
-            // Only append JWT if we got one
-            file: jwtToken ? `${doc.fileUrl}&jwt=${jwtToken}` : doc.fileUrl,
+            file: doc.fileUrl, // Direct public Cloudflare R2 streaming resource link
             cover: doc.coverUrl || "https://via.placeholder.com/600x600/0f172a/00ffcc?text=NO+COVER"
         }));
 
+        // ---- The rest of the playback UI ----
         if (allTracks.length > 0 && !audio.src) {
             if (typeof loadTrack === 'function') loadTrack(0, false);
         }
@@ -51,6 +45,9 @@ async function fetchTracks() {
         console.error("Appwrite Fetch Error:", error);
     }
 }
+
+
+
 
 async function fetchPlaylists() {
     try {
@@ -224,6 +221,10 @@ function handleFileSelection() {
 // ==========================================
 // BULLETPROOF UPLOAD FUNCTION (NO TIMERS)
 // ==========================================
+
+// ==========================================
+// SWAPPED CLOUDFLARE R2 UPLOAD ENGINE
+// ==========================================
 async function triggerUpload() {
     const btn = document.getElementById('startUploadBtn');
     if (btn) btn.disabled = true;
@@ -262,12 +263,30 @@ async function triggerUpload() {
             }
 
             if(status) {
-                status.innerText = `UPLOADING [${i + 1}/${files.length}]: ${trackName}...`;
+                status.innerText = `REQUESTING R2 CLEARANCE [${i + 1}/${files.length}]...`;
                 status.style.color = "var(--accent)";
             }
 
-            const uploadedFile = await storage.createFile(BUCKET_ID, ID.unique(), file);
-            const fileResult = storage.getFileView(BUCKET_ID, uploadedFile.$id);
+            // 1. Get a secure, temporary pre-signed PUT token from your Worker
+            const workerUrl = 'https://main.meochon341.workers.dev/'; 
+            
+            const clearanceResponse = await fetch(workerUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileName: file.name, contentType: file.type })
+            });
+            
+            if (!clearanceResponse.ok) throw new Error("Worker rejected request");
+            const { uploadUrl, publicFileUrl } = await clearanceResponse.json();
+
+            if(status) status.innerText = `BEAMING BINARY DATA TO CLOUDFLARE R2...`;
+
+            // 2. Upload the raw binary stream directly to R2 using the signed path
+            await fetch(uploadUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': file.type },
+                body: file 
+            });
 
             if(status) status.innerText = `MATCHING ARTWORK [${i + 1}/${files.length}]: ${trackName}...`;
             let fetchedCover = await fetchCoverArt(trackName, artistName);
@@ -276,14 +295,14 @@ async function triggerUpload() {
                 fetchedCover = "https://via.placeholder.com/600x600/0f172a/00ffcc?text=NO+COVER+DETECTED";
             }
 
-            if(status) status.innerText = `SYNCING [${i + 1}/${files.length}]: ${trackName}...`;
+            if(status) status.innerText = `SYNCING WITH APPWRITE METADATA...`;
             
-            // Send the data to Appwrite without any expiration time
-            await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
+            // 3. Save metadata entries into Appwrite using your persistent Cloudflare R2 address link!
+            await databases.createDocument(DATABASE_ID, COLLECTION_ID, Appwrite.ID.unique(), {
                 name: trackName,
                 artist: artistName,
                 genre: genre,
-                fileUrl: fileResult.href,
+                fileUrl: publicFileUrl, // Stores the R2 public link inside Appwrite
                 coverUrl: fetchedCover
             });
 
@@ -298,9 +317,7 @@ async function triggerUpload() {
         setTimeout(() => {
             closeUploadModal();
             fetchTracks(); 
-            
             if (btn) btn.disabled = false;
-            
             if (fileInput) fileInput.value = "";
             if (trackInput) trackInput.value = ""; 
         }, 2000);
@@ -314,6 +331,8 @@ async function triggerUpload() {
         if (btn) btn.disabled = false;
     }
 }
+
+
 
 // ==========================================
 // iTUNES API ARTWORK MATCHER
@@ -387,7 +406,4 @@ async function deleteTrack(trackId, trackName) {
         alert("Failed to delete signal. Check console.");
     }
 }
-async function getFileUrl(fileId) {
-    const jwt = await account.createJWT();
-    return `https://sgp.cloud.appwrite.io/v1/storage/buckets/6a088144001cc411fc81/files/${fileId}/view?project=6a0878e40013d0103042&jwt=${jwt.jwt}`;
-}
+
