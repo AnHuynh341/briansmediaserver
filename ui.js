@@ -85,17 +85,16 @@ function renderTrackList() {
                </button>`
             : '';
 
-        div.innerHTML = `
-            <div class="track-num">${isPlaying ? '<i class="fas fa-volume-up"></i>' : index + 1}</div>
-            <div class="track-info">
-                <span class="track-title">${track.name}</span>
-                <span class="track-meta">${track.artist} <span class="track-genre">${track.genre}</span></span>
-            </div>
-            <div style="display:flex; align-items:center; justify-content:flex-end;">
-                <span class="track-duration">--:--</span>
-                ${adminDeleteBtn}
-            </div>
-        `;
+div.innerHTML = `
+    <div class="track-num">${isPlaying ? '<i class="fas fa-volume-up"></i>' : index + 1}</div>
+    <div class="track-info">
+        <span class="track-title">${track.name}</span>
+        <span class="track-meta">${track.artist}</span>
+    </div>
+    <div class="track-action">
+        ${adminDeleteBtn}
+    </div>
+`;
 
         const originalIndex = allTracks.findIndex(t => t.id === track.id);
         div.onclick = () => loadTrack(originalIndex, true);

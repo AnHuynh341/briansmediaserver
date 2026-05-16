@@ -33,8 +33,13 @@ async function loadTrack(i, autoplay = false) {
         document.getElementById('npTitle').innerText = track.name;
         document.getElementById('npArtist').innerText = track.artist;
 
-        const coverArtEl = document.getElementById('npCover');
-        if (coverArtEl) coverArtEl.src = track.cover;
+const coverArtEl = document.getElementById('npCover');
+if (coverArtEl) {
+    coverArtEl.src = track.cover;
+    coverArtEl.onerror = () => {
+        coverArtEl.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Crect width='56' height='56' fill='%231a1a36'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='24' fill='%2300E5FF'%3E♪%3C/text%3E%3C/svg%3E`;
+    };
+}
 
         renderTrackList();
 
