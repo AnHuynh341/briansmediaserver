@@ -6,26 +6,34 @@
 // 1. CORE METADATA FETCH ENGINES
 // =========================================================================
 
+// =========================================================================
+// 1. CORE METADATA FETCH ENGINES
+// =========================================================================
+
 async function fetchTracks() {
     try {
+        // Fetch metadata directly from Appwrite database table
         const response = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
             Query.orderAsc("$createdAt"),
             Query.limit(500)
         ]);
 
+        // Map the database documents to our playback array structure
         allTracks = response.documents.map(doc => ({
             id: doc.$id,
             name: doc.name,
             artist: doc.artist,
             genre: doc.genre,
-            file: doc.fileUrl, 
+            file: doc.fileUrl, // Direct public Cloudflare R2 streaming resource link
             cover: doc.coverUrl || "https://via.placeholder.com/600x600/0f172a/00ffcc?text=NO+COVER"
         }));
 
+        // Failsafe: Load the first track into the audio player if nothing is playing yet
         if (allTracks.length > 0 && !audio.src) {
             if (typeof loadTrack === 'function') loadTrack(0, false);
         }
 
+        // Maintain the active track view depending on whether we are viewing a playlist or the core database
         if (currentViewPlaylistIndex === -1) {
             currentPlaylistTracks = [...allTracks];
         } else {
@@ -41,6 +49,7 @@ async function fetchTracks() {
 async function fetchPlaylists() {
     try {
         let queries = [];
+        // Standard users can only view collections they created
         if (currentUserRole !== 'admin') {
             queries.push(Query.equal("owner", currentUser));
         }
@@ -185,11 +194,15 @@ async function triggerUpload() {
             const workerUrl = 'https://main.meochon341.workers.dev'; 
             const cleanMimeType = file.type || "audio/mpeg";
 
-            // Step 1: Handshake with Worker
+            // 🛡️ Safe Alphanumeric Key Transformation to prevent 403 cryptographic calculation mismatches
+            const fileExtension = file.name.split('.').pop();
+            const safeStorageName = `track-${Date.now()}-${i}.${fileExtension}`;
+
+            // Step 1: Handshake with Worker using the safe alphanumeric string layout
             const clearanceResponse = await fetch(workerUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: file.name, contentType: cleanMimeType })
+                body: JSON.stringify({ fileName: safeStorageName, contentType: cleanMimeType })
             });
 
             if (!clearanceResponse.ok) throw new Error("Worker rejected request");
@@ -197,7 +210,7 @@ async function triggerUpload() {
 
             if(status) status.innerText = `BEAMING BINARY DATA TO CLOUDFLARE R2...`;
 
-            // Step 2: Binary Push Directly to R2
+            // Step 2: Binary Push Directly to R2 matching content-type headers exactly
             await fetch(uploadUrl, {
                 method: 'PUT',
                 headers: { 'Content-Type': cleanMimeType }, 
@@ -213,7 +226,7 @@ async function triggerUpload() {
 
             if(status) status.innerText = `SYNCING WITH APPWRITE METADATA...`;
             
-            // Step 3: Register Metadata inside Appwrite Database
+            // Step 3: Register Metadata inside Appwrite Database using original presentation name strings
             await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
                 name: trackName,
                 artist: artistName,
