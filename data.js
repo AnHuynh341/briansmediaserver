@@ -273,8 +273,32 @@ async function triggerUpload() {
             const clearanceResponse = await fetch(workerUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: file.name, contentType: file.type })
-            });
+               // body: JSON.stringify({ fileName: file.name, contentType: file.type })
+
+		// Force standard audio MIME type format mapping if the browser passes an empty string
+		const cleanMimeType = file.type || "audio/mpeg";
+
+		const clearanceResponse = await fetch(workerUrl, {
+ 		   method: 'POST',
+ 		   headers: { 'Content-Type': 'application/json' },
+  		  body: JSON.stringify({ fileName: file.name, contentType: cleanMimeType })
+		});
+
+		if (!clearanceResponse.ok) throw new Error("Worker rejected request");
+		const { uploadUrl, publicFileUrl } = await clearanceResponse.json();
+
+		if(status) status.innerText = `BEAMING BINARY DATA TO CLOUDFLARE R2...`;
+
+		// 2. Upload the raw binary stream directly to R2 using the exact same content-type!
+		await fetch(uploadUrl, {
+		    method: 'PUT',
+		   headers: { 'Content-Type': cleanMimeType }, // Must match the value signed by the worker!
+		    body: file 
+		});
+
+
+
+	    });
             
             if (!clearanceResponse.ok) throw new Error("Worker rejected request");
             const { uploadUrl, publicFileUrl } = await clearanceResponse.json();
