@@ -1,16 +1,28 @@
 // ==========================================
-// PLAYER.JS — Audio Engine & Playback Controls
-// ==========================================
-// Depends on: config.js, ui.js (renderTrackList)
-
-// ==========================================
-// PLAYER ENGINE
+// PLAYER.JS — The Ultimate Audio Engine
 // ==========================================
 
-// Remembers if the user wants the visualizer running (Defaults to ON)
+// ==========================================
+// 1. GLOBAL VARIABLES & MEMORY
+// ==========================================
 const savedState = localStorage.getItem('visualizerState');
-let userWantsVisualizer = savedState === null ? false : (savedState === 'true');
+let userWantsVisualizer = localStorage.getItem('visState') === null ? true : (localStorage.getItem('visState') === 'true');
+let userWantsUIGlow = localStorage.getItem('glowState') === null ? true : (localStorage.getItem('glowState') === 'true');
+let userWantsLaunchpad = localStorage.getItem('padState') === null ? true : (localStorage.getItem('padState') === 'true');
 
+let audioCtx, analyser, dataArray;
+let isVisualizerRunning = false;
+let colorHue = 0; 
+let lastBeatTime=0; // Launchpad debouncer
+let currentPadIndex = 0; // Remembers the Waterfall position
+
+let snowCtx, canvasW, canvasH;
+let particles = [];
+const MAX_PARTICLES = 200; 
+
+// ==========================================
+// 2. TRACK LOADING & PLAYBACK CONTROLS
+// ==========================================
 async function loadTrack(i, autoplay = false) {
     if (i < 0 || i >= allTracks.length) return;
     currentTrackIndex = i;
@@ -29,17 +41,16 @@ async function loadTrack(i, autoplay = false) {
         }
 
         audio.src = blobUrl;
-
         document.getElementById('npTitle').innerText = track.name;
         document.getElementById('npArtist').innerText = track.artist;
 
-const coverArtEl = document.getElementById('npCover');
-if (coverArtEl) {
-    coverArtEl.src = track.cover;
-    coverArtEl.onerror = () => {
-        coverArtEl.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Crect width='56' height='56' fill='%231a1a36'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='24' fill='%2300E5FF'%3E♪%3C/text%3E%3C/svg%3E`;
-    };
-}
+        const coverArtEl = document.getElementById('npCover');
+        if (coverArtEl) {
+            coverArtEl.src = track.cover;
+            coverArtEl.onerror = () => {
+                coverArtEl.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Crect width='56' height='56' fill='%231a1a36'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='24' fill='%2300E5FF'%3E♪%3C/text%3E%3C/svg%3E`;
+            };
+        }
 
         renderTrackList();
 
@@ -65,7 +76,6 @@ if (coverArtEl) {
         navigator.mediaSession.metadata = new MediaMetadata({
             title: track.name,
             artist: track.artist,
-            album: track.genre,
             artwork: [{ src: track.cover, sizes: '600x600', type: 'image/jpeg' }]
         });
         navigator.mediaSession.setActionHandler('play', togglePlay);
@@ -79,24 +89,18 @@ function togglePlay() {
     if (!audio.src) return;
 
     setupVisualizer();
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
     if (audio.paused) {
         audio.play();
         document.getElementById('playIcon').classList.replace('fa-play', 'fa-pause');
-        
-        // ONLY turn on the glow if the user actually wants it!
-        if (userWantsVisualizer) {
-            startVisualizer(); 
-        }
+        if (userWantsVisualizer) startVisualizer(); 
     } else {
         audio.pause();
         document.getElementById('playIcon').classList.replace('fa-pause', 'fa-play');
-        // The renderFrame loop will automatically detect the pause and turn off the lights
     }
 }
+
 function toggleShuffle() {
     isShuffle = !isShuffle;
     const btn = document.getElementById('shuffleBtn');
@@ -138,87 +142,49 @@ function toggleRepeat() {
 
 function nextTrack(isAutoAdvance = false) {
     if (repeatMode === 2 && isAutoAdvance) {
-        audio.currentTime = 0;
-        audio.play();
-        return;
+        audio.currentTime = 0; audio.play(); return;
     }
-
-    const currentIndexInPlaylist = currentPlaylistTracks.findIndex(
-        t => t.id === allTracks[currentTrackIndex]?.id
-    );
-
+    const currentIndexInPlaylist = currentPlaylistTracks.findIndex(t => t.id === allTracks[currentTrackIndex]?.id);
     let nextIndexInPlaylist;
 
     if (isShuffle && currentPlaylistTracks.length > 1) {
-        do {
-            nextIndexInPlaylist = Math.floor(Math.random() * currentPlaylistTracks.length);
-        } while (nextIndexInPlaylist === currentIndexInPlaylist);
+        do { nextIndexInPlaylist = Math.floor(Math.random() * currentPlaylistTracks.length); } 
+        while (nextIndexInPlaylist === currentIndexInPlaylist);
     } else {
         nextIndexInPlaylist = currentIndexInPlaylist + 1;
-
         if (nextIndexInPlaylist >= currentPlaylistTracks.length) {
-            if (repeatMode === 1) {
-                nextIndexInPlaylist = 0;
-            } else {
-                audio.pause();
-                playIcon.className = 'fas fa-play';
-                return;
-            }
+            if (repeatMode === 1) nextIndexInPlaylist = 0;
+            else { audio.pause(); playIcon.className = 'fas fa-play'; return; }
         }
     }
-
-    const originalIndex = allTracks.findIndex(
-        t => t.id === currentPlaylistTracks[nextIndexInPlaylist].id
-    );
+    const originalIndex = allTracks.findIndex(t => t.id === currentPlaylistTracks[nextIndexInPlaylist].id);
     loadTrack(originalIndex, true);
 }
 
 function prevTrack() {
-    if (audio.currentTime > 3) {
-        audio.currentTime = 0;
-        return;
-    }
-
-    const currentIndexInPlaylist = currentPlaylistTracks.findIndex(
-        t => t.id === allTracks[currentTrackIndex]?.id
-    );
-    const prevIndexInPlaylist =
-        (currentIndexInPlaylist - 1 + currentPlaylistTracks.length) % currentPlaylistTracks.length;
-
-    const originalIndex = allTracks.findIndex(
-        t => t.id === currentPlaylistTracks[prevIndexInPlaylist].id
-    );
+    if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+    const currentIndexInPlaylist = currentPlaylistTracks.findIndex(t => t.id === allTracks[currentTrackIndex]?.id);
+    const prevIndexInPlaylist = (currentIndexInPlaylist - 1 + currentPlaylistTracks.length) % currentPlaylistTracks.length;
+    const originalIndex = allTracks.findIndex(t => t.id === currentPlaylistTracks[prevIndexInPlaylist].id);
     loadTrack(originalIndex, true);
 }
 
 // ==========================================
-// AUDIO EVENT LISTENERS & TIMELINE
+// 3. TIMELINE & EVENT LISTENERS
 // ==========================================
-
 audio.addEventListener('ended', () => nextTrack(true));
+audio.addEventListener('loadedmetadata', () => { document.getElementById('totalTime').innerText = formatTime(audio.duration); });
 
-audio.addEventListener('loadedmetadata', () => {
-    document.getElementById('totalTime').innerText = formatTime(audio.duration);
-});
-
-// INPUT: fires continuously while dragging — preview time only, do NOT seek yet
 seekbar.addEventListener('input', () => {
-    isSeeking = true; // Tell the audio player to stop fighting us
-    if (audio.duration) {
-        const seekTime = (seekbar.value / 100) * audio.duration;
-        document.getElementById('currentTime').innerText = formatTime(seekTime);
-    }
+    isSeeking = true;
+    if (audio.duration) document.getElementById('currentTime').innerText = formatTime((seekbar.value / 100) * audio.duration);
 });
 
-// CHANGE: fires exactly once when you release the slider — now perform the actual seek
 seekbar.addEventListener('change', () => {
-    if (audio.duration) {
-        audio.currentTime = (seekbar.value / 100) * audio.duration;
-    }
-    isSeeking = false; // Give control back to the audio player
+    if (audio.duration) audio.currentTime = (seekbar.value / 100) * audio.duration;
+    isSeeking = false;
 });
 
-// TIMEUPDATE: moves the bar naturally while playing, but not while user is dragging
 audio.addEventListener('timeupdate', () => {
     if (audio.duration && !isSeeking) {
         seekbar.value = (audio.currentTime / audio.duration) * 100;
@@ -238,75 +204,42 @@ function formatTime(seconds) {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
-// ==========================================
-// GLOBAL KEYBOARD SHORTCUTS
-// ==========================================
-
 document.addEventListener('keydown', function (event) {
     const activeTag = document.activeElement.tagName;
-    const isTyping = (activeTag === 'INPUT' || activeTag === 'TEXTAREA');
-
-    if (isTyping) return;
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
 
     switch (event.code) {
-        case 'Space':
-            event.preventDefault();
-            togglePlay();
-            break;
-
-        case 'ArrowRight':
-            event.preventDefault();
-            if (audio.src && audio.duration) {
-                audio.currentTime = Math.min(audio.currentTime + 5, audio.duration);
-            }
-            break;
-
-        case 'ArrowLeft':
-            event.preventDefault();
-            if (audio.src) {
-                audio.currentTime = Math.max(audio.currentTime - 5, 0);
-            }
-            break;
+        case 'Space': event.preventDefault(); togglePlay(); break;
+        case 'ArrowRight': event.preventDefault(); if (audio.duration) audio.currentTime = Math.min(audio.currentTime + 5, audio.duration); break;
+        case 'ArrowLeft': event.preventDefault(); if (audio.src) audio.currentTime = Math.max(audio.currentTime - 5, 0); break;
     }
 });
-// ==========================================
-// REAL-TIME AUDIO VISUALIZER (BASS GLOW & SLOW PULSING STARFIELD)
-// ==========================================
-let audioCtx, analyser, dataArray;
-let isVisualizerRunning = false;
-let colorHue = 0; 
 
-let snowCtx, canvasW, canvasH;
-let particles = [];
-const MAX_PARTICLES = 200; // Vastly increased for a dense, tiny starfield effect
-
+// ==========================================
+// 4. REAL-TIME AUDIO VISUALIZER (STARFIELD + MATH)
+// ==========================================
 function setupVisualizer() {
     if (audioCtx) return;
-
-    // 1. Setup Audio Engine
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 512; // High resolution for bass detection
+    analyser.fftSize = 512; 
     
     const source = audioCtx.createMediaElementSource(audio);
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
     dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-    // 2. Setup Canvas
     const canvas = document.getElementById('snow-canvas');
     if (canvas) {
         snowCtx = canvas.getContext('2d');
         resizeCanvas(canvas);
         window.addEventListener('resize', () => resizeCanvas(canvas));
-        
-        // Build the massive particle pool
         for(let i = 0; i < MAX_PARTICLES; i++) {
             particles.push({
                 x: Math.random() * canvasW,
                 y: Math.random() * canvasH,
-                size: Math.random() * 1.5 + 0.5, // Extremely small base size
+                size: Math.random() * 1.5 + 0.5, 
                 sway: Math.random() * Math.PI * 2,
                 life: Math.random() 
             });
@@ -330,124 +263,216 @@ function startVisualizer() {
 }
 
 function renderFrame() {
+    const root = document.documentElement; 
+
     if (!isVisualizerRunning || audio.paused) {
         isVisualizerRunning = false;
         document.getElementById('reactive-bg').style.boxShadow = 'none';
         document.getElementById('snow-canvas').style.opacity = '0';
+        
+        // Failsafe: Turn everything off when paused
+        root.style.setProperty('--beat-glow-alpha', '0');
+        root.style.setProperty('--cover-scale', '1');
         return;
     }
 
     requestAnimationFrame(renderFrame);
     analyser.getByteFrequencyData(dataArray);
 
-    // BASS DETECTION
     let bassSum = 0;
     for (let i = 0; i < 12; i++) bassSum += dataArray[i];
     const bassAverage = bassSum / 12;
 
-    // OVERALL VOLUME
     let totalSum = 0;
     for (let i = 0; i < dataArray.length; i++) totalSum += dataArray[i];
     const overallAverage = totalSum / dataArray.length;
 
-    // Spinning color wheel
+    // Keeps calculating the color even if effects are turned off
     colorHue += 0.2 + (overallAverage / 40);
     if (colorHue > 360) colorHue -= 360;
 
     const bg = document.getElementById('reactive-bg');
+    const now = Date.now();
 
     // ==========================================
-    // SOFTER, FADED GLOW LOGIC
+    // 1. UI GLOW LOGIC (Breathing vs Flashing)
     // ==========================================
     if (bassAverage > 180) {
-        // INTENSE BASS (Now much smoother and softer)
+        // 🔥 INTENSE BASS DROP
         const intensity = (bassAverage - 180) / 75;
-        const blurSize = 150 + (intensity * 150); // Wider blur
-        const spreadSize = 20 + (intensity * 40); // Tighter spread so it doesn't wash out the center
-        const alpha = 0.15 + (intensity * 0.2); // Faded opacity (Max 0.35 instead of 0.7)
+        const blurSize = 150 + (intensity * 150); 
+        const spreadSize = 20 + (intensity * 40); 
         
-        // Removed the double-shadow to eliminate harsh edges
-        bg.style.boxShadow = `inset 0 0 ${blurSize}px ${spreadSize}px hsla(${colorHue}, 100%, 55%, ${alpha})`;
+        // Background always runs if visualizer is on
+        bg.style.boxShadow = `inset 0 0 ${blurSize}px ${spreadSize}px hsla(${colorHue}, 100%, 55%, ${0.15 + (intensity * 0.2)})`;
+        root.style.setProperty('--track-beat-alpha', 0.2 + (intensity * 0.6));
         
+        // 🎚️ THE TOGGLE CHECK
+        if (userWantsUIGlow) {
+            root.style.setProperty('--beat-glow-spread', `${12 + (intensity * 20)}px`);
+            root.style.setProperty('--beat-glow-alpha', 0.6 + (intensity * 0.4));
+            root.style.setProperty('--beat-hue', colorHue);
+            root.style.setProperty('--cover-scale', 1.08 + (intensity * 0.1)); 
+        } else {
+            // Disappear instantly when tag is unchecked!
+            root.style.setProperty('--beat-glow-alpha', '0');
+            root.style.setProperty('--cover-scale', '1');
+        }
+
     } else {
-        // CHILL BEAT (Barely-there ambient fade)
+        // ❄️ CHILL BEAT
         const chillLevel = Math.max(overallAverage, 1) / 120;
         const blurSize = 100 + (chillLevel * 100);
         const spreadSize = 10 + (chillLevel * 20);
-        const alpha = 0.05 + (chillLevel * 0.1); // Extremely subtle, max 0.15
         
-        bg.style.boxShadow = `inset 0 0 ${blurSize}px ${spreadSize}px hsla(${colorHue}, 100%, 50%, ${alpha})`;
+        // Background always runs if visualizer is on
+        bg.style.boxShadow = `inset 0 0 ${blurSize}px ${spreadSize}px hsla(${colorHue}, 100%, 50%, ${0.05 + (chillLevel * 0.1)})`;
+        root.style.setProperty('--track-beat-alpha', 0.05 + (chillLevel * 0.15));
+        
+        // 🎚️ THE TOGGLE CHECK
+        if (userWantsUIGlow) {
+            root.style.setProperty('--beat-glow-spread', `${2 + (chillLevel * 6)}px`);
+            root.style.setProperty('--beat-glow-alpha', 0.1 + (chillLevel * 0.3));
+            root.style.setProperty('--beat-hue', colorHue);
+            root.style.setProperty('--cover-scale', 1 + (chillLevel * 0.02)); 
+        } else {
+            // Disappear instantly when tag is unchecked!
+            root.style.setProperty('--beat-glow-alpha', '0');
+            root.style.setProperty('--cover-scale', '1');
+        }
+    }
+
+    // ==========================================
+    // 2. THE DYNAMIC LAUNCHPAD TRIGGER
+    // ==========================================
+    if (bassAverage > 140 && (now - lastBeatTime > 90)) {
+        lastBeatTime = now;
+        
+        // 🎚️ ONLY fire if the Launchpad switch is checked
+        if (typeof userWantsLaunchpad !== 'undefined' && userWantsLaunchpad) {
+            triggerDynamicLaunchpad(bassAverage); 
+        }
     }
 
     drawParticles(colorHue, overallAverage);
 }
-// ==========================================
-// UNIFIED STARFIELD ENGINE (Slow, Tiny, Pulsing, RGB)
-// ==========================================
 function drawParticles(currentHue, overallAverage) {
     if (!snowCtx) return;
     snowCtx.clearRect(0, 0, canvasW, canvasH);
-    
-    // We use the overall volume for the pulse so it breathes smoothly
     const pulse = overallAverage / 255; 
 
     for(let i = 0; i < MAX_PARTICLES; i++) {
         let p = particles[i];
         snowCtx.beginPath();
-        
-        // Size pulses slightly with the music, but stays very small
         const responsiveSize = p.size + (pulse * 2.5); 
-        
-        // Movement stays incredibly slow and peaceful
         const speed = 0.3 + (pulse * 0.8); 
-        
-        // Alpha (transparency) fades in and out with the volume
         const alpha = 0.15 + (pulse * 0.3); 
         
-        // THE FIX: Particles now perfectly match the shifting rainbow edge glow!
         snowCtx.fillStyle = `hsla(${currentHue}, 80%, 75%, ${alpha})`;
         snowCtx.arc(p.x, p.y, responsiveSize, 0, Math.PI * 2);
         
-        // Slow upward drift + gentle side sway
         p.y -= speed; 
         p.x += Math.sin(p.sway) * 0.3; 
         p.sway += 0.015;
         
-        // Seamlessly wrap particles back to the bottom
         if (p.y < -10) {
             p.y = canvasH + 10;
             p.x = Math.random() * canvasW;
         }
-        
         snowCtx.fill();
     }
 }
+
+// Add this right above the function to act as a metronome switch
+let isEvenBeat = true;
+
 // ==========================================
-// VISUALIZER KILL SWITCH
+// 5. DYNAMIC SMART LAUNCHPAD
+// ==========================================
+function triggerDynamicLaunchpad(bassStrength) {
+    const allInactiveTracks = document.querySelectorAll('.track:not(.active)');
+    const visibleTracks = Array.from(allInactiveTracks).filter(track => {
+        const rect = track.getBoundingClientRect();
+        return (rect.top >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight));
+    });
+
+    if (visibleTracks.length === 0) return;
+
+    // STATE 1: THE BUILDUP (Bass 150 to 175) -> Waterfall Effect
+    if (bassStrength < 175) {
+        if (currentPadIndex >= visibleTracks.length) currentPadIndex = 0;
+        
+        const targetTrack = visibleTracks[currentPadIndex];
+        targetTrack.classList.add('launchpad-flash');
+        setTimeout(() => targetTrack.classList.remove('launchpad-flash'), 60);
+        
+        currentPadIndex++;
+        return; // Stop here, don't do random flashes
+    }
+
+    // STATE 2: NORMAL TO HEAVY DROP (Bass 175+) -> Random Flashes
+    let numFlashes = 1; // Default for a normal beat
+
+    if (bassStrength >= 195 && bassStrength < 210) {
+        numFlashes = 2; // Heavy beat
+    } else if (bassStrength >= 210) {
+        // Insane Drop: The louder it is, the more it flashes (Max 5)
+        numFlashes = Math.floor((bassStrength - 200) / 10) + 2; 
+        numFlashes = Math.min(numFlashes, 5, visibleTracks.length); 
+    }
+
+    // Execute the random drum pads based on the math above
+    for (let i = 0; i < numFlashes; i++) {
+        const randomTrack = visibleTracks[Math.floor(Math.random() * visibleTracks.length)];
+        
+        randomTrack.classList.add('launchpad-flash');
+        setTimeout(() => {
+            randomTrack.classList.remove('launchpad-flash');
+        }, 70);
+    }
+}
+// ==========================================
+// 6. TOGGLES & INITIALIZATION
 // ==========================================
 function toggleVisualizerMode() {
-    const toggleInput = document.getElementById('visualizerToggleInput');
-    userWantsVisualizer = toggleInput.checked;
-    localStorage.setItem('visualizerState', userWantsVisualizer);
+    userWantsVisualizer = document.getElementById('visualizerToggleInput').checked;
+    localStorage.setItem('visState', userWantsVisualizer);
 
     if (userWantsVisualizer) {
         if (!audio.paused && audio.src) {
-            isVisualizerRunning = false; // force clean restart
+            isVisualizerRunning = false;
             startVisualizer();
         }
     } else {
         isVisualizerRunning = false;
-        document.getElementById('reactive-bg').style.boxShadow = 'none'; // ✅ fixed
+        document.getElementById('reactive-bg').style.boxShadow = 'none';
         document.getElementById('snow-canvas').style.opacity = '0';
+        document.documentElement.style.setProperty('--beat-glow-alpha', '0');
+        document.documentElement.style.setProperty('--cover-scale', '1');
     }
 }
-// ==========================================
-// INITIALIZE UI ON LOAD
-// ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-    // Make sure the physical iOS switch matches the saved memory!
-    const toggleInput = document.getElementById('visualizerToggleInput');
-    if (toggleInput) {
-        toggleInput.checked = userWantsVisualizer;
+
+function toggleUIGlowMode() {
+    userWantsUIGlow = document.getElementById('uiGlowToggleInput').checked;
+    localStorage.setItem('glowState', userWantsUIGlow);
+    if (!userWantsUIGlow) {
+        document.documentElement.style.setProperty('--beat-glow-alpha', '0');
+        document.documentElement.style.setProperty('--cover-scale', '1');
     }
+}
+
+function toggleLaunchpadMode() {
+    userWantsLaunchpad = document.getElementById('launchpadToggleInput').checked;
+    localStorage.setItem('padState', userWantsLaunchpad);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Set the physical switches to match the saved memory when the page loads
+    const visInput = document.getElementById('visualizerToggleInput');
+    const glowInput = document.getElementById('uiGlowToggleInput');
+    const padInput = document.getElementById('launchpadToggleInput');
+    
+    if (visInput) visInput.checked = userWantsVisualizer;
+    if (glowInput) glowInput.checked = userWantsUIGlow;
+    if (padInput) padInput.checked = userWantsLaunchpad;
 });

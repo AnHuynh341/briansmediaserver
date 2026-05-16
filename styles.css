@@ -1086,3 +1086,34 @@ html, body {
 }
 
 }
+/* ==========================================
+   TARGETED VIBE & LAUNCHPAD UI
+   ========================================== */
+
+/* 1. ONLY the Play/Pause Icon Glows (No more square boxes!) */
+/* Using drop-shadow perfectly hugs the shape of the font-awesome icon */
+#playIcon {
+    filter: drop-shadow(0 0 var(--beat-glow-spread, 0px) hsla(var(--beat-hue, 180), 100%, 60%, var(--beat-glow-alpha, 0)));
+    transition: filter 0.05s linear;
+}
+
+/* 2. Subwoofer Album Art Pulse (Kept from last time) */
+.album-art {
+    transform: scale(var(--cover-scale, 1));
+    transition: transform 0.05s linear;
+}
+
+/* 3. Launchpad Track Effects (Kept from last time) */
+.track.active { 
+    background-color: rgba(0, 255, 204, 0.2) !important;
+    border-left: 4px solid var(--accent) !important; 
+}
+.track {
+    transition: background-color 0.3s ease, box-shadow 0.3s ease; 
+}
+.launchpad-flash {
+    background-color: hsla(var(--beat-hue, 180), 100%, 60%, 0.4) !important;
+    box-shadow: inset 0 0 20px hsla(var(--beat-hue, 180), 100%, 60%, 0.6);
+    border-radius: 4px;
+    transition: background-color 0s, box-shadow 0s; /* Instant ON */
+}

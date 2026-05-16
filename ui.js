@@ -13,6 +13,7 @@ function renderPlaylists() {
 
     userPlaylists.forEach((pl, index) => {
         const div = document.createElement('div');
+        div.className = 'track';
         div.className = `playlist-item ${currentViewPlaylistIndex === index ? 'active' : ''}`;
 
         const isMine = (pl.owner === currentUser);

@@ -20,12 +20,32 @@
 </div>
 
 <div id="mainPage" class="hidden">
-<div class="visualizer-toggle-container">
-    <span class="switch-label">PARTICLE & REAL-TIME COLOR VISUALIZER</span>
-    <label class="ios-switch">
-        <input type="checkbox" id="visualizerToggleInput" onchange="toggleVisualizerMode()">
-        <span class="ios-slider"></span>
-    </label>
+<div style="display: flex; flex-direction: row; justify-content: center; align-items: center; flex-wrap: wrap; gap: 25px; padding: 8px 15px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.75rem;">
+    
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="color: var(--text-sub); font-weight: 600; letter-spacing: 0.5px;">BACKGROUND</span>
+        <label class="ios-switch" style="transform: scale(0.8); margin: 0; transform-origin: center;">
+            <input type="checkbox" id="visualizerToggleInput" onchange="toggleVisualizerMode()">
+            <span class="ios-slider"></span>
+        </label>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="color: var(--text-sub); font-weight: 600; letter-spacing: 0.5px;">Color Launchpad</span>
+        <label class="ios-switch" style="transform: scale(0.8); margin: 0; transform-origin: center;">
+            <input type="checkbox" id="uiGlowToggleInput" onchange="toggleUIGlowMode()">
+            <span class="ios-slider"></span>
+        </label>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="color: var(--text-sub); font-weight: 600; letter-spacing: 0.5px;">LAUNCHPAD</span>
+        <label class="ios-switch" style="transform: scale(0.8); margin: 0; transform-origin: center;">
+            <input type="checkbox" id="launchpadToggleInput" onchange="toggleLaunchpadMode()">
+            <span class="ios-slider"></span>
+        </label>
+    </div>
+
 </div>
 
   <div id="sidebarOverlay" onclick="closeSidebar()"></div>
