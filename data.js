@@ -268,7 +268,7 @@ async function triggerUpload() {
             }
 
             // 1. Get a secure, temporary pre-signed PUT token from your Worker
-            const workerUrl = 'https://main.meochon341.workers.dev/'; 
+            const workerUrl = 'https://main.meochon341.workers.dev'; 
             
             const clearanceResponse = await fetch(workerUrl, {
                 method: 'POST',
