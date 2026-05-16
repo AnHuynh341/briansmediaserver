@@ -351,25 +351,27 @@ function renderFrame() {
 
     const bg = document.getElementById('reactive-bg');
 
+    // ==========================================
+    // SOFTER, FADED GLOW LOGIC
+    // ==========================================
     if (bassAverage > 180) {
-        // INTENSE BASS
+        // INTENSE BASS (Now much smoother and softer)
         const intensity = (bassAverage - 180) / 75;
-        const glowSize = 100 + (intensity * 200);
-        const alpha = 0.3 + (intensity * 0.4);
-        bg.style.boxShadow = `
-            inset 0 0 ${glowSize}px ${glowSize * 0.5}px hsla(${colorHue}, 100%, 55%, ${alpha}),
-            0 0 ${glowSize}px ${glowSize * 0.5}px hsla(${colorHue}, 100%, 55%, ${alpha})
-        `;
+        const blurSize = 150 + (intensity * 150); // Wider blur
+        const spreadSize = 20 + (intensity * 40); // Tighter spread so it doesn't wash out the center
+        const alpha = 0.15 + (intensity * 0.2); // Faded opacity (Max 0.35 instead of 0.7)
+        
+        // Removed the double-shadow to eliminate harsh edges
+        bg.style.boxShadow = `inset 0 0 ${blurSize}px ${spreadSize}px hsla(${colorHue}, 100%, 55%, ${alpha})`;
+        
     } else {
-        // CHILL BEAT
+        // CHILL BEAT (Barely-there ambient fade)
         const chillLevel = Math.max(overallAverage, 1) / 120;
-        const glowSize = 60 + (chillLevel * 120);
-        const alpha = 0.1 + (chillLevel * 0.2
-        );
-        bg.style.boxShadow = `
-            inset 0 0 ${glowSize}px ${glowSize * 0.3}px hsla(${colorHue}, 100%, 50%, ${alpha}),
-            0 0 ${glowSize}px ${glowSize * 0.3}px hsla(${colorHue}, 100%, 50%, ${alpha})
-        `;
+        const blurSize = 100 + (chillLevel * 100);
+        const spreadSize = 10 + (chillLevel * 20);
+        const alpha = 0.05 + (chillLevel * 0.1); // Extremely subtle, max 0.15
+        
+        bg.style.boxShadow = `inset 0 0 ${blurSize}px ${spreadSize}px hsla(${colorHue}, 100%, 50%, ${alpha})`;
     }
 
     drawParticles(colorHue, overallAverage);
