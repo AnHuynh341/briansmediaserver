@@ -10,30 +10,30 @@
 // 1. CORE METADATA FETCH ENGINES
 // =========================================================================
 
+
+// =========================================================================
+// 1. CORE DATA FETCHING
+// =========================================================================
 async function fetchTracks() {
     try {
-        // Fetch metadata directly from Appwrite database table
         const response = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
             Query.orderAsc("$createdAt"),
             Query.limit(500)
         ]);
 
-        // Map the database documents to our playback array structure
         allTracks = response.documents.map(doc => ({
             id: doc.$id,
             name: doc.name,
             artist: doc.artist,
             genre: doc.genre,
-            file: doc.fileUrl, // Direct public Cloudflare R2 streaming resource link
+            file: doc.fileUrl,
             cover: doc.coverUrl || "https://via.placeholder.com/600x600/0f172a/00ffcc?text=NO+COVER"
         }));
 
-        // Failsafe: Load the first track into the audio player if nothing is playing yet
         if (allTracks.length > 0 && !audio.src) {
             if (typeof loadTrack === 'function') loadTrack(0, false);
         }
 
-        // Maintain the active track view depending on whether we are viewing a playlist or the core database
         if (currentViewPlaylistIndex === -1) {
             currentPlaylistTracks = [...allTracks];
         } else {
@@ -49,7 +49,6 @@ async function fetchTracks() {
 async function fetchPlaylists() {
     try {
         let queries = [];
-        // Standard users can only view collections they created
         if (currentUserRole !== 'admin') {
             queries.push(Query.equal("owner", currentUser));
         }
@@ -57,7 +56,10 @@ async function fetchPlaylists() {
         const response = await databases.listDocuments(DATABASE_ID, PLAYLIST_COLLECTION_ID, queries);
 
         userPlaylists = response.documents.map(doc => ({
-            id: doc.$id, name: doc.name, ids: doc.trackIds, owner: doc.owner || 'unknown'
+            id: doc.$id,
+            name: doc.name,
+            ids: doc.trackIds,
+            owner: doc.owner || 'unknown'
         }));
 
         if (typeof renderPlaylists === 'function') renderPlaylists();
@@ -69,7 +71,6 @@ async function fetchPlaylists() {
 // =========================================================================
 // 2. PLAYLIST BUILDER MODALS
 // =========================================================================
-
 function openPlaylistModal() {
     document.getElementById('modalTitle').innerText = 'CREATE NEW PLAYLIST';
     document.getElementById('newPlaylistName').value = '';
@@ -92,6 +93,7 @@ function buildModalTrackList(selectedIds) {
     const trackArea = document.getElementById('modalTrackSelection');
     if (!trackArea) return;
     trackArea.innerHTML = '';
+
     allTracks.forEach((track) => {
         const isChecked = selectedIds.includes(track.id) ? 'checked' : '';
         const label = document.createElement('label');
@@ -128,11 +130,14 @@ async function savePlaylist() {
         if (editIndex > -1) {
             const playlistId = userPlaylists[editIndex].id;
             await databases.updateDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, playlistId, {
-                name: nameInput, trackIds: selectedIds
+                name: nameInput,
+                trackIds: selectedIds
             });
         } else {
             await databases.createDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, ID.unique(), {
-                name: nameInput, trackIds: selectedIds, owner: currentUser
+                name: nameInput,
+                trackIds: selectedIds,
+                owner: currentUser
             });
         }
 
@@ -152,24 +157,18 @@ async function savePlaylist() {
 }
 
 // =========================================================================
-// 3. SECURE BULLETPROOF R2 TRANSMISSION ENGINE
+// 3. SECURE R2 UPLOAD ENGINE (UPDATED & IMPROVED)
 // =========================================================================
-
 async function triggerUpload() {
     const btn = document.getElementById('startUploadBtn');
     if (btn) btn.disabled = true;
 
     const fileInput = document.getElementById('uploadFileInput');
     const files = fileInput ? fileInput.files : [];
-    
-    const artistInput = document.getElementById('uploadArtistName');
-    const artistName = artistInput && artistInput.value.trim() !== "" ? artistInput.value.trim() : "Unknown Artist";
-    
-    const genreInput = document.getElementById('uploadGenre');
-    const genre = genreInput ? genreInput.value : "J-POP";
-    
-    const trackInput = document.getElementById('uploadTrackName');
-    const customTrackName = trackInput ? trackInput.value.trim() : "";
+
+    const artistName = document.getElementById('uploadArtistName').value.trim() || "Unknown Artist";
+    const genre = document.getElementById('uploadGenre').value || "J-POP";
+    const customTrackName = document.getElementById('uploadTrackName').value.trim();
 
     const status = document.getElementById('uploadStatus');
 
@@ -184,77 +183,94 @@ async function triggerUpload() {
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            let trackName = files.length === 1 && customTrackName !== "" ? customTrackName : file.name.replace(/\.[^/.]+$/, "");
+            const trackName = (files.length === 1 && customTrackName)
+                ? customTrackName
+                : file.name.replace(/\.[^/.]+$/, "");
 
-            if(status) {
-                status.innerText = `REQUESTING R2 CLEARANCE [${i + 1}/${files.length}]...`;
+            if (status) {
+                status.innerText = `REQUESTING UPLOAD CLEARANCE [${i + 1}/${files.length}]...`;
                 status.style.color = "var(--accent)";
             }
 
-            const workerUrl = 'https://main.meochon341.workers.dev'; 
+            const workerUrl = 'https://main.meochon341.workers.dev';
             const cleanMimeType = file.type || "audio/mpeg";
 
-            // 🛡️ Safe Alphanumeric Key Transformation to prevent 403 cryptographic calculation mismatches
-            const fileExtension = file.name.split('.').pop();
+            // Safe filename
+            const fileExtension = file.name.split('.').pop().toLowerCase();
             const safeStorageName = `track-${Date.now()}-${i}.${fileExtension}`;
 
-            // Step 1: Handshake with Worker using the safe alphanumeric string layout
+            // Step 1: Get presigned URL from Worker
             const clearanceResponse = await fetch(workerUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: safeStorageName, contentType: cleanMimeType })
+                body: JSON.stringify({
+                    fileName: safeStorageName,
+                    contentType: cleanMimeType
+                })
             });
 
-            if (!clearanceResponse.ok) throw new Error("Worker rejected request");
-            const { uploadUrl, publicFileUrl } = await clearanceResponse.json();
-
-            if(status) status.innerText = `BEAMING BINARY DATA TO CLOUDFLARE R2...`;
-
-            // Step 2: Binary Push Directly to R2 matching content-type headers exactly
-            await fetch(uploadUrl, {
-                method: 'PUT',
-                headers: { 'Content-Type': cleanMimeType }, 
-                body: file 
-            });
-
-            if(status) status.innerText = `MATCHING ARTWORK: ${trackName}...`;
-            let fetchedCover = await fetchCoverArt(trackName, artistName);
-
-            if (!fetchedCover) {
-                fetchedCover = "https://via.placeholder.com/600x600/0f172a/00ffcc?text=NO+COVER+DETECTED";
+            if (!clearanceResponse.ok) {
+                const errText = await clearanceResponse.text();
+                throw new Error(`Worker error: ${clearanceResponse.status} - ${errText}`);
             }
 
-            if(status) status.innerText = `SYNCING WITH APPWRITE METADATA...`;
-            
-            // Step 3: Register Metadata inside Appwrite Database using original presentation name strings
+            const { uploadUrl, publicFileUrl } = await clearanceResponse.json();
+
+            if (status) status.innerText = `UPLOADING TO R2: ${trackName}...`;
+
+            // Step 2: Upload directly to R2 (Improved)
+            const uploadResponse = await fetch(uploadUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': cleanMimeType
+                },
+                body: file
+            });
+
+            if (!uploadResponse.ok) {
+                const errorText = await uploadResponse.text();
+                console.error("R2 Upload Failed:", uploadResponse.status, errorText);
+                throw new Error(`R2 Upload Failed (${uploadResponse.status})`);
+            }
+
+            if (status) status.innerText = `FETCHING COVER ART...`;
+
+            let fetchedCover = await fetchCoverArt(trackName, artistName);
+            if (!fetchedCover) {
+                fetchedCover = "https://via.placeholder.com/600x600/0f172a/00ffcc?text=NO+COVER";
+            }
+
+            if (status) status.innerText = `SAVING METADATA TO APPWRITE...`;
+
+            // Step 3: Save metadata to Appwrite
             await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
                 name: trackName,
                 artist: artistName,
                 genre: genre,
-                fileUrl: publicFileUrl, 
+                fileUrl: publicFileUrl,
                 coverUrl: fetchedCover
             });
 
             successCount++;
         }
 
-        if(status) {
-            status.innerText = `TRANSMISSION COMPLETE. ${successCount} signals added.`;
+        if (status) {
+            status.innerText = `✅ TRANSMISSION COMPLETE! ${successCount} signal(s) added.`;
             status.style.color = "var(--success)";
         }
 
         setTimeout(() => {
             if (typeof closeUploadModal === 'function') closeUploadModal();
-            fetchTracks(); 
+            fetchTracks();
             if (btn) btn.disabled = false;
             if (fileInput) fileInput.value = "";
-            if (trackInput) trackInput.value = ""; 
-        }, 2000);
+            if (document.getElementById('uploadTrackName')) document.getElementById('uploadTrackName').value = "";
+        }, 2500);
 
     } catch (error) {
         console.error("BATCH UPLOAD ERROR:", error);
-        if(status) {
-            status.innerText = "FAILED: " + (error.message || "Connection Lost");
+        if (status) {
+            status.innerText = `❌ FAILED: ${error.message}`;
             status.style.color = "var(--error)";
         }
         if (btn) btn.disabled = false;
@@ -279,14 +295,13 @@ async function fetchCoverArt(trackName, artistName) {
 }
 
 // =========================================================================
-// 4. MANAGEMENT ADMIN ACCESS QUERIES
+// 4. ADMIN FUNCTIONS (unchanged)
 // =========================================================================
-
 async function fetchUsersForAdmin() {
     if (currentUserRole !== 'admin') return [];
     try {
         const response = await databases.listDocuments(DATABASE_ID, USERS_COLLECTION_ID);
-        return response.documents; 
+        return response.documents;
     } catch (error) {
         console.error("Admin Fetch Error:", error);
         return [];
@@ -299,21 +314,18 @@ async function grantTemporaryUpload(targetUserId, hours) {
         await databases.updateDocument(DATABASE_ID, USERS_COLLECTION_ID, targetUserId, {
             uploadAccessUntil: expirationTime
         });
-        alert("Clearance granted for " + hours + " hours.");
     } catch (error) {
         console.error("Grant Access Error:", error);
-        alert("Failed to grant clearance. Check console.");
     }
 }
 
 async function deleteTrack(trackId, trackName) {
     if (currentUserRole !== 'admin') return alert("Security Clearance Required.");
-    if (!confirm(`CRITICAL WARNING: Are you absolutely sure you want to PERMANENTLY delete "${trackName}"?`)) return;
+    if (!confirm(`Delete "${trackName}" permanently?`)) return;
 
     try {
         await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, trackId);
-        fetchTracks(); 
-        console.log(`[SYSTEM] Signal "${trackName}" permanently erased.`);
+        fetchTracks();
     } catch (error) {
         console.error("Delete Error:", error);
         alert("Failed to delete signal.");
