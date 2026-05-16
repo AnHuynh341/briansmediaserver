@@ -7,13 +7,13 @@ const { Client, Databases, Storage, Account, ID, Query } = Appwrite;
 const client = new Client();
 client
     .setEndpoint('https://sgp.cloud.appwrite.io/v1')
-    .setProject('6a05cc27002debbf6591');
+    .setProject('6a0878e40013d0103042');
 
 const databases = new Databases(client);
 const storage = new Storage(client);
 
-const DATABASE_ID = '6a05cc43000fdc34115a';
-const BUCKET_ID = '6a05cdb0000bc961b45f';
+const DATABASE_ID = '6a087a070007aaa6f65f';
+const BUCKET_ID = '6a088144001cc411fc81';
 const COLLECTION_ID = 'tracks';
 const PLAYLIST_COLLECTION_ID = 'playlists';
 const USERS_COLLECTION_ID = 'users';
