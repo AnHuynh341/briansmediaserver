@@ -556,91 +556,6 @@ input[type=range]:hover::-webkit-slider-thumb { opacity: 1; transform: scale(1.2
   flex-shrink: 0;
 }
 
-/* =============================================
-   TABLET  (≤ 900px)
-============================================= */
-@media (max-width: 900px) {
-  :root {
-    --sidebar-width: 220px;
-    --player-height: 80px;
-  }
-
-  .view-header     { font-size: 2rem; }
-  .track-genre     { display: none; }
-  .volume-bar      { width: 80px; }
-}
-
-/* =============================================
-   MOBILE  (≤ 600px)
-============================================= */
-@media (max-width: 600px) {
-  :root {
-    --player-height: 100px;
-  }
-
-  #mobileMenuBtn { display: flex; align-items: center; }
-
-  .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: var(--player-height);
-    width: 75vw;
-    max-width: 300px;
-    transform: translateX(-100%);
-    box-shadow: 6px 0 30px rgba(0,0,0,0.6);
-    padding-top: 16px;
-  }
-  .sidebar.mobile-open { transform: translateX(0); }
-
-  .main-view { padding: 16px; }
-
-  .view-header-container {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .view-header          { font-size: 1.8rem; }
-  .btn-edit-playlist    { width: 100%; justify-content: center; padding: 12px; }
-
-  .track-list-header,
-  .track { grid-template-columns: 32px 1fr; }
-  .track-list-header > :last-child,
-  .track > :last-child { display: none; }
-
-  .player {
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
-    height: var(--player-height);
-    padding: 8px 12px 6px;
-    gap: 4px 12px;
-    align-content: center;
-  }
-
-  .now-playing { grid-column: 1; grid-row: 1; }
-  .album-art   { width: 40px; height: 40px; }
-  .np-title    { font-size: 0.85rem; }
-  .np-artist   { font-size: 0.75rem; }
-
-  .player-controls {
-    grid-column: 2;
-    grid-row: 1;
-    flex-direction: row;
-    align-items: center;
-    gap: 0;
-  }
-  .buttons { gap: 14px; }
-  #shuffleBtn, #repeatBtn { display: none; }
-
-  .progress-container {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    gap: 0;
-  }
-  .progress-container .time { display: none; }
-  input[type=range] { height: 3px; border-radius: 0; }
-
-  .right-controls { display: none; }
-}
 /* ==========================================
    SEARCH BAR STYLING
    ========================================== */
@@ -960,62 +875,103 @@ html, body {
     transition: all 0.2s;
 }
 /* ==========================================
-   MOBILE RESPONSIVENESS (Screens under 768px)
+   MOBILE RESPONSIVENESS (Compact iOS-style UI)
    ========================================== */
 @media screen and (max-width: 768px) {
-    /* 1. Prevent horizontal scrolling / zooming */
+    /* 1. Prevent scrolling issues and shrink base font */
     body, html {
         overflow-x: hidden;
         width: 100%;
+        font-size: 14px; /* Makes all text slightly smaller globally */
     }
 
-    /* 2. Stack the layout vertically (Assuming a flex container) */
+    /* 2. Fix the layout stacking and remove huge empty spaces */
     #app-container, #mainPage {
         flex-direction: column !important;
         display: flex !important;
         height: auto !important;
+        justify-content: flex-start !important; /* Pushes everything to the top */
     }
 
-    /* 3. Fix the Sidebar */
+    /* 3. Compact Sidebar / Header Area */
     .sidebar {
         width: 100% !important;
         height: auto !important;
         position: relative !important;
         min-height: unset !important;
         border-right: none !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 15px !important;
+        padding: 10px !important; /* Reduced padding */
         z-index: 10;
     }
 
-    /* 4. Fix the Main Tracklist View */
+    /* Shrink the headers and search bar */
+    .sidebar h1, .sidebar h2, .main-view h1 {
+        font-size: 1.4rem !important;
+        margin-bottom: 8px !important;
+    }
+    
+    #searchInput {
+        padding: 8px 12px !important;
+        font-size: 0.9rem !important;
+    }
+
+    /* 4. Compact Main Tracklist View */
     .main-view {
         width: 100% !important;
-        margin-left: 0 !important; /* Removes desktop left-margins */
-        padding: 15px !important;
-        padding-bottom: 140px !important; /* Ensures the bottom player doesn't cover the last song */
+        margin-left: 0 !important;
+        padding: 10px !important;
+        padding-bottom: 120px !important; /* Room for the bottom player */
     }
 
-    /* 5. Fix the Bottom Player Bar */
-    /* Adjust this class name to whatever your bottom player uses (e.g., .player, #player-bar) */
-    .player-container, #bottom-player {
-        flex-wrap: wrap !important;
-        height: auto !important;
-        padding: 15px 10px !important;
-        gap: 10px;
-        justify-content: center !important;
-    }
-
-    /* 6. Fix Track Items so text doesn't overflow */
+    /* 5. FIX THE TRACK ITEMS (Forces a single sleek row) */
     .track-item {
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 8px;
-        padding: 12px !important;
+        display: flex !important;
+        flex-direction: row !important; /* Stops elements from stacking vertically */
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 8px 10px !important; /* Much thinner row */
+        height: auto !important;
+        gap: 10px !important;
     }
 
-    /* 7. Shrink the Toggle Switch text slightly for small screens */
-    .switch-label {
-        font-size: 0.7rem;
+    /* Shrink track text and prevent it from wrapping to a new line */
+    .track-info {
+        flex-grow: 1;
+        min-width: 0; /* Allows text truncation */
+    }
+    
+    .track-title {
+        font-size: 0.95rem !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis; /* Adds "..." if the name is too long */
+    }
+
+    .track-artist {
+        font-size: 0.75rem !important;
+    }
+
+    /* HIDE non-essential columns on mobile to save space (Genre, Time, Date) */
+    .track-genre, .track-time, .track-date {
+        display: none !important; 
+    }
+
+    /* 6. Compact Bottom Player Bar */
+    .player-container, #bottom-player {
+        padding: 10px !important;
+        gap: 8px !important;
+    }
+
+    #npTitle { font-size: 0.95rem !important; }
+    #npArtist { font-size: 0.75rem !important; }
+
+    /* Shrink player buttons slightly */
+    .controls button {
+        font-size: 1rem !important;
+        padding: 5px !important;
+    }
+    
+    #playBtn {
+        font-size: 1.2rem !important;
     }
 }
