@@ -389,5 +389,5 @@ async function deleteTrack(trackId, trackName) {
 }
 async function getFileUrl(fileId) {
     const jwt = await account.createJWT();
-    return `https://sgp.cloud.appwrite.io/v1/storage/buckets/6a05cdb0000bc961b45f/files/${fileId}/view?project=6a05cc27002debbf6591&jwt=${jwt.jwt}`;
+    return `https://sgp.cloud.appwrite.io/v1/storage/buckets/6a088144001cc411fc81/files/${fileId}/view?project=6a0878e40013d0103042&jwt=${jwt.jwt}`;
 }

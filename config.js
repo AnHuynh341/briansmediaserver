@@ -12,7 +12,7 @@ client
 const databases = new Databases(client);
 const storage = new Storage(client);
 
-const DATABASE_ID = '6a087a070007aaa6f65f';
+const DATABASE_ID = '6a087bfc0014b3277171';
 const BUCKET_ID = '6a088144001cc411fc81';
 const COLLECTION_ID = 'tracks';
 const PLAYLIST_COLLECTION_ID = 'playlists';
