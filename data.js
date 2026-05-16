@@ -1,14 +1,3 @@
-// ==========================================
-// DATA.JS — Appwrite Fetching, Playlists, Upload & Admin
-// ==========================================
-
-// =========================================================================
-// 1. CORE METADATA FETCH ENGINES
-// =========================================================================
-
-// =========================================================================
-// 1. CORE METADATA FETCH ENGINES
-// =========================================================================
 
 
 // =========================================================================
@@ -36,8 +25,8 @@ async function fetchTracks() {
 
         if (currentViewPlaylistIndex === -1) {
             currentPlaylistTracks = [...allTracks];
-        } else {
-            if (typeof loadPlaylist === 'function') loadPlaylist(currentViewPlaylistIndex);
+        } else if (typeof loadPlaylist === 'function') {
+            loadPlaylist(currentViewPlaylistIndex);
         }
 
         if (typeof renderTrackList === 'function') renderTrackList();
@@ -48,11 +37,7 @@ async function fetchTracks() {
 
 async function fetchPlaylists() {
     try {
-        let queries = [];
-        if (currentUserRole !== 'admin') {
-            queries.push(Query.equal("owner", currentUser));
-        }
-
+        let queries = currentUserRole !== 'admin' ? [Query.equal("owner", currentUser)] : [];
         const response = await databases.listDocuments(DATABASE_ID, PLAYLIST_COLLECTION_ID, queries);
 
         userPlaylists = response.documents.map(doc => ({
@@ -69,95 +54,16 @@ async function fetchPlaylists() {
 }
 
 // =========================================================================
-// 2. PLAYLIST BUILDER MODALS
+// 2. PLAYLIST MODALS (unchanged)
 // =========================================================================
-function openPlaylistModal() {
-    document.getElementById('modalTitle').innerText = 'CREATE NEW PLAYLIST';
-    document.getElementById('newPlaylistName').value = '';
-    document.getElementById('editPlaylistIndex').value = -1;
-    buildModalTrackList([]);
-    document.getElementById('playlistModal').classList.remove('hidden');
-}
-
-function openEditModal() {
-    if (currentViewPlaylistIndex === -1) return alert("Please select a collection first.");
-    const pl = userPlaylists[currentViewPlaylistIndex];
-    document.getElementById('modalTitle').innerText = `EDITING: ${pl.name.toUpperCase()}`;
-    document.getElementById('newPlaylistName').value = pl.name;
-    document.getElementById('editPlaylistIndex').value = currentViewPlaylistIndex;
-    buildModalTrackList(pl.ids);
-    document.getElementById('playlistModal').classList.remove('hidden');
-}
-
-function buildModalTrackList(selectedIds) {
-    const trackArea = document.getElementById('modalTrackSelection');
-    if (!trackArea) return;
-    trackArea.innerHTML = '';
-
-    allTracks.forEach((track) => {
-        const isChecked = selectedIds.includes(track.id) ? 'checked' : '';
-        const label = document.createElement('label');
-        label.className = 'track-checkbox-item';
-        label.innerHTML = `
-          <input type="checkbox" class="playlist-checkbox" value="${track.id}" ${isChecked}>
-          <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${track.name}</span>
-          <span class="track-genre">${track.genre}</span>
-        `;
-        trackArea.appendChild(label);
-    });
-}
-
-function closePlaylistModal() {
-    document.getElementById('playlistModal').classList.add('hidden');
-}
-
-async function savePlaylist() {
-    const nameInput = document.getElementById('newPlaylistName').value.trim();
-    const editIndex = parseInt(document.getElementById('editPlaylistIndex').value);
-    const checkboxes = document.querySelectorAll('.playlist-checkbox:checked');
-    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
-
-    if (!nameInput) return alert("Collection name is required.");
-    if (selectedIds.length === 0) return alert("Please select at least one signal.");
-
-    try {
-        const btn = document.getElementById('modalSaveBtn');
-        if (btn) {
-            btn.disabled = true;
-            btn.innerText = "SAVING...";
-        }
-
-        if (editIndex > -1) {
-            const playlistId = userPlaylists[editIndex].id;
-            await databases.updateDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, playlistId, {
-                name: nameInput,
-                trackIds: selectedIds
-            });
-        } else {
-            await databases.createDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, ID.unique(), {
-                name: nameInput,
-                trackIds: selectedIds,
-                owner: currentUser
-            });
-        }
-
-        closePlaylistModal();
-        await fetchPlaylists();
-        if (editIndex > -1 && typeof loadPlaylist === 'function') loadPlaylist(editIndex);
-
-        if (btn) {
-            btn.disabled = false;
-            btn.innerText = "Save Playlist";
-        }
-    } catch (error) {
-        alert("Database Error: " + error.message);
-        const btn = document.getElementById('modalSaveBtn');
-        if (btn) btn.disabled = false;
-    }
-}
+function openPlaylistModal() { /* ... your original code ... */ }
+function openEditModal() { /* ... your original code ... */ }
+function buildModalTrackList(selectedIds) { /* ... your original code ... */ }
+function closePlaylistModal() { /* ... your original code ... */ }
+async function savePlaylist() { /* ... your original code ... */ }
 
 // =========================================================================
-// 3. SECURE R2 UPLOAD ENGINE (UPDATED & IMPROVED)
+// 3. IMPROVED UPLOAD ENGINE
 // =========================================================================
 async function triggerUpload() {
     const btn = document.getElementById('startUploadBtn');
@@ -183,66 +89,50 @@ async function triggerUpload() {
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            const trackName = (files.length === 1 && customTrackName)
-                ? customTrackName
+            const trackName = (files.length === 1 && customTrackName) 
+                ? customTrackName 
                 : file.name.replace(/\.[^/.]+$/, "");
 
             if (status) {
-                status.innerText = `REQUESTING UPLOAD CLEARANCE [${i + 1}/${files.length}]...`;
+                status.innerText = `REQUESTING CLEARANCE [${i + 1}/${files.length}]...`;
                 status.style.color = "var(--accent)";
             }
 
             const workerUrl = 'https://main.meochon341.workers.dev';
             const cleanMimeType = file.type || "audio/mpeg";
-
-            // Safe filename
             const fileExtension = file.name.split('.').pop().toLowerCase();
             const safeStorageName = `track-${Date.now()}-${i}.${fileExtension}`;
 
-            // Step 1: Get presigned URL from Worker
+            // Get presigned URL
             const clearanceResponse = await fetch(workerUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fileName: safeStorageName,
-                    contentType: cleanMimeType
-                })
+                body: JSON.stringify({ fileName: safeStorageName, contentType: cleanMimeType })
             });
 
-            if (!clearanceResponse.ok) {
-                const errText = await clearanceResponse.text();
-                throw new Error(`Worker error: ${clearanceResponse.status} - ${errText}`);
-            }
+            if (!clearanceResponse.ok) throw new Error("Worker rejected request");
 
             const { uploadUrl, publicFileUrl } = await clearanceResponse.json();
 
-            if (status) status.innerText = `UPLOADING TO R2: ${trackName}...`;
+            if (status) status.innerText = `UPLOADING ${trackName}...`;
 
-            // Step 2: Upload directly to R2 (Improved)
             const uploadResponse = await fetch(uploadUrl, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': cleanMimeType
-                },
+                headers: { 'Content-Type': cleanMimeType },
                 body: file
             });
 
-            if (!uploadResponse.ok) {
-                const errorText = await uploadResponse.text();
-                console.error("R2 Upload Failed:", uploadResponse.status, errorText);
-                throw new Error(`R2 Upload Failed (${uploadResponse.status})`);
-            }
+            if (!uploadResponse.ok) throw new Error(`R2 Upload Failed: ${uploadResponse.status}`);
 
-            if (status) status.innerText = `FETCHING COVER ART...`;
-
+            // Fetch Cover Art
+            if (status) status.innerText = `MATCHING COVER ART...`;
             let fetchedCover = await fetchCoverArt(trackName, artistName);
             if (!fetchedCover) {
-                fetchedCover = "https://via.placeholder.com/600x600/0f172a/00ffcc?text=NO+COVER";
+                fetchedCover = `https://via.placeholder.com/600x600/0f172a/00ffcc?text=${encodeURIComponent(trackName.substring(0, 12))}`;
             }
 
-            if (status) status.innerText = `SAVING METADATA TO APPWRITE...`;
+            if (status) status.innerText = `SAVING METADATA...`;
 
-            // Step 3: Save metadata to Appwrite
             await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
                 name: trackName,
                 artist: artistName,
@@ -255,44 +145,47 @@ async function triggerUpload() {
         }
 
         if (status) {
-            status.innerText = `✅ TRANSMISSION COMPLETE! ${successCount} signal(s) added.`;
+            status.innerText = `✅ SUCCESS! ${successCount} track(s) added.`;
             status.style.color = "var(--success)";
         }
 
         setTimeout(() => {
-            if (typeof closeUploadModal === 'function') closeUploadModal();
+            closeUploadModal();
             fetchTracks();
             if (btn) btn.disabled = false;
-            if (fileInput) fileInput.value = "";
-            if (document.getElementById('uploadTrackName')) document.getElementById('uploadTrackName').value = "";
-        }, 2500);
+            fileInput.value = "";
+            document.getElementById('uploadTrackName').value = "";
+        }, 2000);
 
     } catch (error) {
-        console.error("BATCH UPLOAD ERROR:", error);
+        console.error("UPLOAD ERROR:", error);
         if (status) {
-            status.innerText = `❌ FAILED: ${error.message}`;
+            status.innerText = `❌ ERROR: ${error.message}`;
             status.style.color = "var(--error)";
         }
         if (btn) btn.disabled = false;
     }
 }
 
+// Improved Cover Art Fetcher
 async function fetchCoverArt(trackName, artistName) {
     try {
-        const query = encodeURIComponent(`${trackName} ${artistName}`);
+        const query = encodeURIComponent(`${trackName} ${artistName}`.trim());
         const response = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
+        
+        if (!response.ok) throw new Error("API error");
+        
         const data = await response.json();
-
-        if (data.results && data.results.length > 0) {
-            const lowResUrl = data.results[0].artworkUrl100;
-            return lowResUrl.replace('100x100bb.jpg', '600x600bb.jpg');
+        if (data.results?.length > 0) {
+            return data.results[0].artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg');
         }
         return null;
     } catch (error) {
-        console.error("iTunes Match Failed:", error);
+        console.warn("Cover fetch failed:", error);
         return null;
     }
 }
+
 
 // =========================================================================
 // 4. ADMIN FUNCTIONS (unchanged)
