@@ -219,6 +219,19 @@
 
 <audio id="audio" crossorigin="anonymous"></audio>
 
-<script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.1"></script>
-<script src="config.js"></script>   <script src="auth.js"></script>     <script src="data.js"></script>     <script src="player.js"></script>   <script src="ui.js"></script>       <script src="mobile.js"></script>   </body>
+<!-- 1. External dependencies and core global configuration states -->
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.1"></script>
+    <script src="config.js"></script> 
+
+    <!-- 2. Core data fetching engine (Defines fetchTracks!) -->
+    <script src="data.js"></script>     
+
+    <!-- 3. Audio engine processing math and visualizer structures -->
+    <script src="player.js"></script>   
+
+    <!-- 4. Security validation gates and UI modal controls -->
+    <script src="auth.js"></script>     
+    <script src="ui.js"></script>       
+    <script src="mobile.js"></script>   
+</body>
 </html>
