@@ -7,13 +7,17 @@
 // UI — VIEWS
 // ==========================================
 
+// =========================================================================
+// 1. PLAYLIST AND VIEW RENDERING ENGINE
+// =========================================================================
+
 function renderPlaylists() {
     const container = document.getElementById('playlists');
+    if (!container) return;
     container.innerHTML = '';
 
     userPlaylists.forEach((pl, index) => {
         const div = document.createElement('div');
-        div.className = 'track';
         div.className = `playlist-item ${currentViewPlaylistIndex === index ? 'active' : ''}`;
 
         const isMine = (pl.owner === currentUser);
@@ -22,10 +26,10 @@ function renderPlaylists() {
             div.innerHTML = `<i class="fas fa-folder-open"></i> ${pl.name}`;
         } else {
             div.innerHTML = `
-        <i class="fas fa-lock" style="color: var(--error); font-size: 0.85rem;"></i> 
-        <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pl.name}</span>
-        <span style="font-size: 0.7rem; color: var(--text-sub); font-weight: bold; text-transform: uppercase;">${pl.owner}</span>
-      `;
+                <i class="fas fa-lock" style="color: var(--error); font-size: 0.85rem;"></i> 
+                <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pl.name}</span>
+                <span style="font-size: 0.7rem; color: var(--text-sub); font-weight: bold; text-transform: uppercase;">${pl.owner}</span>
+            `;
         }
 
         div.onclick = () => loadPlaylist(index);
@@ -35,9 +39,15 @@ function renderPlaylists() {
 
 function showAllTracks() {
     currentViewPlaylistIndex = -1;
-    document.getElementById('navAllTracks').classList.add('active');
-    document.getElementById('viewTitle').innerText = "All Tracks";
-    document.getElementById('editPlaylistBtn').classList.add('hidden');
+    const navAll = document.getElementById('navAllTracks');
+    if (navAll) navAll.classList.add('active');
+    
+    const title = document.getElementById('viewTitle');
+    if (title) title.innerText = "All Tracks";
+    
+    const editBtn = document.getElementById('editPlaylistBtn');
+    if (editBtn) editBtn.classList.add('hidden');
+    
     currentPlaylistTracks = [...allTracks];
     renderPlaylists();
     renderTrackList();
@@ -45,7 +55,9 @@ function showAllTracks() {
 
 function loadPlaylist(index) {
     currentViewPlaylistIndex = index;
-    document.getElementById('navAllTracks').classList.remove('active');
+    const navAll = document.getElementById('navAllTracks');
+    if (navAll) navAll.classList.remove('active');
+    
     const pl = userPlaylists[index];
     document.getElementById('viewTitle').innerText = pl.name;
 
@@ -74,7 +86,6 @@ function renderTrackList() {
         const div = document.createElement('div');
         div.className = 'track';
 
-        // Check if this track is the one currently playing
         const isPlaying = allTracks[currentTrackIndex] && allTracks[currentTrackIndex].id === track.id;
         if (isPlaying) div.classList.add('active');
 
@@ -86,16 +97,16 @@ function renderTrackList() {
                </button>`
             : '';
 
-div.innerHTML = `
-    <div class="track-num">${isPlaying ? '<i class="fas fa-volume-up"></i>' : index + 1}</div>
-    <div class="track-info">
-        <span class="track-title">${track.name}</span>
-        <span class="track-meta">${track.artist}</span>
-    </div>
-    <div class="track-action">
-        ${adminDeleteBtn}
-    </div>
-`;
+        div.innerHTML = `
+            <div class="track-num">${isPlaying ? '<i class="fas fa-volume-up"></i>' : index + 1}</div>
+            <div class="track-info">
+                <span class="track-title">${track.name}</span>
+                <span class="track-meta">${track.artist}</span>
+            </div>
+            <div class="track-action">
+                ${adminDeleteBtn}
+            </div>
+        `;
 
         const originalIndex = allTracks.findIndex(t => t.id === track.id);
         div.onclick = () => loadTrack(originalIndex, true);
@@ -103,62 +114,54 @@ div.innerHTML = `
     });
 }
 
-// ==========================================
-// INSTANT SEARCH ENGINE
-// ==========================================
+// =========================================================================
+// 2. MODAL CONTROLLERS (Bridges DOM triggers from index.html)
+// =========================================================================
 
-const searchInput = document.getElementById('searchInput');
-
-if (searchInput) {
-    searchInput.addEventListener('input', function (e) {
-        const query = e.target.value.toLowerCase().trim();
-
-        if (query === "") {
-            showAllTracks();
-            return;
-        }
-
-        currentViewPlaylistIndex = -1;
-
-        const navAll = document.getElementById('navAllTracks');
-        if (navAll) navAll.classList.add('active');
-
-        const viewTitle = document.getElementById('viewTitle');
-        if (viewTitle) viewTitle.innerText = `Search Results: "${query}"`;
-
-        const editBtn = document.getElementById('editPlaylistBtn');
-        if (editBtn) editBtn.classList.add('hidden');
-
-        currentPlaylistTracks = allTracks.filter(track => {
-            const matchName = track.name.toLowerCase().includes(query);
-            const matchArtist = track.artist.toLowerCase().includes(query);
-            return matchName || matchArtist;
-        });
-
-        renderPlaylists();
-        renderTrackList();
-    });
+function openUploadModal() {
+    const modal = document.getElementById('uploadModal');
+    if (modal) modal.classList.remove('hidden');
+    
+    const status = document.getElementById('uploadStatus');
+    if (status) status.innerText = "";
+    
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    if (fileNameDisplay) fileNameDisplay.innerText = "";
+    
+    const fileInput = document.getElementById('uploadFileInput');
+    if (fileInput) fileInput.value = "";
+    
+    const trackInput = document.getElementById('uploadTrackName');
+    if (trackInput) trackInput.value = "";
+    
+    const artistInput = document.getElementById('uploadArtistName');
+    if (artistInput) artistInput.value = "";
+    
+    const genreInput = document.getElementById('uploadGenre');
+    if (genreInput) genreInput.value = "J-POP";
 }
-// ==========================================
-// INSTANT SEARCH ENGINE
-// ==========================================
 
-// We wrap it in an event listener to ensure the HTML loads before the JS looks for the search bar
+function closeUploadModal() {
+    const modal = document.getElementById('uploadModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// =========================================================================
+// 3. EVENT LISTENERS AND INITIALIZATION
+// =========================================================================
+
 document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchInput');
-
     if (searchInput) {
         searchInput.addEventListener('input', function(e) {
             const query = e.target.value.toLowerCase().trim();
 
             if (query === "") {
-                if (typeof showAllTracks === "function") showAllTracks(); 
+                showAllTracks(); 
                 return;
             }
 
-            // Force the view to global search
             currentViewPlaylistIndex = -1;
-            
             const navAll = document.getElementById('navAllTracks');
             if (navAll) navAll.classList.add('active');
             
@@ -168,31 +171,61 @@ document.addEventListener('DOMContentLoaded', () => {
             const editBtn = document.getElementById('editPlaylistBtn');
             if (editBtn) editBtn.classList.add('hidden');
             
-            // Filter the tracks
             currentPlaylistTracks = allTracks.filter(track => {
                 const matchName = track.name.toLowerCase().includes(query);
                 const matchArtist = track.artist.toLowerCase().includes(query);
                 return matchName || matchArtist;
             });
 
-            // Re-render the UI
-            if (typeof renderPlaylists === "function") renderPlaylists(); 
-            if (typeof renderTrackList === "function") renderTrackList(); 
+            renderPlaylists(); 
+            renderTrackList(); 
         });
     }
+
+    // Bind Upload Drag/Drop elements safely
+    const dropZone = document.getElementById('dropZone');
+    const uploadFileInput = document.getElementById('uploadFileInput');
+
+    if (dropZone && uploadFileInput) {
+        dropZone.addEventListener('click', () => uploadFileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                uploadFileInput.files = e.dataTransfer.files;
+                handleFileSelection();
+            }
+        });
+        uploadFileInput.addEventListener('change', handleFileSelection);
+    }
 });
-// ==========================================
-// ADMIN PANEL UI LOGIC
-// ==========================================
+
+function handleFileSelection() {
+    const uploadFileInput = document.getElementById('uploadFileInput');
+    if (!uploadFileInput) return;
+    const file = uploadFileInput.files[0];
+    if (file) {
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        if (fileNameDisplay) fileNameDisplay.innerText = file.name;
+        
+        const trackNameInput = document.getElementById('uploadTrackName');
+        if (trackNameInput && trackNameInput.value === "") {
+            trackNameInput.value = file.name.replace('.mp3', '');
+        }
+    }
+}
+
+// =========================================================================
+// 4. ADMIN SECURITY clears HANDLERS
+// =========================================================================
 
 async function openAdminModal() {
     document.getElementById('adminModal').classList.remove('hidden');
     const userListDiv = document.getElementById('adminUserList');
-    
-    // Show a loading spinner while fetching users
     userListDiv.innerHTML = '<div style="text-align:center; color:var(--text-sub); padding:20px;"><i class="fas fa-circle-notch fa-spin"></i> Accessing User Database...</div>';
 
-    // fetchUsersForAdmin() comes from data.js
     const users = await fetchUsersForAdmin();
     userListDiv.innerHTML = '';
 
@@ -202,24 +235,22 @@ async function openAdminModal() {
     }
 
     users.forEach(u => {
-        // Skip admins (they already have permanent upload access)
         if (u.role === 'admin') return;
 
         const div = document.createElement('div');
         div.className = 'user-row';
         
-        // Check if their timestamp is currently valid
         const hasAccess = u.uploadAccessUntil && (Date.now() < u.uploadAccessUntil);
         const statusIndicator = hasAccess 
             ? `<span style="color:var(--success); font-size:0.75rem;"><i class="fas fa-check-circle"></i> Upload Active</span>` 
             : `<span style="color:var(--error); font-size:0.75rem;"><i class="fas fa-lock"></i> Upload Locked</span>`;
 
         div.innerHTML = `
-            <div class="user-info-stack">
-                <span class="username">${u.username}</span>
+            <div class="user-info-stack" style="display:flex; flex-direction:column; gap:4px; padding:10px 0;">
+                <span class="username" style="color:white; font-weight:bold;">@${u.username}</span>
                 ${statusIndicator}
             </div>
-            <button class="btn-grant" onclick="handleGrantAccess('${u.$id}', this)">Grant 12H</button>
+            <button class="btn-grant" onclick="handleGrantAccess('${u.$id}', this)" style="background:var(--accent); color:black; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">Grant 12H</button>
         `;
         userListDiv.appendChild(div);
     });
@@ -229,26 +260,11 @@ function closeAdminModal() {
     document.getElementById('adminModal').classList.add('hidden');
 }
 
-// Triggers when you click "Grant 12H" next to a user
 async function handleGrantAccess(userId, btnElement) {
     btnElement.disabled = true;
     btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    
-    // grantTemporaryUpload() comes from data.js
     await grantTemporaryUpload(userId, 12);
-    
-    // Visually change the button to show success
     btnElement.innerHTML = "GRANTED";
     btnElement.style.background = "var(--success)";
     btnElement.style.color = "#fff";
-    btnElement.style.borderColor = "var(--success)";
 }
-// Check if the user is an admin. If they are, generate a red trash can button!
-const adminDeleteBtn = (currentUserRole === 'admin') 
-    ? `<button onclick="event.stopPropagation(); deleteTrack('${track.id}', '${track.name}')" 
-               style="background:none; border:none; color:#ef4444; cursor:pointer; padding: 5px; margin-left: 10px;" 
-               title="Permanently Delete Signal">
-           <i class="fas fa-trash-alt"></i>
-       </button>` 
-    : '';
-

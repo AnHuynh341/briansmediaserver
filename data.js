@@ -2,34 +2,26 @@
 // DATA.JS — Appwrite Fetching, Playlists, Upload & Admin
 // ==========================================
 
-// ==========================================
-// APPWRITE — FETCHING
-// ==========================================
-
-// ==========================================
-// APPWRITE — FETCHING
-// ==========================================
-
+// =========================================================================
+// 1. CORE METADATA FETCH ENGINES
+// =========================================================================
 
 async function fetchTracks() {
     try {
-        // 1. Fetch metadata directly from Appwrite database table
         const response = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
             Query.orderAsc("$createdAt"),
             Query.limit(500)
         ]);
 
-        // 2. Map the data directly
         allTracks = response.documents.map(doc => ({
             id: doc.$id,
             name: doc.name,
             artist: doc.artist,
             genre: doc.genre,
-            file: doc.fileUrl, // Direct public Cloudflare R2 streaming resource link
+            file: doc.fileUrl, 
             cover: doc.coverUrl || "https://via.placeholder.com/600x600/0f172a/00ffcc?text=NO+COVER"
         }));
 
-        // ---- The rest of the playback UI ----
         if (allTracks.length > 0 && !audio.src) {
             if (typeof loadTrack === 'function') loadTrack(0, false);
         }
@@ -45,9 +37,6 @@ async function fetchTracks() {
         console.error("Appwrite Fetch Error:", error);
     }
 }
-
-
-
 
 async function fetchPlaylists() {
     try {
@@ -68,9 +57,9 @@ async function fetchPlaylists() {
     }
 }
 
-// ==========================================
-// PLAYLIST MODAL LOGIC
-// ==========================================
+// =========================================================================
+// 2. PLAYLIST BUILDER MODALS
+// =========================================================================
 
 function openPlaylistModal() {
     document.getElementById('modalTitle').innerText = 'CREATE NEW PLAYLIST';
@@ -99,10 +88,10 @@ function buildModalTrackList(selectedIds) {
         const label = document.createElement('label');
         label.className = 'track-checkbox-item';
         label.innerHTML = `
-      <input type="checkbox" class="playlist-checkbox" value="${track.id}" ${isChecked}>
-      <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${track.name}</span>
-      <span class="track-genre">${track.genre}</span>
-    `;
+          <input type="checkbox" class="playlist-checkbox" value="${track.id}" ${isChecked}>
+          <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${track.name}</span>
+          <span class="track-genre">${track.genre}</span>
+        `;
         trackArea.appendChild(label);
     });
 }
@@ -153,78 +142,10 @@ async function savePlaylist() {
     }
 }
 
-// ==========================================
-// UPLOAD LOGIC
-// ==========================================
+// =========================================================================
+// 3. SECURE BULLETPROOF R2 TRANSMISSION ENGINE
+// =========================================================================
 
-function openUploadModal() {
-    document.getElementById('uploadModal').classList.remove('hidden');
-    
-    const status = document.getElementById('uploadStatus');
-    if (status) status.innerText = "";
-    
-    const fileNameDisplay = document.getElementById('fileNameDisplay');
-    if (fileNameDisplay) fileNameDisplay.innerText = "";
-    
-    const fileInput = document.getElementById('uploadFileInput');
-    if (fileInput) fileInput.value = "";
-    
-    const trackInput = document.getElementById('uploadTrackName');
-    if (trackInput) trackInput.value = "";
-    
-    const artistInput = document.getElementById('uploadArtistName');
-    if (artistInput) artistInput.value = "";
-    
-    const genreInput = document.getElementById('uploadGenre');
-    if (genreInput) genreInput.value = "J-POP";
-}
-
-function closeUploadModal() {
-    document.getElementById('uploadModal').classList.add('hidden');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const dropZone = document.getElementById('dropZone');
-    const uploadFileInput = document.getElementById('uploadFileInput');
-
-    if (dropZone && uploadFileInput) {
-        dropZone.addEventListener('click', () => uploadFileInput.click());
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) {
-                uploadFileInput.files = e.dataTransfer.files;
-                handleFileSelection();
-            }
-        });
-        uploadFileInput.addEventListener('change', handleFileSelection);
-    }
-});
-
-function handleFileSelection() {
-    const uploadFileInput = document.getElementById('uploadFileInput');
-    if (!uploadFileInput) return;
-    const file = uploadFileInput.files[0];
-    if (file) {
-        const fileNameDisplay = document.getElementById('fileNameDisplay');
-        if (fileNameDisplay) fileNameDisplay.innerText = file.name;
-        
-        const trackNameInput = document.getElementById('uploadTrackName');
-        if (trackNameInput && trackNameInput.value === "") {
-            trackNameInput.value = file.name.replace('.mp3', '');
-        }
-    }
-}
-
-// ==========================================
-// BULLETPROOF UPLOAD FUNCTION (NO TIMERS)
-// ==========================================
-
-// ==========================================
-// SWAPPED CLOUDFLARE R2 UPLOAD ENGINE
-// ==========================================
 async function triggerUpload() {
     const btn = document.getElementById('startUploadBtn');
     if (btn) btn.disabled = true;
@@ -254,65 +175,36 @@ async function triggerUpload() {
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            
-            let trackName;
-            if (files.length === 1 && customTrackName !== "") {
-                trackName = customTrackName;
-            } else {
-                trackName = file.name.replace(/\.[^/.]+$/, "");
-            }
+            let trackName = files.length === 1 && customTrackName !== "" ? customTrackName : file.name.replace(/\.[^/.]+$/, "");
 
             if(status) {
                 status.innerText = `REQUESTING R2 CLEARANCE [${i + 1}/${files.length}]...`;
                 status.style.color = "var(--accent)";
             }
 
-            // 1. Get a secure, temporary pre-signed PUT token from your Worker
             const workerUrl = 'https://main.meochon341.workers.dev'; 
-            
+            const cleanMimeType = file.type || "audio/mpeg";
+
+            // Step 1: Handshake with Worker
             const clearanceResponse = await fetch(workerUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-               // body: JSON.stringify({ fileName: file.name, contentType: file.type })
+                body: JSON.stringify({ fileName: file.name, contentType: cleanMimeType })
+            });
 
-		// Force standard audio MIME type format mapping if the browser passes an empty string
-		const cleanMimeType = file.type || "audio/mpeg";
-
-		const clearanceResponse = await fetch(workerUrl, {
- 		   method: 'POST',
- 		   headers: { 'Content-Type': 'application/json' },
-  		  body: JSON.stringify({ fileName: file.name, contentType: cleanMimeType })
-		});
-
-		if (!clearanceResponse.ok) throw new Error("Worker rejected request");
-		const { uploadUrl, publicFileUrl } = await clearanceResponse.json();
-
-		if(status) status.innerText = `BEAMING BINARY DATA TO CLOUDFLARE R2...`;
-
-		// 2. Upload the raw binary stream directly to R2 using the exact same content-type!
-		await fetch(uploadUrl, {
-		    method: 'PUT',
-		   headers: { 'Content-Type': cleanMimeType }, // Must match the value signed by the worker!
-		    body: file 
-		});
-
-
-
-	    });
-            
             if (!clearanceResponse.ok) throw new Error("Worker rejected request");
             const { uploadUrl, publicFileUrl } = await clearanceResponse.json();
 
             if(status) status.innerText = `BEAMING BINARY DATA TO CLOUDFLARE R2...`;
 
-            // 2. Upload the raw binary stream directly to R2 using the signed path
+            // Step 2: Binary Push Directly to R2
             await fetch(uploadUrl, {
                 method: 'PUT',
-                headers: { 'Content-Type': file.type },
+                headers: { 'Content-Type': cleanMimeType }, 
                 body: file 
             });
 
-            if(status) status.innerText = `MATCHING ARTWORK [${i + 1}/${files.length}]: ${trackName}...`;
+            if(status) status.innerText = `MATCHING ARTWORK: ${trackName}...`;
             let fetchedCover = await fetchCoverArt(trackName, artistName);
 
             if (!fetchedCover) {
@@ -321,12 +213,12 @@ async function triggerUpload() {
 
             if(status) status.innerText = `SYNCING WITH APPWRITE METADATA...`;
             
-            // 3. Save metadata entries into Appwrite using your persistent Cloudflare R2 address link!
-            await databases.createDocument(DATABASE_ID, COLLECTION_ID, Appwrite.ID.unique(), {
+            // Step 3: Register Metadata inside Appwrite Database
+            await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
                 name: trackName,
                 artist: artistName,
                 genre: genre,
-                fileUrl: publicFileUrl, // Stores the R2 public link inside Appwrite
+                fileUrl: publicFileUrl, 
                 coverUrl: fetchedCover
             });
 
@@ -339,7 +231,7 @@ async function triggerUpload() {
         }
 
         setTimeout(() => {
-            closeUploadModal();
+            if (typeof closeUploadModal === 'function') closeUploadModal();
             fetchTracks(); 
             if (btn) btn.disabled = false;
             if (fileInput) fileInput.value = "";
@@ -355,12 +247,6 @@ async function triggerUpload() {
         if (btn) btn.disabled = false;
     }
 }
-
-
-
-// ==========================================
-// iTUNES API ARTWORK MATCHER
-// ==========================================
 
 async function fetchCoverArt(trackName, artistName) {
     try {
@@ -379,9 +265,9 @@ async function fetchCoverArt(trackName, artistName) {
     }
 }
 
-// ==========================================
-// ADMIN FUNCTIONS (Security Clearance)
-// ==========================================
+// =========================================================================
+// 4. MANAGEMENT ADMIN ACCESS QUERIES
+// =========================================================================
 
 async function fetchUsersForAdmin() {
     if (currentUserRole !== 'admin') return [];
@@ -406,28 +292,17 @@ async function grantTemporaryUpload(targetUserId, hours) {
         alert("Failed to grant clearance. Check console.");
     }
 }
-// ==========================================
-// ADMIN: PERMANENTLY DELETE TRACK
-// ==========================================
+
 async function deleteTrack(trackId, trackName) {
-    // 1. Security Check: Only admins can do this
     if (currentUserRole !== 'admin') return alert("Security Clearance Required.");
-    
-    // 2. Final Warning Check
-    if (!confirm(`CRITICAL WARNING: Are you absolutely sure you want to PERMANENTLY delete "${trackName}" from the database? This cannot be undone.`)) return;
+    if (!confirm(`CRITICAL WARNING: Are you absolutely sure you want to PERMANENTLY delete "${trackName}"?`)) return;
 
     try {
-        // 3. Vaporize the document from the Appwrite Database
         await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, trackId);
-        
-        // 4. Refresh the track list so it vanishes from the screen
         fetchTracks(); 
-        
-        // Optional: Let the admin know it worked
         console.log(`[SYSTEM] Signal "${trackName}" permanently erased.`);
     } catch (error) {
         console.error("Delete Error:", error);
-        alert("Failed to delete signal. Check console.");
+        alert("Failed to delete signal.");
     }
 }
-
