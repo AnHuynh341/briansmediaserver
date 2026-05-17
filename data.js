@@ -227,7 +227,7 @@ async function triggerUpload() {
                 genre: genre,
                 fileUrl: publicFileUrl,
                 coverUrl: fetchedCover,
-                format: fileExtension   // Helpful for future filtering
+               // format: fileExtension   // Helpful for future filtering
             });
 
             successCount++;
