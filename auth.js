@@ -160,9 +160,9 @@ async function loadAdminUserList() {
                         ${statusBadge}
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button onclick="adminActionGrant('${user.$id}', 12)" 
+                        <button onclick="adminActionGrant('${user.$id}', 3)" 
                                 style="background: var(--accent); color: black; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: bold;">
-                            +12h
+                            +3h 
                         </button>
                         <button onclick="adminActionRevoke('${user.$id}')" 
                                 style="background: transparent; color: #ff4d4d; border: 1px solid #ff4d4d; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: bold;">
