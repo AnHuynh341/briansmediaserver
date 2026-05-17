@@ -1,4 +1,3 @@
-
 // =========================================================================
 // 1. CORE DATA FETCHING
 // =========================================================================
@@ -51,6 +50,8 @@ async function fetchPlaylists() {
         console.error("Playlist Fetch Error:", error);
     }
 }
+
+
 
 // =========================================================================
 // 2. PLAYLIST MODALS
@@ -140,8 +141,9 @@ async function savePlaylist() {
     }
 }
 
+
 // =========================================================================
-// 3. UPLOAD ENGINE - SUPPORT .mp3 & .flac
+// 3. UPLOAD ENGINE
 // =========================================================================
 async function triggerUpload() {
     const btn = document.getElementById('startUploadBtn');
@@ -167,23 +169,12 @@ async function triggerUpload() {
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            const trackName = (files.length === 1 && customTrackName)
-                ? customTrackName
-                : file.name.replace(/\.[^/.]+$/, "");
+            const trackName = (files.length === 1 && customTrackName) ? customTrackName : file.name.replace(/\.[^/.]+$/, "");
 
-            if (status) {
-                status.innerText = `REQUESTING CLEARANCE [${i + 1}/${files.length}]...`;
-                status.style.color = "var(--accent)";
-            }
+            if (status) status.innerText = `REQUESTING CLEARANCE [${i + 1}/${files.length}]...`;
 
             const workerUrl = 'https://main.meochon341.workers.dev';
-
-            // Better MIME type detection
-            let cleanMimeType = file.type;
-            if (!cleanMimeType) {
-                const ext = file.name.toLowerCase().split('.').pop();
-                cleanMimeType = ext === 'flac' ? "audio/flac" : "audio/mpeg";
-            }
+            let cleanMimeType = file.type || (file.name.toLowerCase().endsWith('.flac') ? "audio/flac" : "audio/mpeg");
 
             const fileExtension = file.name.split('.').pop().toLowerCase();
             const safeStorageName = `track-${Date.now()}-${i}.${fileExtension}`;
@@ -191,10 +182,7 @@ async function triggerUpload() {
             const clearanceResponse = await fetch(workerUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fileName: safeStorageName,
-                    contentType: cleanMimeType
-                })
+                body: JSON.stringify({ fileName: safeStorageName, contentType: cleanMimeType })
             });
 
             if (!clearanceResponse.ok) throw new Error("Worker rejected request");
@@ -211,11 +199,11 @@ async function triggerUpload() {
 
             if (!uploadResponse.ok) throw new Error(`R2 Upload Failed: ${uploadResponse.status}`);
 
-            // Cover Art
             if (status) status.innerText = `MATCHING COVER ART...`;
             let fetchedCover = await fetchCoverArt(trackName, artistName);
+
             if (!fetchedCover) {
-                fetchedCover = `https://via.placeholder.com/600x600/0f172a/00ffcc?text=${encodeURIComponent(trackName.substring(0, 12))}`;
+                fetchedCover = `https://via.placeholder.com/600x600/0f172a/00ffcc?text=${encodeURIComponent(trackName.substring(0, 10))}`;
             }
 
             if (status) status.innerText = `SAVING METADATA...`;
@@ -237,12 +225,10 @@ async function triggerUpload() {
         }
 
         setTimeout(() => {
-            if (typeof closeUploadModal === 'function') closeUploadModal();
+            closeUploadModal();
             fetchTracks();
             if (btn) btn.disabled = false;
-            if (fileInput) fileInput.value = "";
-            if (document.getElementById('uploadTrackName')) document.getElementById('uploadTrackName').value = "";
-        }, 2500);
+        }, 2000);
 
     } catch (error) {
         console.error("UPLOAD ERROR:", error);
@@ -254,24 +240,28 @@ async function triggerUpload() {
     }
 }
 
-// Improved Cover Art Fetcher
+// =========================================================================
+// IMPROVED COVER ART FUNCTION
+// =========================================================================
 async function fetchCoverArt(trackName, artistName) {
     try {
-        const query = encodeURIComponent(`${trackName} ${artistName}`.trim());
-        const response = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
-        
-        if (!response.ok) throw new Error("API error");
-        
+        const query = encodeURIComponent(`${trackName} ${artistName || ''}`.trim());
+        const response = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=2`);
+
+        if (!response.ok) return null;
+
         const data = await response.json();
-        if (data.results?.length > 0) {
+        if (data.results && data.results.length > 0) {
             return data.results[0].artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg');
         }
         return null;
     } catch (error) {
-        console.warn("Cover fetch failed:", error);
+        console.warn("Cover art failed for:", trackName);
         return null;
     }
 }
+
+
 
 // =========================================================================
 // 4. ADMIN FUNCTIONS (Fixed timestamp handling)
