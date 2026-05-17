@@ -178,7 +178,7 @@ async function triggerUpload() {
 
             const workerUrl = 'https://main.meochon341.workers.dev';
 
-            // Improved MIME type detection for both mp3 and flac
+            // Better MIME type detection
             let cleanMimeType = file.type;
             if (!cleanMimeType) {
                 const ext = file.name.toLowerCase().split('.').pop();
@@ -188,13 +188,12 @@ async function triggerUpload() {
             const fileExtension = file.name.split('.').pop().toLowerCase();
             const safeStorageName = `track-${Date.now()}-${i}.${fileExtension}`;
 
-            // Request presigned URL
             const clearanceResponse = await fetch(workerUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    fileName: safeStorageName, 
-                    contentType: cleanMimeType 
+                body: JSON.stringify({
+                    fileName: safeStorageName,
+                    contentType: cleanMimeType
                 })
             });
 
@@ -226,8 +225,7 @@ async function triggerUpload() {
                 artist: artistName,
                 genre: genre,
                 fileUrl: publicFileUrl,
-                coverUrl: fetchedCover,
-               // format: fileExtension   // Helpful for future filtering
+                coverUrl: fetchedCover
             });
 
             successCount++;
@@ -276,7 +274,7 @@ async function fetchCoverArt(trackName, artistName) {
 }
 
 // =========================================================================
-// 4. ADMIN FUNCTIONS
+// 4. ADMIN FUNCTIONS (Fixed timestamp handling)
 // =========================================================================
 async function fetchUsersForAdmin() {
     if (currentUserRole !== 'admin') return [];
@@ -293,10 +291,38 @@ async function grantTemporaryUpload(targetUserId, hours) {
     try {
         const expirationTime = Date.now() + (hours * 60 * 60 * 1000);
         await databases.updateDocument(DATABASE_ID, USERS_COLLECTION_ID, targetUserId, {
-            uploadAccessUntil: expirationTime
+            uploadAccessUntil: expirationTime.toString()   // Must be string
         });
     } catch (error) {
         console.error("Grant Access Error:", error);
+        alert("Failed to grant clearance.");
+    }
+}
+
+async function adminActionGrant(targetUserId, hours) {
+    try {
+        const newTime = Date.now() + (hours * 60 * 60 * 1000);
+        await databases.updateDocument(DATABASE_ID, USERS_COLLECTION_ID, targetUserId, {
+            uploadAccessUntil: newTime.toString()
+        });
+       
+        loadAdminUserList();
+    } catch (error) {
+        console.error("Grant Access Error:", error);
+        alert("Failed to grant clearance.");
+    }
+}
+
+async function adminActionRevoke(targetUserId) {
+    try {
+        await databases.updateDocument(DATABASE_ID, USERS_COLLECTION_ID, targetUserId, {
+            uploadAccessUntil: null
+        });
+       
+        loadAdminUserList();
+    } catch (error) {
+        console.error("Revoke Access Error:", error);
+        alert("Failed to revoke clearance.");
     }
 }
 
