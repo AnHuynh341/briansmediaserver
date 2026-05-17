@@ -1,5 +1,4 @@
 
-
 // =========================================================================
 // 1. CORE DATA FETCHING
 // =========================================================================
@@ -54,16 +53,95 @@ async function fetchPlaylists() {
 }
 
 // =========================================================================
-// 2. PLAYLIST MODALS (unchanged)
+// 2. PLAYLIST MODALS
 // =========================================================================
-function openPlaylistModal() { /* ... your original code ... */ }
-function openEditModal() { /* ... your original code ... */ }
-function buildModalTrackList(selectedIds) { /* ... your original code ... */ }
-function closePlaylistModal() { /* ... your original code ... */ }
-async function savePlaylist() { /* ... your original code ... */ }
+function openPlaylistModal() {
+    document.getElementById('modalTitle').innerText = 'CREATE NEW PLAYLIST';
+    document.getElementById('newPlaylistName').value = '';
+    document.getElementById('editPlaylistIndex').value = -1;
+    buildModalTrackList([]);
+    document.getElementById('playlistModal').classList.remove('hidden');
+}
+
+function openEditModal() {
+    if (currentViewPlaylistIndex === -1) return alert("Please select a collection first.");
+    const pl = userPlaylists[currentViewPlaylistIndex];
+    document.getElementById('modalTitle').innerText = `EDITING: ${pl.name.toUpperCase()}`;
+    document.getElementById('newPlaylistName').value = pl.name;
+    document.getElementById('editPlaylistIndex').value = currentViewPlaylistIndex;
+    buildModalTrackList(pl.ids);
+    document.getElementById('playlistModal').classList.remove('hidden');
+}
+
+function buildModalTrackList(selectedIds) {
+    const trackArea = document.getElementById('modalTrackSelection');
+    if (!trackArea) return;
+    trackArea.innerHTML = '';
+
+    allTracks.forEach((track) => {
+        const isChecked = selectedIds.includes(track.id) ? 'checked' : '';
+        const label = document.createElement('label');
+        label.className = 'track-checkbox-item';
+        label.innerHTML = `
+          <input type="checkbox" class="playlist-checkbox" value="${track.id}" ${isChecked}>
+          <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${track.name}</span>
+          <span class="track-genre">${track.genre}</span>
+        `;
+        trackArea.appendChild(label);
+    });
+}
+
+function closePlaylistModal() {
+    document.getElementById('playlistModal').classList.add('hidden');
+}
+
+async function savePlaylist() {
+    const nameInput = document.getElementById('newPlaylistName').value.trim();
+    const editIndex = parseInt(document.getElementById('editPlaylistIndex').value);
+    const checkboxes = document.querySelectorAll('.playlist-checkbox:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+
+    if (!nameInput) return alert("Collection name is required.");
+    if (selectedIds.length === 0) return alert("Please select at least one signal.");
+
+    try {
+        const btn = document.getElementById('modalSaveBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "SAVING...";
+        }
+
+        if (editIndex > -1) {
+            const playlistId = userPlaylists[editIndex].id;
+            await databases.updateDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, playlistId, {
+                name: nameInput,
+                trackIds: selectedIds
+            });
+        } else {
+            await databases.createDocument(DATABASE_ID, PLAYLIST_COLLECTION_ID, ID.unique(), {
+                name: nameInput,
+                trackIds: selectedIds,
+                owner: currentUser
+            });
+        }
+
+        closePlaylistModal();
+        await fetchPlaylists();
+        if (editIndex > -1 && typeof loadPlaylist === 'function') loadPlaylist(editIndex);
+
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Save Playlist";
+        }
+    } catch (error) {
+        alert("Database Error: " + error.message);
+        const btn = document.getElementById('modalSaveBtn');
+        if (btn) btn.disabled = false;
+    }
+}
 
 // =========================================================================
-// 3. IMPROVED UPLOAD ENGINE
+// 3. UPLOAD ENGINE - SUPPORT .mp3 & .flac
 // =========================================================================
 async function triggerUpload() {
     const btn = document.getElementById('startUploadBtn');
@@ -89,8 +167,8 @@ async function triggerUpload() {
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            const trackName = (files.length === 1 && customTrackName) 
-                ? customTrackName 
+            const trackName = (files.length === 1 && customTrackName)
+                ? customTrackName
                 : file.name.replace(/\.[^/.]+$/, "");
 
             if (status) {
@@ -99,15 +177,25 @@ async function triggerUpload() {
             }
 
             const workerUrl = 'https://main.meochon341.workers.dev';
-            const cleanMimeType = file.type || "audio/mpeg";
+
+            // Improved MIME type detection for both mp3 and flac
+            let cleanMimeType = file.type;
+            if (!cleanMimeType) {
+                const ext = file.name.toLowerCase().split('.').pop();
+                cleanMimeType = ext === 'flac' ? "audio/flac" : "audio/mpeg";
+            }
+
             const fileExtension = file.name.split('.').pop().toLowerCase();
             const safeStorageName = `track-${Date.now()}-${i}.${fileExtension}`;
 
-            // Get presigned URL
+            // Request presigned URL
             const clearanceResponse = await fetch(workerUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: safeStorageName, contentType: cleanMimeType })
+                body: JSON.stringify({ 
+                    fileName: safeStorageName, 
+                    contentType: cleanMimeType 
+                })
             });
 
             if (!clearanceResponse.ok) throw new Error("Worker rejected request");
@@ -124,7 +212,7 @@ async function triggerUpload() {
 
             if (!uploadResponse.ok) throw new Error(`R2 Upload Failed: ${uploadResponse.status}`);
 
-            // Fetch Cover Art
+            // Cover Art
             if (status) status.innerText = `MATCHING COVER ART...`;
             let fetchedCover = await fetchCoverArt(trackName, artistName);
             if (!fetchedCover) {
@@ -138,7 +226,8 @@ async function triggerUpload() {
                 artist: artistName,
                 genre: genre,
                 fileUrl: publicFileUrl,
-                coverUrl: fetchedCover
+                coverUrl: fetchedCover,
+                format: fileExtension   // Helpful for future filtering
             });
 
             successCount++;
@@ -150,12 +239,12 @@ async function triggerUpload() {
         }
 
         setTimeout(() => {
-            closeUploadModal();
+            if (typeof closeUploadModal === 'function') closeUploadModal();
             fetchTracks();
             if (btn) btn.disabled = false;
-            fileInput.value = "";
-            document.getElementById('uploadTrackName').value = "";
-        }, 2000);
+            if (fileInput) fileInput.value = "";
+            if (document.getElementById('uploadTrackName')) document.getElementById('uploadTrackName').value = "";
+        }, 2500);
 
     } catch (error) {
         console.error("UPLOAD ERROR:", error);
@@ -186,9 +275,8 @@ async function fetchCoverArt(trackName, artistName) {
     }
 }
 
-
 // =========================================================================
-// 4. ADMIN FUNCTIONS (unchanged)
+// 4. ADMIN FUNCTIONS
 // =========================================================================
 async function fetchUsersForAdmin() {
     if (currentUserRole !== 'admin') return [];
@@ -215,7 +303,6 @@ async function grantTemporaryUpload(targetUserId, hours) {
 async function deleteTrack(trackId, trackName) {
     if (currentUserRole !== 'admin') return alert("Security Clearance Required.");
     if (!confirm(`Delete "${trackName}" permanently?`)) return;
-
     try {
         await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, trackId);
         fetchTracks();
