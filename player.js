@@ -197,6 +197,9 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
 
     currentTrackIndex = i;
     const track = allTracks[i];
+    const displayTrackName = typeof getDisplayTrackName === 'function'
+        ? getDisplayTrackName(track.name)
+        : track.name;
 
     if (isShuffle && navigationSource === 'direct') {
         registerDirectShuffleSelection(track.id);
@@ -210,7 +213,7 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
 
     const coverArtElement = document.getElementById('npCover');
     if (typeof setCoverImage === 'function') {
-        setCoverImage(coverArtElement, track.cover, track.name);
+        setCoverImage(coverArtElement, track.cover, displayTrackName);
     } else if (coverArtElement) {
         coverArtElement.src = track.cover || '';
     }
@@ -237,7 +240,7 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
 
         audio.src = blobUrl;
 
-        if (titleElement) titleElement.innerText = track.name;
+        if (titleElement) titleElement.innerText = displayTrackName;
         if (artistElement) artistElement.innerText = track.artist || 'Unknown Artist';
 
         if (typeof renderTrackList === 'function') renderTrackList();
@@ -263,7 +266,7 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
     } catch (error) {
         console.error('Failed to load track through fetch:', error);
 
-        if (titleElement) titleElement.innerText = track.name;
+        if (titleElement) titleElement.innerText = displayTrackName;
         if (artistElement) artistElement.innerText = track.artist || 'Unknown Artist';
 
         // Fallback for servers that allow media playback but not fetch/CORS.

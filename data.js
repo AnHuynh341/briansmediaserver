@@ -1,4 +1,24 @@
 // =========================================================================
+// TRACK TITLE DISPLAY UTILITIES
+// =========================================================================
+
+/**
+ * Removes one or more trailing audio extensions from a visible track title.
+ * Examples: "Song.flac" -> "Song", "Song.flac.mp3" -> "Song".
+ * The stored file URL and storage filename are never changed.
+ */
+function getDisplayTrackName(value, fallback = 'Unknown Track') {
+    let cleaned = String(value || '').trim();
+    const audioExtension = /\.(?:mp3|flac|wav|m4a|aac|ogg|oga|opus|wma|alac|aiff?|ape)$/i;
+
+    while (audioExtension.test(cleaned)) {
+        cleaned = cleaned.replace(audioExtension, '').trim();
+    }
+
+    return cleaned || fallback;
+}
+
+// =========================================================================
 // COVER ART UTILITIES
 // =========================================================================
 
@@ -20,7 +40,7 @@ function escapeCoverText(value) {
  * failed cover URL cannot turn into another broken-image icon.
  */
 function createCoverPlaceholder(trackName = 'No Cover') {
-    const shortName = String(trackName || 'No Cover').trim().slice(0, 28);
+    const shortName = getDisplayTrackName(trackName, 'No Cover').slice(0, 28);
     const safeName = escapeCoverText(shortName);
 
     const svg = `
@@ -88,7 +108,7 @@ async function throttleCoverLookup() {
 }
 
 function cleanCoverSearchText(value) {
-    return String(value || '')
+    return getDisplayTrackName(value, '')
         .replace(/\.[a-z0-9]{2,5}$/i, '')
         .replace(/\b(?:official\s+)?(?:music\s+)?video\b/gi, ' ')
         .replace(/\b(?:official\s+)?audio\b/gi, ' ')
@@ -306,7 +326,7 @@ function buildModalTrackList(selectedIds) {
         trackName.style.whiteSpace = 'nowrap';
         trackName.style.overflow = 'hidden';
         trackName.style.textOverflow = 'ellipsis';
-        trackName.innerText = track.name;
+        trackName.innerText = getDisplayTrackName(track.name);
 
         const genre = document.createElement('span');
         genre.className = 'track-genre';
@@ -558,7 +578,7 @@ function renderSortPlaylistList() {
         handle.setAttribute('aria-hidden', 'true');
 
         const titleText = document.createElement('span');
-        titleText.innerText = track.name || 'Unknown Track';
+        titleText.innerText = getDisplayTrackName(track.name);
 
         title.appendChild(handle);
         title.appendChild(titleText);
@@ -726,9 +746,10 @@ async function triggerUpload() {
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            const trackName = (files.length === 1 && customTrackName)
+            const requestedTrackName = (files.length === 1 && customTrackName)
                 ? customTrackName
-                : file.name.replace(/\.[^/.]+$/, "");
+                : file.name;
+            const trackName = getDisplayTrackName(requestedTrackName, `Track ${i + 1}`);
 
             if (status) status.innerText = `REQUESTING CLEARANCE [${i + 1}/${files.length}]...`;
 
@@ -947,7 +968,7 @@ async function deleteTrack(trackId, trackName) {
         return alert("Security Clearance Required.");
     }
 
-    if (!confirm(`Delete "${trackName}" permanently?`)) return;
+    if (!confirm(`Delete "${getDisplayTrackName(trackName)}" permanently?`)) return;
 
     try {
         await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, trackId);

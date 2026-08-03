@@ -141,7 +141,7 @@ function renderTrackList() {
 
         const trackTitle = document.createElement('span');
         trackTitle.className = 'track-title';
-        trackTitle.innerText = track.name;
+        trackTitle.innerText = getDisplayTrackName(track.name);
 
         const trackMeta = document.createElement('span');
         trackMeta.className = 'track-meta';
@@ -169,7 +169,7 @@ function renderTrackList() {
 
             deleteButton.onclick = event => {
                 event.stopPropagation();
-                deleteTrack(track.id, track.name);
+                deleteTrack(track.id, getDisplayTrackName(track.name));
             };
 
             trackAction.appendChild(deleteButton);
@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setPlaylistActionVisibility(false);
 
             currentPlaylistTracks = allTracks.filter(track => {
-                const name = (track.name || '').toLowerCase();
+                const name = getDisplayTrackName(track.name, '').toLowerCase();
                 const artist = (track.artist || '').toLowerCase();
                 return name.includes(query) || artist.includes(query);
             });
@@ -298,7 +298,7 @@ function handleFileSelection() {
 
     const trackNameInput = document.getElementById('uploadTrackName');
     if (trackNameInput && trackNameInput.value === '') {
-        trackNameInput.value = file.name.replace(/\.(mp3|flac)$/i, '');
+        trackNameInput.value = getDisplayTrackName(file.name, '');
     }
 }
 
