@@ -1520,3 +1520,55 @@ html, body {
     max-width: none;
   }
 }
+
+/* =============================================
+   FLOATING SIDEBAR-WIDTH COVER ART
+   Keeps the player bar height unchanged while the
+   album artwork rises above it on desktop screens.
+============================================= */
+@media (min-width: 1101px) {
+  .player {
+    position: relative;
+    overflow: visible;
+    padding: 0 24px 0 12px;
+    grid-template-columns: minmax(430px, 38%) minmax(360px, 42%) minmax(170px, 20%);
+  }
+
+  .now-playing {
+    position: relative;
+    overflow: visible;
+    min-width: 0;
+    height: 100%;
+    padding-left: calc(var(--sidebar-width) + 10px);
+  }
+
+  .album-art,
+  #npCover {
+    position: absolute;
+    left: 0;
+    bottom: 12px;
+    width: calc(var(--sidebar-width) - 24px);
+    height: calc(var(--sidebar-width) - 24px);
+    max-width: none;
+    max-height: none;
+    border-radius: 12px;
+    object-fit: cover;
+    z-index: 3;
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+
+  .np-info {
+    position: relative;
+    z-index: 4;
+    min-width: 0;
+    max-width: 230px;
+  }
+
+  /* The floating cover overlaps the lower sidebar visually.
+     Extra scroll padding keeps the final playlist entries reachable. */
+  .library-section {
+    padding-bottom: calc(var(--sidebar-width) - var(--player-height) + 42px);
+  }
+}
