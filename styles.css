@@ -1934,3 +1934,15 @@ html, body {
     margin-top: -5px;
   }
 }
+
+/* =============================================
+   PLAYER TOP-LINE / FLOATING COVER SEPARATION
+   On wide layouts the cover rises through the player edge.
+   Begin the decorative top line after the cover so it cannot
+   draw across the artwork or compete with the cover frame.
+============================================= */
+@media (min-width: 1101px) {
+  .player::before {
+    left: var(--sidebar-width);
+  }
+}
