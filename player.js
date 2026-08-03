@@ -453,6 +453,23 @@ async function prevTrack() {
 // ==========================================
 // 3. TIMELINE & VOLUME
 // ==========================================
+function updateRangeVisual(rangeElement) {
+    if (!rangeElement) return;
+
+    const minimum = Number(rangeElement.min || 0);
+    const maximum = Number(rangeElement.max || 100);
+    const current = Number(rangeElement.value || minimum);
+    const span = maximum - minimum || 1;
+    const percentage = Math.min(100, Math.max(0, ((current - minimum) / span) * 100));
+
+    rangeElement.style.setProperty('--range-progress', `${percentage}%`);
+}
+
+function syncPlayerRangeVisuals() {
+    updateRangeVisual(seekbar);
+    updateRangeVisual(volumebar);
+}
+
 audio.addEventListener('ended', async () => {
     const advanced = await nextTrack(true);
     if (!advanced) markPlaybackStopped();
@@ -469,10 +486,12 @@ audio.addEventListener('pause', () => {
 audio.addEventListener('loadedmetadata', () => {
     const totalTimeElement = document.getElementById('totalTime');
     if (totalTimeElement) totalTimeElement.innerText = formatTime(audio.duration);
+    updateRangeVisual(seekbar);
 });
 
 seekbar.addEventListener('input', () => {
     isSeeking = true;
+    updateRangeVisual(seekbar);
 
     if (audio.duration) {
         document.getElementById('currentTime').innerText = formatTime(
@@ -486,12 +505,14 @@ seekbar.addEventListener('change', () => {
         audio.currentTime = (seekbar.value / 100) * audio.duration;
     }
 
+    updateRangeVisual(seekbar);
     isSeeking = false;
 });
 
 audio.addEventListener('timeupdate', () => {
     if (audio.duration && !isSeeking) {
         seekbar.value = (audio.currentTime / audio.duration) * 100;
+        updateRangeVisual(seekbar);
         document.getElementById('currentTime').innerText = formatTime(
             audio.currentTime
         );
@@ -500,8 +521,11 @@ audio.addEventListener('timeupdate', () => {
 
 volumebar.addEventListener('input', () => {
     audio.volume = volumebar.value / 100;
+    updateRangeVisual(volumebar);
     localStorage.setItem('userVolume', String(audio.volume));
 });
+
+syncPlayerRangeVisuals();
 
 function formatTime(seconds) {
     if (!Number.isFinite(seconds)) return '0:00';

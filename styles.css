@@ -1799,3 +1799,177 @@ html, body {
     display: none;
   }
 }
+
+
+/* =============================================
+   NEON FRAME + ENHANCED PLAYER TIMELINE
+   Thin cyan hardware-style edging and a custom
+   filled seek track with a glowing playhead.
+============================================= */
+.player {
+  isolation: isolate;
+  border-top: 1px solid rgba(0, 229, 255, 0.55);
+  box-shadow:
+    0 -1px 0 rgba(0, 229, 255, 0.18),
+    0 -8px 24px rgba(0, 229, 255, 0.08),
+    0 -18px 36px rgba(0, 0, 0, 0.34);
+}
+
+.player::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  z-index: 8;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 229, 255, 0.22) 8%,
+    rgba(0, 229, 255, 0.95) 32%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(0, 229, 255, 0.95) 68%,
+    rgba(0, 229, 255, 0.22) 92%,
+    transparent 100%
+  );
+  box-shadow: 0 0 9px rgba(0, 229, 255, 0.75);
+}
+
+#npCover {
+  border: 1px solid rgba(0, 229, 255, 0.72);
+  outline: 1px solid rgba(255, 255, 255, 0.07);
+  outline-offset: -5px;
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.52),
+    0 0 0 1px rgba(0, 229, 255, 0.16),
+    0 0 16px rgba(0, 229, 255, 0.22),
+    inset 0 0 14px rgba(0, 229, 255, 0.07);
+}
+
+/* The playback timeline is intentionally separated from the volume slider. */
+.player #seekbar {
+  --range-progress: 0%;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  margin: 0;
+  border: 1px solid rgba(0, 229, 255, 0.24);
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 229, 255, 0.95) 0%,
+      rgba(91, 246, 255, 1) var(--range-progress),
+      rgba(255, 255, 255, 0.10) var(--range-progress),
+      rgba(255, 255, 255, 0.04) 100%
+    );
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.65),
+    0 0 9px rgba(0, 229, 255, 0.10);
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.player #seekbar:hover,
+.player #seekbar:focus-visible {
+  border-color: rgba(0, 229, 255, 0.72);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.65),
+    0 0 13px rgba(0, 229, 255, 0.30);
+}
+
+.player #seekbar::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.player #seekbar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border: 2px solid #dffcff;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 1;
+  box-shadow:
+    0 0 0 4px rgba(0, 229, 255, 0.13),
+    0 0 14px rgba(0, 229, 255, 0.85),
+    inset 0 0 3px rgba(255, 255, 255, 0.9);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.player #seekbar:hover::-webkit-slider-thumb,
+.player #seekbar:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.12);
+  box-shadow:
+    0 0 0 5px rgba(0, 229, 255, 0.17),
+    0 0 18px rgba(0, 229, 255, 1),
+    inset 0 0 3px rgba(255, 255, 255, 0.95);
+}
+
+.player #seekbar::-moz-range-track {
+  height: 8px;
+  border: 1px solid rgba(0, 229, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.65);
+}
+
+.player #seekbar::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), #7af7ff);
+  box-shadow: 0 0 9px rgba(0, 229, 255, 0.36);
+}
+
+.player #seekbar::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #dffcff;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 4px rgba(0, 229, 255, 0.13),
+    0 0 14px rgba(0, 229, 255, 0.85);
+}
+
+/* Give the volume bar the same language, but keep it visually quieter. */
+.player #volumebar {
+  --range-progress: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 229, 255, 0.78) 0%,
+    rgba(0, 229, 255, 0.78) var(--range-progress),
+    rgba(255, 255, 255, 0.10) var(--range-progress),
+    rgba(255, 255, 255, 0.10) 100%
+  );
+}
+
+.player #volumebar::-webkit-slider-thumb {
+  opacity: 1;
+  width: 13px;
+  height: 13px;
+  background: #dffcff;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
+}
+
+@media (max-width: 600px) {
+  .player #seekbar,
+  .player #seekbar::-webkit-slider-runnable-track {
+    height: 6px;
+  }
+
+  .player #seekbar::-webkit-slider-thumb {
+    width: 15px;
+    height: 15px;
+    margin-top: -5px;
+  }
+}
