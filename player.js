@@ -25,6 +25,8 @@ let spectrumCanvas = null;
 let spectrumContext = null;
 let spectrumResizeObserver = null;
 let lastSpectrumFrameAt = 0;
+let spectrumAutoGain = 1;
+let spectrumSmoothedPeak = 0.35;
 
 // ==========================================
 // SESSION TELEMETRY
@@ -715,9 +717,9 @@ function setupVisualizer() {
         mediaElementSource = mediaElementSource || audioCtx.createMediaElementSource(audio);
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.84;
-        analyser.minDecibels = -92;
-        analyser.maxDecibels = -18;
+        analyser.smoothingTimeConstant = 0.72;
+        analyser.minDecibels = -108;
+        analyser.maxDecibels = -22;
         dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         mediaElementSource.connect(analyser);
@@ -804,33 +806,63 @@ function renderFrame(timestamp = 0) {
     spectrumContext.save();
     spectrumContext.globalCompositeOperation = 'lighter';
 
-    const barCount = Math.max(34, Math.min(72, Math.floor(width / 18)));
-    const gap = Math.max(2, width / barCount * 0.28);
-    const barWidth = Math.max(2, (width - gap * (barCount - 1)) / barCount);
-    const usableHeight = Math.max(8, height - 5);
+    // Automatic gain normalization follows the spectrum's shape rather than
+    // the player's output-volume setting. Quiet listening therefore remains
+    // visually lively without making loud masters turn into a solid wall.
+    let framePeak = 0;
+    let frameAverage = 0;
+    const analysedBins = Math.max(1, Math.floor(dataArray.length * 0.82));
+
+    for (let index = 0; index < analysedBins; index += 1) {
+        const value = dataArray[index] / 255;
+        framePeak = Math.max(framePeak, value);
+        frameAverage += value;
+    }
+
+    frameAverage /= analysedBins;
+    spectrumSmoothedPeak += (Math.max(framePeak, frameAverage * 2.4, 0.08) - spectrumSmoothedPeak) * 0.09;
+
+    const desiredGain = Math.min(5.8, Math.max(1.05, 0.86 / spectrumSmoothedPeak));
+    spectrumAutoGain += (desiredGain - spectrumAutoGain) * 0.075;
+
+    const barCount = Math.max(42, Math.min(88, Math.floor(width / 14)));
+    const gap = Math.max(1.5, width / barCount * 0.24);
+    const barWidth = Math.max(1.8, (width - gap * (barCount - 1)) / barCount);
+    const usableHeight = Math.max(10, height - 4);
 
     for (let index = 0; index < barCount; index += 1) {
         const normalizedIndex = index / Math.max(1, barCount - 1);
         const dataIndex = Math.min(
             dataArray.length - 1,
-            Math.floor(Math.pow(normalizedIndex, 1.45) * dataArray.length * 0.78)
+            Math.floor(Math.pow(normalizedIndex, 1.38) * dataArray.length * 0.80)
         );
 
-        const strength = dataArray[dataIndex] / 255;
-        const easedStrength = Math.pow(strength, 1.35);
-        const barHeight = Math.max(1.5, easedStrength * usableHeight);
+        const previousBin = dataArray[Math.max(0, dataIndex - 1)] / 255;
+        const currentBin = dataArray[dataIndex] / 255;
+        const nextBin = dataArray[Math.min(dataArray.length - 1, dataIndex + 1)] / 255;
+        const localShape = (previousBin + currentBin * 2 + nextBin) / 4;
+        const normalizedStrength = Math.min(1, localShape * spectrumAutoGain);
+
+        // A restrained travelling pulse keeps the ribbon breathing between
+        // softer notes; the actual frequency data still controls its shape.
+        const travellingPulse = 0.5 + 0.5 * Math.sin(timestamp * 0.0048 + index * 0.58);
+        const livelyFloor = 0.07 + travellingPulse * (0.035 + frameAverage * 0.12);
+        const shapedStrength = Math.min(1, normalizedStrength * 0.90 + livelyFloor);
+        const easedStrength = Math.pow(shapedStrength, 0.78);
+        const barHeight = Math.max(2.5, easedStrength * usableHeight);
         const x = index * (barWidth + gap);
         const y = height - barHeight;
-        const hue = (185 + normalizedIndex * 255) % 360;
-        const color = `hsla(${hue}, 100%, 66%, ${0.22 + easedStrength * 0.48})`;
+        const hue = (184 + normalizedIndex * 272 + timestamp * 0.008) % 360;
+        const color = `hsla(${hue}, 100%, 68%, ${0.25 + easedStrength * 0.46})`;
         const verticalGradient = spectrumContext.createLinearGradient(0, y, 0, height);
 
         verticalGradient.addColorStop(0, color);
-        verticalGradient.addColorStop(1, `hsla(${hue}, 100%, 58%, 0.025)`);
+        verticalGradient.addColorStop(0.62, `hsla(${hue}, 100%, 60%, ${0.10 + easedStrength * 0.16})`);
+        verticalGradient.addColorStop(1, `hsla(${hue}, 100%, 56%, 0.018)`);
 
         spectrumContext.fillStyle = verticalGradient;
-        spectrumContext.shadowColor = `hsla(${hue}, 100%, 62%, ${0.16 + easedStrength * 0.38})`;
-        spectrumContext.shadowBlur = 5 + easedStrength * 8;
+        spectrumContext.shadowColor = `hsla(${hue}, 100%, 64%, ${0.18 + easedStrength * 0.34})`;
+        spectrumContext.shadowBlur = 6 + easedStrength * 9;
         roundedSpectrumBar(spectrumContext, x, y, barWidth, barHeight, Math.min(3, barWidth / 2));
     }
 
