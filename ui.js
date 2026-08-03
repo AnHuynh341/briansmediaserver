@@ -321,75 +321,18 @@ function handleFileSelection() {
 }
 
 
+
 // =========================================================================
-// 4. ADMIN SECURITY HANDLERS
+// 4. ADMIN TERMINAL CONTROLLERS
 // =========================================================================
-async function openAdminModal() {
-    document.getElementById('adminModal').classList.remove('hidden');
+function openAdminModal() {
+    if (currentUserRole !== 'admin') return;
 
-    const userListDiv = document.getElementById('adminUserList');
-    userListDiv.innerHTML = '<div style="text-align:center; color:var(--text-sub); padding:20px;"><i class="fas fa-circle-notch fa-spin"></i> Accessing User Database...</div>';
-
-    const users = await fetchUsersForAdmin();
-    userListDiv.innerHTML = '';
-
-    if (users.length === 0) {
-        userListDiv.innerHTML = '<div style="padding:15px; color:var(--text-sub); text-align:center;">No standard users found.</div>';
-        return;
-    }
-
-    users.forEach(user => {
-        if (user.role === 'admin') return;
-
-        const div = document.createElement('div');
-        div.className = 'user-row';
-
-        const hasAccess = user.uploadAccessUntil
-            && Date.now() < Number.parseInt(user.uploadAccessUntil, 10);
-
-        const infoStack = document.createElement('div');
-        infoStack.className = 'user-info-stack';
-        infoStack.style.padding = '10px 0';
-
-        const username = document.createElement('span');
-        username.className = 'username';
-        username.innerText = `@${user.username}`;
-
-        const statusIndicator = document.createElement('span');
-        statusIndicator.style.fontSize = '0.75rem';
-        statusIndicator.style.color = hasAccess ? 'var(--success)' : 'var(--error)';
-
-        const statusIcon = document.createElement('i');
-        statusIcon.className = hasAccess ? 'fas fa-check-circle' : 'fas fa-lock';
-
-        statusIndicator.appendChild(statusIcon);
-        statusIndicator.append(` ${hasAccess ? 'Upload Active' : 'Upload Locked'}`);
-
-        infoStack.appendChild(username);
-        infoStack.appendChild(statusIndicator);
-
-        const grantButton = document.createElement('button');
-        grantButton.className = 'btn-grant';
-        grantButton.innerText = 'Grant 12H';
-        grantButton.onclick = () => handleGrantAccess(user.$id, grantButton);
-
-        div.appendChild(infoStack);
-        div.appendChild(grantButton);
-        userListDiv.appendChild(div);
-    });
+    const modal = document.getElementById('adminModal');
+    if (modal) modal.classList.remove('hidden');
 }
 
 function closeAdminModal() {
-    document.getElementById('adminModal').classList.add('hidden');
-}
-
-async function handleGrantAccess(userId, btnElement) {
-    btnElement.disabled = true;
-    btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-    await grantTemporaryUpload(userId, 12);
-
-    btnElement.innerText = 'GRANTED';
-    btnElement.style.background = 'var(--success)';
-    btnElement.style.color = '#fff';
+    const modal = document.getElementById('adminModal');
+    if (modal) modal.classList.add('hidden');
 }

@@ -29,7 +29,6 @@ let isSeeking = false;
 let currentUser = null;
 let currentUserRole = null;
 let currentUserId = null;
-let currentUploadAccess = null;
 
 // ---- DOM References ----
 const audio = document.getElementById('audio');
