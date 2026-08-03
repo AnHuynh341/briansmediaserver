@@ -1,13 +1,5 @@
-const savedState = localStorage.getItem('visualizerState');
-let userWantsVisualizer = localStorage.getItem('visState') === null
-    ? true
-    : localStorage.getItem('visState') === 'true';
-let userWantsUIGlow = localStorage.getItem('glowState') === null
-    ? true
-    : localStorage.getItem('glowState') === 'true';
-let userWantsLaunchpad = localStorage.getItem('padState') === null
-    ? true
-    : localStorage.getItem('padState') === 'true';
+// W41IT player visualizer and session telemetry.
+// The old full-screen background/launchpad toggles were intentionally removed.
 
 // Restore playback-mode preferences.
 isShuffle = localStorage.getItem('shuffleEnabled') === 'true';
@@ -21,15 +13,130 @@ repeatMode = [0, 1, 2].includes(savedRepeatMode)
     ? savedRepeatMode
     : 0;
 
-let audioCtx, analyser, dataArray;
-let isVisualizerRunning = false;
-let colorHue = 0;
-let lastBeatTime = 0;
-let currentPadIndex = 0;
+// ==========================================
+// PLAYER SPECTRUM STATE
+// ==========================================
+let audioCtx = null;
+let analyser = null;
+let dataArray = null;
+let mediaElementSource = null;
+let spectrumAnimationId = null;
+let spectrumCanvas = null;
+let spectrumContext = null;
+let spectrumResizeObserver = null;
+let lastSpectrumFrameAt = 0;
 
-let snowCtx, canvasW, canvasH;
-let particles = [];
-const MAX_PARTICLES = 200;
+// ==========================================
+// SESSION TELEMETRY
+// ==========================================
+const SESSION_STORAGE_KEY = 'w41it-session-telemetry-v1';
+let sessionStartedListeningAt = null;
+let sessionUpdateTimer = null;
+
+function readSessionTelemetry() {
+    try {
+        const parsed = JSON.parse(sessionStorage.getItem(SESSION_STORAGE_KEY) || '{}');
+        return {
+            playedTrackIds: Array.isArray(parsed.playedTrackIds) ? parsed.playedTrackIds : [],
+            listeningSeconds: Number.isFinite(Number(parsed.listeningSeconds))
+                ? Math.max(0, Number(parsed.listeningSeconds))
+                : 0
+        };
+    } catch (error) {
+        console.warn('Could not restore session telemetry:', error);
+        return { playedTrackIds: [], listeningSeconds: 0 };
+    }
+}
+
+const sessionTelemetry = readSessionTelemetry();
+const sessionPlayedTrackIds = new Set(sessionTelemetry.playedTrackIds);
+let sessionListeningSeconds = sessionTelemetry.listeningSeconds;
+
+function persistSessionTelemetry() {
+    try {
+        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+            playedTrackIds: Array.from(sessionPlayedTrackIds),
+            listeningSeconds: Math.max(0, Math.floor(sessionListeningSeconds))
+        }));
+    } catch (error) {
+        console.warn('Could not save session telemetry:', error);
+    }
+}
+
+function getLiveSessionListeningSeconds() {
+    if (sessionStartedListeningAt === null) return sessionListeningSeconds;
+    return sessionListeningSeconds + ((Date.now() - sessionStartedListeningAt) / 1000);
+}
+
+function formatSessionListeningTime(seconds) {
+    const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+    const hours = Math.floor(safeSeconds / 3600);
+    const minutes = Math.floor((safeSeconds % 3600) / 60);
+
+    if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+    return `${minutes} min`;
+}
+
+function updateSessionInfo() {
+    const trackCountElement = document.getElementById('sessionTrackCount');
+    const listeningElement = document.getElementById('sessionListeningTime');
+    const shuffleElement = document.getElementById('sessionShuffleState');
+    const loopElement = document.getElementById('sessionLoopState');
+    const liveDot = document.querySelector('.session-live-dot');
+
+    if (trackCountElement) trackCountElement.textContent = String(sessionPlayedTrackIds.size);
+    if (listeningElement) listeningElement.textContent = formatSessionListeningTime(getLiveSessionListeningSeconds());
+    if (shuffleElement) shuffleElement.textContent = isShuffle ? 'Active' : 'Off';
+
+    if (loopElement) {
+        loopElement.textContent = repeatMode === 1
+            ? 'All'
+            : repeatMode === 2
+                ? 'One'
+                : 'Off';
+    }
+
+    if (liveDot) liveDot.classList.toggle('active', !audio.paused && !audio.ended);
+}
+
+function noteCurrentTrackPlayed() {
+    const trackId = getCurrentTrackId();
+    if (!trackId) return;
+
+    sessionPlayedTrackIds.add(trackId);
+    persistSessionTelemetry();
+    updateSessionInfo();
+}
+
+function startSessionListeningClock() {
+    if (sessionStartedListeningAt === null) {
+        sessionStartedListeningAt = Date.now();
+    }
+
+    if (sessionUpdateTimer === null) {
+        sessionUpdateTimer = window.setInterval(() => {
+            updateSessionInfo();
+            persistSessionTelemetry();
+        }, 1000);
+    }
+
+    updateSessionInfo();
+}
+
+function commitSessionListeningTime() {
+    if (sessionStartedListeningAt !== null) {
+        sessionListeningSeconds += (Date.now() - sessionStartedListeningAt) / 1000;
+        sessionStartedListeningAt = null;
+    }
+
+    if (sessionUpdateTimer !== null) {
+        clearInterval(sessionUpdateTimer);
+        sessionUpdateTimer = null;
+    }
+
+    persistSessionTelemetry();
+    updateSessionInfo();
+}
 
 // ==========================================
 // SHUFFLE STATE
@@ -167,7 +274,10 @@ function updatePlaybackModeButtons() {
         shuffleButton.title = isShuffle ? 'Shuffle: On' : 'Shuffle: Off';
     }
 
-    if (!repeatButton) return;
+    if (!repeatButton) {
+        updateSessionInfo();
+        return;
+    }
 
     repeatButton.classList.toggle('active', repeatMode !== 0);
     repeatButton.removeAttribute('data-repeat-one');
@@ -183,10 +293,15 @@ function updatePlaybackModeButtons() {
         repeatButton.setAttribute('aria-label', 'Repeat current track');
         repeatButton.setAttribute('data-repeat-one', 'true');
     }
+
+    updateSessionInfo();
 }
 
 function markPlaybackStopped() {
     if (playIcon) playIcon.className = 'fas fa-play';
+    document.querySelector('.player')?.classList.remove('is-playing');
+    commitSessionListeningTime();
+    stopVisualizer(true);
 }
 
 // ==========================================
@@ -201,6 +316,9 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
         ? getDisplayTrackName(track.name)
         : track.name;
 
+    // Create/resume the audio graph while the click gesture is still active.
+    if (autoplay) setupVisualizer();
+
     if (isShuffle && navigationSource === 'direct') {
         registerDirectShuffleSelection(track.id);
     }
@@ -211,12 +329,18 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
     if (titleElement) titleElement.innerText = 'Loading...';
     if (artistElement) artistElement.innerText = track.artist || 'Unknown Artist';
 
-    const coverArtElement = document.getElementById('npCover');
-    if (typeof setCoverImage === 'function') {
-        setCoverImage(coverArtElement, track.cover, displayTrackName);
-    } else if (coverArtElement) {
-        coverArtElement.src = track.cover || '';
-    }
+    const coverArtElements = [
+        document.getElementById('npCover'),
+        document.getElementById('sidebarCover')
+    ].filter(Boolean);
+
+    coverArtElements.forEach(coverArtElement => {
+        if (typeof setCoverImage === 'function') {
+            setCoverImage(coverArtElement, track.cover, displayTrackName);
+        } else {
+            coverArtElement.src = track.cover || '';
+        }
+    });
 
     try {
         const response = await fetch(track.file, {
@@ -250,10 +374,8 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
                 await audio.play();
                 if (playIcon) playIcon.className = 'fas fa-pause';
 
-                if (userWantsVisualizer) {
-                    setupVisualizer();
-                    startVisualizer();
-                }
+                setupVisualizer();
+                startVisualizer();
             } catch (playError) {
                 console.warn('Play prevented:', playError);
                 markPlaybackStopped();
@@ -300,7 +422,7 @@ async function togglePlay() {
         try {
             await audio.play();
             if (playIcon) playIcon.className = 'fas fa-pause';
-            if (userWantsVisualizer) startVisualizer();
+            startVisualizer();
         } catch (error) {
             console.warn('Play prevented:', error);
             markPlaybackStopped();
@@ -322,12 +444,14 @@ function toggleShuffle() {
     }
 
     updatePlaybackModeButtons();
+    updateSessionInfo();
 }
 
 function toggleRepeat() {
     repeatMode = (repeatMode + 1) % 3;
     localStorage.setItem('repeatMode', String(repeatMode));
     updatePlaybackModeButtons();
+    updateSessionInfo();
 }
 
 async function nextTrack(isAutoAdvance = false) {
@@ -471,12 +595,18 @@ function syncPlayerRangeVisuals() {
 }
 
 audio.addEventListener('ended', async () => {
+    commitSessionListeningTime();
     const advanced = await nextTrack(true);
     if (!advanced) markPlaybackStopped();
 });
 
 audio.addEventListener('play', () => {
     if (playIcon) playIcon.className = 'fas fa-pause';
+    document.querySelector('.player')?.classList.add('is-playing');
+    noteCurrentTrackPlayed();
+    startSessionListeningClock();
+    setupVisualizer();
+    startVisualizer();
 });
 
 audio.addEventListener('pause', () => {
@@ -537,36 +667,188 @@ function formatTime(seconds) {
 }
 
 // ==========================================
-// 4. VISUALIZER (Placeholders kept as supplied)
+// 4. TRANSLUCENT RGB SPECTRUM RIBBON
 // ==========================================
-function setupVisualizer() { /* ... keep your original setupVisualizer ... */ }
-function startVisualizer() { /* ... keep your original ... */ }
-function renderFrame() { /* ... keep your original ... */ }
-function drawParticles(currentHue, overallAverage) { /* ... keep your original ... */ }
-function triggerDynamicLaunchpad(bassStrength) { /* ... keep your original ... */ }
+function resizeSpectrumCanvas() {
+    if (!spectrumCanvas || !spectrumContext) return;
+
+    const bounds = spectrumCanvas.getBoundingClientRect();
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const width = Math.max(1, Math.floor(bounds.width * pixelRatio));
+    const height = Math.max(1, Math.floor(bounds.height * pixelRatio));
+
+    if (spectrumCanvas.width !== width || spectrumCanvas.height !== height) {
+        spectrumCanvas.width = width;
+        spectrumCanvas.height = height;
+        spectrumContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    }
+
+    drawIdleSpectrum();
+}
+
+function prepareSpectrumCanvas() {
+    spectrumCanvas = document.getElementById('playerSpectrum');
+    if (!spectrumCanvas) return false;
+
+    spectrumContext = spectrumCanvas.getContext('2d');
+    if (!spectrumContext) return false;
+
+    resizeSpectrumCanvas();
+
+    if (!spectrumResizeObserver && 'ResizeObserver' in window) {
+        spectrumResizeObserver = new ResizeObserver(resizeSpectrumCanvas);
+        spectrumResizeObserver.observe(spectrumCanvas);
+    }
+
+    return true;
+}
+
+function setupVisualizer() {
+    if (!prepareSpectrumCanvas()) return false;
+    if (analyser && mediaElementSource) return true;
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return false;
+
+    try {
+        audioCtx = audioCtx || new AudioContextClass();
+        mediaElementSource = mediaElementSource || audioCtx.createMediaElementSource(audio);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.84;
+        analyser.minDecibels = -92;
+        analyser.maxDecibels = -18;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        mediaElementSource.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        return true;
+    } catch (error) {
+        console.warn('Spectrum ribbon unavailable:', error);
+        return false;
+    }
+}
+
+function roundedSpectrumBar(context, x, y, width, height, radius) {
+    const safeRadius = Math.min(radius, width / 2, height / 2);
+    context.beginPath();
+    context.roundRect(x, y, width, height, safeRadius);
+    context.fill();
+}
+
+function drawIdleSpectrum() {
+    if (!spectrumCanvas || !spectrumContext) return;
+
+    const width = spectrumCanvas.clientWidth;
+    const height = spectrumCanvas.clientHeight;
+    spectrumContext.clearRect(0, 0, width, height);
+
+    const gradient = spectrumContext.createLinearGradient(0, 0, width, 0);
+    gradient.addColorStop(0, 'rgba(0, 229, 255, 0)');
+    gradient.addColorStop(0.22, 'rgba(0, 229, 255, 0.18)');
+    gradient.addColorStop(0.52, 'rgba(175, 90, 255, 0.2)');
+    gradient.addColorStop(0.78, 'rgba(255, 76, 128, 0.16)');
+    gradient.addColorStop(1, 'rgba(255, 76, 128, 0)');
+
+    spectrumContext.fillStyle = gradient;
+    spectrumContext.fillRect(0, height - 2, width, 1);
+}
+
+function startVisualizer() {
+    if (!setupVisualizer()) return;
+
+    if (audioCtx?.state === 'suspended') {
+        audioCtx.resume().catch(error => {
+            console.debug('Audio context resume was deferred:', error);
+        });
+    }
+
+    if (spectrumAnimationId !== null) return;
+    lastSpectrumFrameAt = 0;
+    spectrumAnimationId = requestAnimationFrame(renderFrame);
+}
+
+function stopVisualizer(drawIdle = true) {
+    if (spectrumAnimationId !== null) {
+        cancelAnimationFrame(spectrumAnimationId);
+        spectrumAnimationId = null;
+    }
+
+    if (drawIdle) drawIdleSpectrum();
+}
+
+function renderFrame(timestamp = 0) {
+    if (!analyser || !dataArray || !spectrumCanvas || !spectrumContext) {
+        spectrumAnimationId = null;
+        return;
+    }
+
+    if (audio.paused || audio.ended) {
+        spectrumAnimationId = null;
+        drawIdleSpectrum();
+        return;
+    }
+
+    // A smooth 30fps ribbon is plenty; faster animation only adds noise.
+    if (timestamp - lastSpectrumFrameAt < 33) {
+        spectrumAnimationId = requestAnimationFrame(renderFrame);
+        return;
+    }
+    lastSpectrumFrameAt = timestamp;
+
+    analyser.getByteFrequencyData(dataArray);
+
+    const width = spectrumCanvas.clientWidth;
+    const height = spectrumCanvas.clientHeight;
+    spectrumContext.clearRect(0, 0, width, height);
+    spectrumContext.save();
+    spectrumContext.globalCompositeOperation = 'lighter';
+
+    const barCount = Math.max(34, Math.min(72, Math.floor(width / 18)));
+    const gap = Math.max(2, width / barCount * 0.28);
+    const barWidth = Math.max(2, (width - gap * (barCount - 1)) / barCount);
+    const usableHeight = Math.max(8, height - 5);
+
+    for (let index = 0; index < barCount; index += 1) {
+        const normalizedIndex = index / Math.max(1, barCount - 1);
+        const dataIndex = Math.min(
+            dataArray.length - 1,
+            Math.floor(Math.pow(normalizedIndex, 1.45) * dataArray.length * 0.78)
+        );
+
+        const strength = dataArray[dataIndex] / 255;
+        const easedStrength = Math.pow(strength, 1.35);
+        const barHeight = Math.max(1.5, easedStrength * usableHeight);
+        const x = index * (barWidth + gap);
+        const y = height - barHeight;
+        const hue = (185 + normalizedIndex * 255) % 360;
+        const color = `hsla(${hue}, 100%, 66%, ${0.22 + easedStrength * 0.48})`;
+        const verticalGradient = spectrumContext.createLinearGradient(0, y, 0, height);
+
+        verticalGradient.addColorStop(0, color);
+        verticalGradient.addColorStop(1, `hsla(${hue}, 100%, 58%, 0.025)`);
+
+        spectrumContext.fillStyle = verticalGradient;
+        spectrumContext.shadowColor = `hsla(${hue}, 100%, 62%, ${0.16 + easedStrength * 0.38})`;
+        spectrumContext.shadowBlur = 5 + easedStrength * 8;
+        roundedSpectrumBar(spectrumContext, x, y, barWidth, barHeight, Math.min(3, barWidth / 2));
+    }
+
+    spectrumContext.restore();
+    spectrumAnimationId = requestAnimationFrame(renderFrame);
+}
 
 // ==========================================
-// 5. TOGGLES
-// ==========================================
-function toggleVisualizerMode() { /* ... your original ... */ }
-function toggleUIGlowMode() { /* ... your original ... */ }
-function toggleLaunchpadMode() { /* ... your original ... */ }
-
-// ==========================================
-// 6. INITIALIZATION
+// 5. INITIALIZATION
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    const visualizerInput = document.getElementById('visualizerToggleInput');
-    const glowInput = document.getElementById('uiGlowToggleInput');
-    const launchpadInput = document.getElementById('launchpadToggleInput');
-
-    if (visualizerInput) visualizerInput.checked = userWantsVisualizer;
-    if (glowInput) glowInput.checked = userWantsUIGlow;
-    if (launchpadInput) launchpadInput.checked = userWantsLaunchpad;
-
+    prepareSpectrumCanvas();
     updatePlaybackModeButtons();
+    updateSessionInfo();
 
     if (isShuffle) {
         resetShuffleState(getCurrentTrackId());
     }
 });
+
+window.addEventListener('beforeunload', commitSessionListeningTime);

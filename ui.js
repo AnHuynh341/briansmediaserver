@@ -1,3 +1,148 @@
+
+let activeLibraryView = 'all';
+let activeSearchQuery = '';
+
+function formatHeroRuntime(seconds) {
+    const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+    const hours = Math.floor(safeSeconds / 3600);
+    const minutes = Math.floor((safeSeconds % 3600) / 60);
+
+    if (hours > 0) {
+        return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+    }
+
+    return `${Math.max(1, minutes)} min`;
+}
+
+function getHeroRuntimeSummary(tracks) {
+    let knownSeconds = 0;
+    let missingDurations = 0;
+
+    tracks.forEach(track => {
+        const duration = getKnownTrackDuration(track);
+        if (duration) knownSeconds += duration;
+        else missingDurations += 1;
+    });
+
+    if (tracks.length === 0) return '0 min';
+    if (knownSeconds <= 0) return 'runtime scanning';
+
+    const formatted = formatHeroRuntime(knownSeconds);
+    return missingDurations > 0 ? `${formatted}+` : formatted;
+}
+
+function getHeroViewDetails() {
+    if (activeLibraryView === 'playlist' && currentViewPlaylistIndex > -1) {
+        const playlist = userPlaylists[currentViewPlaylistIndex];
+        if (playlist) {
+            const isMine = playlist.owner === currentUser;
+            return {
+                title: playlist.name,
+                eyebrow: isMine ? 'Your Playlist' : `Shared by ${playlist.owner}`
+            };
+        }
+    }
+
+    if (activeLibraryView === 'search') {
+        return {
+            title: activeSearchQuery ? `Results for “${activeSearchQuery}”` : 'Search Results',
+            eyebrow: 'Signal Search'
+        };
+    }
+
+    return {
+        title: 'All Tracks',
+        eyebrow: 'Database Index'
+    };
+}
+
+function updateHeroMosaic(tracks) {
+    const fallbackTrack = tracks[0] || allTracks[0] || null;
+
+    for (let index = 0; index < 4; index += 1) {
+        const image = document.getElementById(`heroCover${index}`);
+        if (!image) continue;
+
+        const track = tracks[index] || fallbackTrack;
+        const trackName = track ? getDisplayTrackName(track.name) : 'No Signals';
+        const coverUrl = track ? track.cover : '';
+        const coverKey = track ? `${track.id}|${coverUrl}` : 'empty';
+
+        // Runtime totals update repeatedly while metadata is scanned. Avoid
+        // reassigning identical image URLs on every telemetry refresh.
+        if (image.dataset.coverKey === coverKey) continue;
+        image.dataset.coverKey = coverKey;
+
+        if (typeof setCoverImage === 'function') {
+            setCoverImage(image, coverUrl, trackName);
+        } else {
+            image.src = coverUrl || '';
+        }
+    }
+}
+
+function updateLibraryHero() {
+    const titleElement = document.getElementById('viewTitle');
+    const eyebrowElement = document.getElementById('heroEyebrow');
+    const metaElement = document.getElementById('heroMeta');
+    const details = getHeroViewDetails();
+    const tracks = Array.isArray(currentPlaylistTracks) ? currentPlaylistTracks : [];
+
+    if (titleElement) titleElement.textContent = details.title;
+    if (eyebrowElement) eyebrowElement.textContent = details.eyebrow;
+
+    const artistCount = new Set(
+        tracks
+            .map(track => String(track.artist || 'Unknown Artist').trim().toLocaleLowerCase())
+            .filter(Boolean)
+    ).size;
+
+    if (metaElement) {
+        metaElement.textContent = `${tracks.length} signals • ${artistCount} artists • ${getHeroRuntimeSummary(tracks)}`;
+    }
+
+    updateHeroMosaic(tracks);
+}
+
+async function playCurrentView() {
+    if (!currentPlaylistTracks.length) {
+        return alert('No signals are available in this view.');
+    }
+
+    const currentTrack = allTracks[currentTrackIndex];
+    const currentTrackIsVisible = currentTrack
+        && currentPlaylistTracks.some(track => track.id === currentTrack.id);
+
+    if (currentTrackIsVisible && audio.src) {
+        if (audio.paused) await togglePlay();
+        return;
+    }
+
+    const firstTrack = currentPlaylistTracks[0];
+    const originalIndex = allTracks.findIndex(track => track.id === firstTrack.id);
+    if (originalIndex > -1) await loadTrack(originalIndex, true, 'hero-play');
+}
+
+async function shuffleCurrentView() {
+    if (!currentPlaylistTracks.length) {
+        return alert('No signals are available in this view.');
+    }
+
+    isShuffle = true;
+    localStorage.setItem('shuffleEnabled', 'true');
+
+    const randomTrack = currentPlaylistTracks[
+        Math.floor(Math.random() * currentPlaylistTracks.length)
+    ];
+
+    if (typeof resetShuffleState === 'function') resetShuffleState(randomTrack.id);
+    if (typeof updatePlaybackModeButtons === 'function') updatePlaybackModeButtons();
+    if (typeof updateSessionInfo === 'function') updateSessionInfo();
+
+    const originalIndex = allTracks.findIndex(track => track.id === randomTrack.id);
+    if (originalIndex > -1) await loadTrack(originalIndex, true, 'hero-shuffle');
+}
+
 function appendPlaylistSectionLabel(container, label, iconClass, shared = false) {
     const section = document.createElement('div');
     section.className = `playlist-section-label ${shared ? 'shared' : 'mine'}`;
@@ -87,6 +232,8 @@ function setPlaylistActionVisibility(show) {
 
 function showAllTracks() {
     currentViewPlaylistIndex = -1;
+    activeLibraryView = 'all';
+    activeSearchQuery = '';
 
     const navAll = document.getElementById('navAllTracks');
     if (navAll) navAll.classList.add('active');
@@ -109,6 +256,8 @@ function loadPlaylist(index) {
     }
 
     currentViewPlaylistIndex = index;
+    activeLibraryView = 'playlist';
+    activeSearchQuery = '';
 
     const navAll = document.getElementById('navAllTracks');
     if (navAll) navAll.classList.remove('active');
@@ -217,6 +366,7 @@ function storeTrackDuration(track, duration) {
     }
 
     updateDurationCells(track.id, duration);
+    updateLibraryHero();
 }
 
 function queueTrackDurationProbe(track) {
@@ -297,6 +447,7 @@ function renderTrackList() {
 
     if (currentPlaylistTracks.length === 0) {
         list.innerHTML = '<div class="track-empty-state">No signals detected.</div>';
+        updateLibraryHero();
         return;
     }
 
@@ -419,6 +570,8 @@ function renderTrackList() {
         div.onclick = () => loadTrack(originalIndex, true);
         list.appendChild(div);
     });
+
+    updateLibraryHero();
 }
 
 
@@ -474,12 +627,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             currentViewPlaylistIndex = -1;
+            activeLibraryView = 'search';
+            activeSearchQuery = event.target.value.trim();
 
             const navAll = document.getElementById('navAllTracks');
             if (navAll) navAll.classList.add('active');
-
-            const viewTitle = document.getElementById('viewTitle');
-            if (viewTitle) viewTitle.innerText = `Search Results: "${query}"`;
 
             setPlaylistActionVisibility(false);
 
