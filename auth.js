@@ -79,6 +79,19 @@ function grantAccess() {
 
         const uploadNav = document.getElementById('uploadNavBtn');
         const adminNav = document.getElementById('navAdminPanel');
+        const userWelcome = document.getElementById('userWelcome');
+        const userWelcomeText = document.getElementById('userWelcomeText');
+
+        // Standard users receive a personal sidebar greeting.
+        // textContent prevents usernames from being interpreted as HTML.
+        if (currentUserRole !== 'admin' && currentUser) {
+            if (userWelcomeText) {
+                userWelcomeText.textContent = `WELCOME, ${String(currentUser).toUpperCase()}`;
+            }
+            if (userWelcome) userWelcome.classList.remove('hidden');
+        } else {
+            if (userWelcome) userWelcome.classList.add('hidden');
+        }
 
         const isAccessValid = currentUploadAccess
             && Date.now() < Number.parseInt(currentUploadAccess, 10);
