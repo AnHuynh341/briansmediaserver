@@ -23,6 +23,7 @@ function getDisplayTrackName(value, fallback = 'Unknown Track') {
 // =========================================================================
 
 let lastCoverLookupAt = 0;
+let bulkCoverRefreshRunning = false;
 const COVER_LOOKUP_INTERVAL_MS = 3200;
 const COVER_REQUEST_TIMEOUT_MS = 9000;
 
@@ -311,6 +312,7 @@ async function fetchTracks() {
             artist: doc.artist,
             genre: doc.genre,
             file: doc.fileUrl,
+            coverUrl: doc.coverUrl || 'local-placeholder',
             cover: normalizeCoverUrl(doc.coverUrl) || createCoverPlaceholder(doc.name),
             createdAt: doc.$createdAt
         }));
@@ -1001,7 +1003,169 @@ async function fetchCoverArt(trackName, artistName) {
 
 
 // =========================================================================
-// 6. ADMIN FUNCTIONS
+// 6. EXISTING COVER REFRESH
+// =========================================================================
+function trackNeedsCoverRefresh(track) {
+    if (!track) return false;
+
+    const storedCover = String(track.coverUrl || '').trim();
+    return !normalizeCoverUrl(storedCover)
+        || storedCover === 'local-placeholder'
+        || storedCover.startsWith('data:image/');
+}
+
+function updateTrackCoverInMemory(trackId, coverUrl) {
+    const track = allTracks.find(item => item.id === trackId);
+    if (!track) return;
+
+    track.coverUrl = coverUrl;
+    track.cover = normalizeCoverUrl(coverUrl) || createCoverPlaceholder(track.name);
+
+    const playingTrack = allTracks[currentTrackIndex];
+    if (playingTrack && playingTrack.id === trackId) {
+        setCoverImage(document.getElementById('npCover'), coverUrl, track.name);
+    }
+}
+
+async function refetchTrackCover(trackId, buttonElement = null) {
+    if (currentUserRole !== 'admin') {
+        alert('Security Clearance Required.');
+        return false;
+    }
+
+    const track = allTracks.find(item => item.id === trackId);
+    if (!track) {
+        alert('Track could not be found in the current database view.');
+        return false;
+    }
+
+    const originalHtml = buttonElement ? buttonElement.innerHTML : '';
+    const originalTitle = buttonElement ? buttonElement.title : '';
+    let refreshedSuccessfully = false;
+
+    if (buttonElement) {
+        buttonElement.disabled = true;
+        buttonElement.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+        buttonElement.title = 'Searching for cover art...';
+    }
+
+    try {
+        const fetchedCover = await fetchCoverArt(track.name, track.artist);
+        if (!fetchedCover) {
+            if (buttonElement) buttonElement.title = 'No matching cover found';
+            alert(`No usable cover was found for "${getDisplayTrackName(track.name)}" by ${track.artist}.`);
+            return false;
+        }
+
+        await databases.updateDocument(
+            DATABASE_ID,
+            COLLECTION_ID,
+            track.id,
+            { coverUrl: fetchedCover }
+        );
+
+        updateTrackCoverInMemory(track.id, fetchedCover);
+        refreshedSuccessfully = true;
+
+        if (buttonElement) {
+            buttonElement.innerHTML = '<i class="fas fa-check"></i>';
+            buttonElement.title = 'Cover refreshed';
+            setTimeout(() => {
+                buttonElement.innerHTML = originalHtml;
+                buttonElement.title = originalTitle;
+            }, 1500);
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Cover refresh failed:', error);
+        alert('Failed to refresh cover: ' + error.message);
+        return false;
+    } finally {
+        if (buttonElement) {
+            buttonElement.disabled = false;
+
+            if (!refreshedSuccessfully) {
+                buttonElement.innerHTML = originalHtml;
+                buttonElement.title = originalTitle;
+            }
+        }
+    }
+}
+
+async function refreshMissingCovers() {
+    if (currentUserRole !== 'admin') {
+        alert('Security Clearance Required.');
+        return;
+    }
+
+    if (bulkCoverRefreshRunning) return;
+
+    const button = document.getElementById('refreshMissingCoversBtn');
+    const status = document.getElementById('adminCoverRefreshStatus');
+    const candidates = allTracks.filter(trackNeedsCoverRefresh);
+
+    if (candidates.length === 0) {
+        if (status) {
+            status.innerText = 'All existing tracks already have stored cover URLs.';
+            status.style.color = 'var(--success)';
+        }
+        return;
+    }
+
+    bulkCoverRefreshRunning = true;
+    if (button) button.disabled = true;
+
+    let refreshedCount = 0;
+    let missingCount = 0;
+
+    try {
+        for (let index = 0; index < candidates.length; index++) {
+            const track = candidates[index];
+
+            if (status) {
+                status.style.color = 'var(--text-sub)';
+                status.innerText = `Searching [${index + 1}/${candidates.length}] ${getDisplayTrackName(track.name)} — ${track.artist}`;
+            }
+
+            try {
+                const fetchedCover = await fetchCoverArt(track.name, track.artist);
+
+                if (!fetchedCover) {
+                    missingCount++;
+                    continue;
+                }
+
+                await databases.updateDocument(
+                    DATABASE_ID,
+                    COLLECTION_ID,
+                    track.id,
+                    { coverUrl: fetchedCover }
+                );
+
+                updateTrackCoverInMemory(track.id, fetchedCover);
+                refreshedCount++;
+            } catch (trackError) {
+                missingCount++;
+                console.warn(`Could not refresh cover for ${track.name}:`, trackError);
+            }
+        }
+
+        if (typeof renderTrackList === 'function') renderTrackList();
+
+        if (status) {
+            status.style.color = refreshedCount > 0 ? 'var(--success)' : 'var(--error)';
+            status.innerText = `Cover refresh complete: ${refreshedCount} updated, ${missingCount} still missing.`;
+        }
+    } finally {
+        bulkCoverRefreshRunning = false;
+        if (button) button.disabled = false;
+    }
+}
+
+
+// =========================================================================
+// 7. ADMIN FUNCTIONS
 // =========================================================================
 async function fetchUsersForAdmin() {
     if (currentUserRole !== 'admin') return [];

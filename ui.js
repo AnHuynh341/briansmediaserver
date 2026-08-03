@@ -154,6 +154,24 @@ function renderTrackList() {
         trackAction.className = 'track-action';
 
         if (currentUserRole === 'admin') {
+            trackAction.classList.add('admin-track-actions');
+
+            const refreshCoverButton = document.createElement('button');
+            refreshCoverButton.className = 'cover-refresh-btn';
+            refreshCoverButton.title = 'Refetch Cover Art';
+            refreshCoverButton.setAttribute('aria-label', `Refetch cover for ${getDisplayTrackName(track.name)}`);
+
+            const refreshCoverIcon = document.createElement('i');
+            refreshCoverIcon.className = 'fas fa-image';
+            refreshCoverButton.appendChild(refreshCoverIcon);
+
+            refreshCoverButton.onclick = event => {
+                event.stopPropagation();
+                refetchTrackCover(track.id, refreshCoverButton);
+            };
+
+            trackAction.appendChild(refreshCoverButton);
+
             const deleteButton = document.createElement('button');
             deleteButton.style.background = 'none';
             deleteButton.style.border = 'none';
