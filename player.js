@@ -1,7 +1,3 @@
-// ==========================================
-// AUDIO ENGINE + VISUALIZER
-// ==========================================
-
 const savedState = localStorage.getItem('visualizerState');
 let userWantsVisualizer = localStorage.getItem('visState') === null ? true : (localStorage.getItem('visState') === 'true');
 let userWantsUIGlow = localStorage.getItem('glowState') === null ? true : (localStorage.getItem('glowState') === 'true');
@@ -200,7 +196,7 @@ function formatTime(seconds) {
 }
 
 // ==========================================
-// 4. VISUALIZER (Unchanged - kept compact)
+// 4. VISUALIZER (Placeholders kept as supplied)
 // ==========================================
 function setupVisualizer() { /* ... keep your original setupVisualizer ... */ }
 function startVisualizer() { /* ... keep your original ... */ }

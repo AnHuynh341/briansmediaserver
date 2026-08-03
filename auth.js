@@ -1,39 +1,46 @@
-// ==========================================
-// AUTH.JS — Authentication & Session
-// ==========================================
-// Depends on: config.js, ui.js (grantAccess calls fetchTracks/fetchPlaylists)
-function handleKeyPress(e) {
-    if (e.key === 'Enter') login();
+function handleKeyPress(event) {
+    if (event.key === 'Enter') login();
 }
 
 async function login() {
     const btn = document.getElementById('loginBtn');
-    if (!document.getElementById('username').value.trim() || !document.getElementById('password').value) return;
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!username || !password) return;
 
     btn.style.pointerEvents = 'none';
     btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> AUTHENTICATING...';
 
     try {
-        const account = new Appwrite.Account(client);
-        try { await account.createAnonymousSession(); } catch (e) {}
+        const sessionAccount = new Appwrite.Account(client);
 
-        const response = await databases.listDocuments(DATABASE_ID, USERS_COLLECTION_ID, [
-            Appwrite.Query.equal("username", document.getElementById('username').value.trim())
-        ]);
+        try {
+            await sessionAccount.createAnonymousSession();
+        } catch (error) {
+            // An anonymous session may already exist.
+        }
 
-        if (response.documents.length === 0) throw new Error("User not found");
+        const response = await databases.listDocuments(
+            DATABASE_ID,
+            USERS_COLLECTION_ID,
+            [Appwrite.Query.equal('username', username)]
+        );
+
+        if (response.documents.length === 0) {
+            throw new Error('User not found');
+        }
 
         const userDoc = response.documents[0];
 
-        if (userDoc.password !== document.getElementById('password').value) {
-            throw new Error("Invalid password");
+        if (userDoc.password !== password) {
+            throw new Error('Invalid password');
         }
 
-        // Set global user states
         currentUser = userDoc.username;
         currentUserRole = userDoc.role;
         currentUserId = userDoc.$id;
-        currentUploadAccess = userDoc.uploadAccessUntil; // Can be string or null
+        currentUploadAccess = userDoc.uploadAccessUntil;
 
         btn.classList.add('btn-success');
         btn.innerHTML = '<i class="fas fa-unlock-alt"></i> ACCESS GRANTED';
@@ -45,9 +52,9 @@ async function login() {
                 grantAccess();
             }
         }, 800);
-
     } catch (error) {
-        console.error("Login Error:", error);
+        console.error('Login Error:', error);
+
         btn.classList.add('btn-error');
         btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ACCESS DENIED';
         document.querySelector('.login-box').classList.add('shake-error');
@@ -73,9 +80,8 @@ function grantAccess() {
         const uploadNav = document.getElementById('uploadNavBtn');
         const adminNav = document.getElementById('navAdminPanel');
 
-        // Fixed timestamp check (handles string values)
-        const isAccessValid = currentUploadAccess && 
-                             (Date.now() < parseInt(currentUploadAccess));
+        const isAccessValid = currentUploadAccess
+            && Date.now() < Number.parseInt(currentUploadAccess, 10);
 
         if (currentUserRole === 'admin') {
             if (uploadNav) uploadNav.style.display = 'flex';
@@ -95,24 +101,35 @@ function grantAccess() {
 
 async function updatePassword() {
     const btn = document.querySelector('#changePasswordModal .btn-save');
-    if (document.getElementById('newPassword').value.length < 6) {
-        return alert("Password must be at least 6 characters.");
-    }
-    if (document.getElementById('newPassword').value !== document.getElementById('confirmPassword').value) {
-        return alert("Passwords do not match.");
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    if (newPassword.length < 6) {
+        return alert('Password must be at least 6 characters.');
     }
 
-    btn.innerText = "UPDATING...";
+    if (newPassword !== confirmPassword) {
+        return alert('Passwords do not match.');
+    }
+
+    btn.innerText = 'UPDATING...';
+
     try {
-        await databases.updateDocument(DATABASE_ID, USERS_COLLECTION_ID, currentUserId, {
-            password: document.getElementById('newPassword').value,
-            forceChange: false
-        });
+        await databases.updateDocument(
+            DATABASE_ID,
+            USERS_COLLECTION_ID,
+            currentUserId,
+            {
+                password: newPassword,
+                forceChange: false
+            }
+        );
+
         document.getElementById('changePasswordModal').classList.add('hidden');
         grantAccess();
     } catch (error) {
-        alert("Error updating security: " + error.message);
-        btn.innerText = "Update Security";
+        alert('Error updating security: ' + error.message);
+        btn.innerText = 'Update Security';
     }
 }
 
@@ -133,11 +150,14 @@ async function loadAdminUserList() {
     listContainer.innerHTML = '<div style="padding: 15px; text-align: center; color: var(--text-sub);"><i class="fas fa-circle-notch fa-spin"></i> Fetching user database...</div>';
 
     try {
-        const response = await databases.listDocuments(DATABASE_ID, USERS_COLLECTION_ID, [
-            Appwrite.Query.limit(100)
-        ]);
+        const response = await databases.listDocuments(
+            DATABASE_ID,
+            USERS_COLLECTION_ID,
+            [Appwrite.Query.limit(100)]
+        );
 
         listContainer.innerHTML = '';
+
         if (response.documents.length === 0) {
             listContainer.innerHTML = '<div style="padding: 15px; text-align: center; color: var(--text-sub);">No users found.</div>';
             return;
@@ -147,63 +167,77 @@ async function loadAdminUserList() {
             if (user.role === 'admin') return;
 
             const now = Date.now();
-            const hasAccess = user.uploadAccessUntil && (now < parseInt(user.uploadAccessUntil));
+            const hasAccess = user.uploadAccessUntil
+                && now < Number.parseInt(user.uploadAccessUntil, 10);
 
-            let statusBadge = hasAccess
-                ? `<span style="color: var(--success); font-size: 0.75rem; background: rgba(0, 255, 136, 0.1); padding: 2px 6px; border-radius: 4px;"><i class="fas fa-check-circle"></i> ACTIVE</span>`
-                : `<span style="color: #ff4d4d; font-size: 0.75rem; background: rgba(255, 77, 77, 0.1); padding: 2px 6px; border-radius: 4px;"><i class="fas fa-lock"></i> LOCKED</span>`;
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.justifyContent = 'space-between';
+            row.style.alignItems = 'center';
+            row.style.padding = '12px 15px';
+            row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
 
-            listContainer.innerHTML += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;">
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                        <span style="font-weight: 600; color: white; font-size: 0.95rem;">@${user.username}</span>
-                        ${statusBadge}
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button onclick="adminActionGrant('${user.$id}', 3)" 
-                                style="background: var(--accent); color: black; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: bold;">
-                            +3h 
-                        </button>
-                        <button onclick="adminActionRevoke('${user.$id}')" 
-                                style="background: transparent; color: #ff4d4d; border: 1px solid #ff4d4d; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: bold;">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
+            const userInfo = document.createElement('div');
+            userInfo.style.display = 'flex';
+            userInfo.style.flexDirection = 'column';
+            userInfo.style.gap = '4px';
+
+            const username = document.createElement('span');
+            username.style.fontWeight = '600';
+            username.style.color = 'white';
+            username.style.fontSize = '0.95rem';
+            username.innerText = `@${user.username}`;
+
+            const statusBadge = document.createElement('span');
+            statusBadge.style.fontSize = '0.75rem';
+            statusBadge.style.padding = '2px 6px';
+            statusBadge.style.borderRadius = '4px';
+            statusBadge.style.color = hasAccess ? 'var(--success)' : '#ff4d4d';
+            statusBadge.style.background = hasAccess
+                ? 'rgba(0, 255, 136, 0.1)'
+                : 'rgba(255, 77, 77, 0.1)';
+            statusBadge.innerText = hasAccess ? '● ACTIVE' : '● LOCKED';
+
+            userInfo.appendChild(username);
+            userInfo.appendChild(statusBadge);
+
+            const actions = document.createElement('div');
+            actions.style.display = 'flex';
+            actions.style.gap = '8px';
+
+            const grantButton = document.createElement('button');
+            grantButton.innerText = '+3h';
+            grantButton.style.background = 'var(--accent)';
+            grantButton.style.color = 'black';
+            grantButton.style.border = 'none';
+            grantButton.style.padding = '6px 12px';
+            grantButton.style.borderRadius = '4px';
+            grantButton.style.cursor = 'pointer';
+            grantButton.style.fontSize = '0.8rem';
+            grantButton.style.fontWeight = 'bold';
+            grantButton.onclick = () => adminActionGrant(user.$id, 3);
+
+            const revokeButton = document.createElement('button');
+            revokeButton.innerHTML = '<i class="fas fa-times"></i>';
+            revokeButton.style.background = 'transparent';
+            revokeButton.style.color = '#ff4d4d';
+            revokeButton.style.border = '1px solid #ff4d4d';
+            revokeButton.style.padding = '6px 12px';
+            revokeButton.style.borderRadius = '4px';
+            revokeButton.style.cursor = 'pointer';
+            revokeButton.style.fontSize = '0.8rem';
+            revokeButton.style.fontWeight = 'bold';
+            revokeButton.onclick = () => adminActionRevoke(user.$id);
+
+            actions.appendChild(grantButton);
+            actions.appendChild(revokeButton);
+
+            row.appendChild(userInfo);
+            row.appendChild(actions);
+            listContainer.appendChild(row);
         });
     } catch (error) {
-        console.error("Failed to load users:", error);
+        console.error('Failed to load users:', error);
         listContainer.innerHTML = '<div style="padding: 15px; text-align: center; color: #ff4d4d;">Failed to connect to database.</div>';
-    }
-}
-
-// ==========================================
-// ADMIN DATABASE ACTIONS (Fixed)
-// ==========================================
-async function adminActionGrant(targetUserId, hours) {
-    try {
-        const newTime = Date.now() + (hours * 60 * 60 * 1000);
-        await databases.updateDocument(DATABASE_ID, USERS_COLLECTION_ID, targetUserId, {
-            uploadAccessUntil: newTime.toString()   // Must be string
-        });
-       
-        loadAdminUserList();
-    } catch (error) {
-        console.error("Grant Access Error:", error);
-        alert("Failed to grant clearance.");
-    }
-}
-
-async function adminActionRevoke(targetUserId) {
-    try {
-        await databases.updateDocument(DATABASE_ID, USERS_COLLECTION_ID, targetUserId, {
-            uploadAccessUntil: null
-        });
-       
-        loadAdminUserList();
-    } catch (error) {
-        console.error("Revoke Access Error:", error);
-        alert("Failed to revoke clearance.");
     }
 }

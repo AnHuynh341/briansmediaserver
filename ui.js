@@ -1,35 +1,51 @@
-// ==========================================
-// UI.JS — Render Functions, Views & Search
-// ==========================================
-// Depends on: config.js, data.js (fetchPlaylists), player.js (loadTrack)
-
-// ==========================================
-// UI — VIEWS
-// ==========================================
-
-// =========================================================================
-// 1. PLAYLIST AND VIEW RENDERING ENGINE
-// =========================================================================
-
 function renderPlaylists() {
     const container = document.getElementById('playlists');
     if (!container) return;
+
     container.innerHTML = '';
 
     userPlaylists.forEach((pl, index) => {
         const div = document.createElement('div');
         div.className = `playlist-item ${currentViewPlaylistIndex === index ? 'active' : ''}`;
 
-        const isMine = (pl.owner === currentUser);
+        const isMine = pl.owner === currentUser;
 
         if (isMine) {
-            div.innerHTML = `<i class="fas fa-folder-open"></i> ${pl.name}`;
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-folder-open';
+
+            const name = document.createElement('span');
+            name.style.flex = '1';
+            name.style.whiteSpace = 'nowrap';
+            name.style.overflow = 'hidden';
+            name.style.textOverflow = 'ellipsis';
+            name.innerText = pl.name;
+
+            div.appendChild(icon);
+            div.appendChild(name);
         } else {
-            div.innerHTML = `
-                <i class="fas fa-lock" style="color: var(--error); font-size: 0.85rem;"></i> 
-                <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pl.name}</span>
-                <span style="font-size: 0.7rem; color: var(--text-sub); font-weight: bold; text-transform: uppercase;">${pl.owner}</span>
-            `;
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-lock';
+            icon.style.color = 'var(--error)';
+            icon.style.fontSize = '0.85rem';
+
+            const name = document.createElement('span');
+            name.style.flex = '1';
+            name.style.whiteSpace = 'nowrap';
+            name.style.overflow = 'hidden';
+            name.style.textOverflow = 'ellipsis';
+            name.innerText = pl.name;
+
+            const owner = document.createElement('span');
+            owner.style.fontSize = '0.7rem';
+            owner.style.color = 'var(--text-sub)';
+            owner.style.fontWeight = 'bold';
+            owner.style.textTransform = 'uppercase';
+            owner.innerText = pl.owner;
+
+            div.appendChild(icon);
+            div.appendChild(name);
+            div.appendChild(owner);
         }
 
         div.onclick = () => loadPlaylist(index);
@@ -37,37 +53,54 @@ function renderPlaylists() {
     });
 }
 
+function setPlaylistActionVisibility(show) {
+    const editBtn = document.getElementById('editPlaylistBtn');
+    const sortBtn = document.getElementById('sortPlaylistBtn');
+
+    if (editBtn) editBtn.classList.toggle('hidden', !show);
+    if (sortBtn) sortBtn.classList.toggle('hidden', !show);
+}
+
 function showAllTracks() {
     currentViewPlaylistIndex = -1;
+
     const navAll = document.getElementById('navAllTracks');
     if (navAll) navAll.classList.add('active');
-    
+
     const title = document.getElementById('viewTitle');
-    if (title) title.innerText = "All Tracks";
-    
-    const editBtn = document.getElementById('editPlaylistBtn');
-    if (editBtn) editBtn.classList.add('hidden');
-    
+    if (title) title.innerText = 'All Tracks';
+
+    setPlaylistActionVisibility(false);
+
     currentPlaylistTracks = [...allTracks];
     renderPlaylists();
     renderTrackList();
 }
 
 function loadPlaylist(index) {
-    currentViewPlaylistIndex = index;
-    const navAll = document.getElementById('navAllTracks');
-    if (navAll) navAll.classList.remove('active');
-    
     const pl = userPlaylists[index];
-    document.getElementById('viewTitle').innerText = pl.name;
-
-    if (pl.owner === currentUser) {
-        document.getElementById('editPlaylistBtn').classList.remove('hidden');
-    } else {
-        document.getElementById('editPlaylistBtn').classList.add('hidden');
+    if (!pl) {
+        console.warn('Playlist index not found:', index);
+        return;
     }
 
-    currentPlaylistTracks = allTracks.filter(track => pl.ids.includes(track.id));
+    currentViewPlaylistIndex = index;
+
+    const navAll = document.getElementById('navAllTracks');
+    if (navAll) navAll.classList.remove('active');
+
+    const title = document.getElementById('viewTitle');
+    if (title) title.innerText = pl.name;
+
+    // Only the owner can add/remove songs or save a new order.
+    setPlaylistActionVisibility(pl.owner === currentUser);
+
+    // playlist.ids is the source of truth for playlist order.
+    // Using allTracks.filter(...) here would silently restore upload order.
+    currentPlaylistTracks = pl.ids
+        .map(trackId => allTracks.find(track => track.id === trackId))
+        .filter(Boolean);
+
     renderPlaylists();
     renderTrackList();
 }
@@ -75,6 +108,7 @@ function loadPlaylist(index) {
 function renderTrackList() {
     const list = document.getElementById('trackList');
     if (!list) return;
+
     list.innerHTML = '';
 
     if (currentPlaylistTracks.length === 0) {
@@ -86,59 +120,99 @@ function renderTrackList() {
         const div = document.createElement('div');
         div.className = 'track';
 
-        const isPlaying = allTracks[currentTrackIndex] && allTracks[currentTrackIndex].id === track.id;
+        const isPlaying = allTracks[currentTrackIndex]
+            && allTracks[currentTrackIndex].id === track.id;
+
         if (isPlaying) div.classList.add('active');
 
-        const adminDeleteBtn = (currentUserRole === 'admin')
-            ? `<button onclick="event.stopPropagation(); deleteTrack('${track.id}', '${track.name}')"
-                       style="background:none; border:none; color:#ef4444; cursor:pointer; padding:5px; margin-left:10px;"
-                       title="Permanently Delete Signal">
-                   <i class="fas fa-trash-alt"></i>
-               </button>`
-            : '';
+        const trackNumber = document.createElement('div');
+        trackNumber.className = 'track-num';
 
-        div.innerHTML = `
-            <div class="track-num">${isPlaying ? '<i class="fas fa-volume-up"></i>' : index + 1}</div>
-            <div class="track-info">
-                <span class="track-title">${track.name}</span>
-                <span class="track-meta">${track.artist}</span>
-            </div>
-            <div class="track-action">
-                ${adminDeleteBtn}
-            </div>
-        `;
+        if (isPlaying) {
+            const playingIcon = document.createElement('i');
+            playingIcon.className = 'fas fa-volume-up';
+            trackNumber.appendChild(playingIcon);
+        } else {
+            trackNumber.innerText = String(index + 1);
+        }
 
-        const originalIndex = allTracks.findIndex(t => t.id === track.id);
+        const trackInfo = document.createElement('div');
+        trackInfo.className = 'track-info';
+
+        const trackTitle = document.createElement('span');
+        trackTitle.className = 'track-title';
+        trackTitle.innerText = track.name;
+
+        const trackMeta = document.createElement('span');
+        trackMeta.className = 'track-meta';
+        trackMeta.innerText = track.artist;
+
+        trackInfo.appendChild(trackTitle);
+        trackInfo.appendChild(trackMeta);
+
+        const trackAction = document.createElement('div');
+        trackAction.className = 'track-action';
+
+        if (currentUserRole === 'admin') {
+            const deleteButton = document.createElement('button');
+            deleteButton.style.background = 'none';
+            deleteButton.style.border = 'none';
+            deleteButton.style.color = '#ef4444';
+            deleteButton.style.cursor = 'pointer';
+            deleteButton.style.padding = '5px';
+            deleteButton.style.marginLeft = '10px';
+            deleteButton.title = 'Permanently Delete Signal';
+
+            const deleteIcon = document.createElement('i');
+            deleteIcon.className = 'fas fa-trash-alt';
+            deleteButton.appendChild(deleteIcon);
+
+            deleteButton.onclick = event => {
+                event.stopPropagation();
+                deleteTrack(track.id, track.name);
+            };
+
+            trackAction.appendChild(deleteButton);
+        }
+
+        div.appendChild(trackNumber);
+        div.appendChild(trackInfo);
+        div.appendChild(trackAction);
+
+        const originalIndex = allTracks.findIndex(item => item.id === track.id);
         div.onclick = () => loadTrack(originalIndex, true);
         list.appendChild(div);
     });
 }
 
-// =========================================================================
-// 2. MODAL CONTROLLERS (Bridges DOM triggers from index.html)
-// =========================================================================
 
+// =========================================================================
+// 2. MODAL CONTROLLERS
+// =========================================================================
 function openUploadModal() {
     const modal = document.getElementById('uploadModal');
     if (modal) modal.classList.remove('hidden');
-    
+
     const status = document.getElementById('uploadStatus');
-    if (status) status.innerText = "";
-    
+    if (status) {
+        status.innerText = '';
+        status.style.color = '';
+    }
+
     const fileNameDisplay = document.getElementById('fileNameDisplay');
-    if (fileNameDisplay) fileNameDisplay.innerText = "";
-    
+    if (fileNameDisplay) fileNameDisplay.innerText = '';
+
     const fileInput = document.getElementById('uploadFileInput');
-    if (fileInput) fileInput.value = "";
-    
+    if (fileInput) fileInput.value = '';
+
     const trackInput = document.getElementById('uploadTrackName');
-    if (trackInput) trackInput.value = "";
-    
+    if (trackInput) trackInput.value = '';
+
     const artistInput = document.getElementById('uploadArtistName');
-    if (artistInput) artistInput.value = "";
-    
+    if (artistInput) artistInput.value = '';
+
     const genreInput = document.getElementById('uploadGenre');
-    if (genreInput) genreInput.value = "J-POP";
+    if (genreInput) genreInput.value = 'J-POP';
 }
 
 function closeUploadModal() {
@@ -146,58 +220,68 @@ function closeUploadModal() {
     if (modal) modal.classList.add('hidden');
 }
 
+
 // =========================================================================
 // 3. EVENT LISTENERS AND INITIALIZATION
 // =========================================================================
-
 document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', function(e) {
-            const query = e.target.value.toLowerCase().trim();
 
-            if (query === "") {
-                showAllTracks(); 
+    if (searchInput) {
+        searchInput.addEventListener('input', event => {
+            const query = event.target.value.toLowerCase().trim();
+
+            if (query === '') {
+                showAllTracks();
                 return;
             }
 
             currentViewPlaylistIndex = -1;
+
             const navAll = document.getElementById('navAllTracks');
             if (navAll) navAll.classList.add('active');
-            
+
             const viewTitle = document.getElementById('viewTitle');
             if (viewTitle) viewTitle.innerText = `Search Results: "${query}"`;
-            
-            const editBtn = document.getElementById('editPlaylistBtn');
-            if (editBtn) editBtn.classList.add('hidden');
-            
+
+            setPlaylistActionVisibility(false);
+
             currentPlaylistTracks = allTracks.filter(track => {
-                const matchName = track.name.toLowerCase().includes(query);
-                const matchArtist = track.artist.toLowerCase().includes(query);
-                return matchName || matchArtist;
+                const name = (track.name || '').toLowerCase();
+                const artist = (track.artist || '').toLowerCase();
+                return name.includes(query) || artist.includes(query);
             });
 
-            renderPlaylists(); 
-            renderTrackList(); 
+            renderPlaylists();
+            renderTrackList();
         });
     }
 
-    // Bind Upload Drag/Drop elements safely
     const dropZone = document.getElementById('dropZone');
     const uploadFileInput = document.getElementById('uploadFileInput');
 
     if (dropZone && uploadFileInput) {
         dropZone.addEventListener('click', () => uploadFileInput.click());
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
+
+        dropZone.addEventListener('dragover', event => {
+            event.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
             dropZone.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) {
-                uploadFileInput.files = e.dataTransfer.files;
+        });
+
+        dropZone.addEventListener('drop', event => {
+            event.preventDefault();
+            dropZone.classList.remove('dragover');
+
+            if (event.dataTransfer.files.length > 0) {
+                uploadFileInput.files = event.dataTransfer.files;
                 handleFileSelection();
             }
         });
+
         uploadFileInput.addEventListener('change', handleFileSelection);
     }
 });
@@ -205,24 +289,26 @@ document.addEventListener('DOMContentLoaded', () => {
 function handleFileSelection() {
     const uploadFileInput = document.getElementById('uploadFileInput');
     if (!uploadFileInput) return;
+
     const file = uploadFileInput.files[0];
-    if (file) {
-        const fileNameDisplay = document.getElementById('fileNameDisplay');
-        if (fileNameDisplay) fileNameDisplay.innerText = file.name;
-        
-        const trackNameInput = document.getElementById('uploadTrackName');
-        if (trackNameInput && trackNameInput.value === "") {
-            trackNameInput.value = file.name.replace('.mp3', '');
-        }
+    if (!file) return;
+
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    if (fileNameDisplay) fileNameDisplay.innerText = file.name;
+
+    const trackNameInput = document.getElementById('uploadTrackName');
+    if (trackNameInput && trackNameInput.value === '') {
+        trackNameInput.value = file.name.replace(/\.(mp3|flac)$/i, '');
     }
 }
 
-// =========================================================================
-// 4. ADMIN SECURITY clears HANDLERS
-// =========================================================================
 
+// =========================================================================
+// 4. ADMIN SECURITY HANDLERS
+// =========================================================================
 async function openAdminModal() {
     document.getElementById('adminModal').classList.remove('hidden');
+
     const userListDiv = document.getElementById('adminUserList');
     userListDiv.innerHTML = '<div style="text-align:center; color:var(--text-sub); padding:20px;"><i class="fas fa-circle-notch fa-spin"></i> Accessing User Database...</div>';
 
@@ -234,24 +320,43 @@ async function openAdminModal() {
         return;
     }
 
-    users.forEach(u => {
-        if (u.role === 'admin') return;
+    users.forEach(user => {
+        if (user.role === 'admin') return;
 
         const div = document.createElement('div');
         div.className = 'user-row';
-        
-        const hasAccess = u.uploadAccessUntil && (Date.now() < u.uploadAccessUntil);
-        const statusIndicator = hasAccess 
-            ? `<span style="color:var(--success); font-size:0.75rem;"><i class="fas fa-check-circle"></i> Upload Active</span>` 
-            : `<span style="color:var(--error); font-size:0.75rem;"><i class="fas fa-lock"></i> Upload Locked</span>`;
 
-        div.innerHTML = `
-            <div class="user-info-stack" style="display:flex; flex-direction:column; gap:4px; padding:10px 0;">
-                <span class="username" style="color:white; font-weight:bold;">@${u.username}</span>
-                ${statusIndicator}
-            </div>
-            <button class="btn-grant" onclick="handleGrantAccess('${u.$id}', this)" style="background:var(--accent); color:black; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">Grant 12H</button>
-        `;
+        const hasAccess = user.uploadAccessUntil
+            && Date.now() < Number.parseInt(user.uploadAccessUntil, 10);
+
+        const infoStack = document.createElement('div');
+        infoStack.className = 'user-info-stack';
+        infoStack.style.padding = '10px 0';
+
+        const username = document.createElement('span');
+        username.className = 'username';
+        username.innerText = `@${user.username}`;
+
+        const statusIndicator = document.createElement('span');
+        statusIndicator.style.fontSize = '0.75rem';
+        statusIndicator.style.color = hasAccess ? 'var(--success)' : 'var(--error)';
+
+        const statusIcon = document.createElement('i');
+        statusIcon.className = hasAccess ? 'fas fa-check-circle' : 'fas fa-lock';
+
+        statusIndicator.appendChild(statusIcon);
+        statusIndicator.append(` ${hasAccess ? 'Upload Active' : 'Upload Locked'}`);
+
+        infoStack.appendChild(username);
+        infoStack.appendChild(statusIndicator);
+
+        const grantButton = document.createElement('button');
+        grantButton.className = 'btn-grant';
+        grantButton.innerText = 'Grant 12H';
+        grantButton.onclick = () => handleGrantAccess(user.$id, grantButton);
+
+        div.appendChild(infoStack);
+        div.appendChild(grantButton);
         userListDiv.appendChild(div);
     });
 }
@@ -263,8 +368,10 @@ function closeAdminModal() {
 async function handleGrantAccess(userId, btnElement) {
     btnElement.disabled = true;
     btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
     await grantTemporaryUpload(userId, 12);
-    btnElement.innerHTML = "GRANTED";
-    btnElement.style.background = "var(--success)";
-    btnElement.style.color = "#fff";
+
+    btnElement.innerText = 'GRANTED';
+    btnElement.style.background = 'var(--success)';
+    btnElement.style.color = '#fff';
 }

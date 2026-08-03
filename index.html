@@ -24,7 +24,7 @@
   <!-- Top Toggles -->
   <div style="display: flex; flex-direction: row; justify-content: center; align-items: center; flex-wrap: wrap; gap: 25px; padding: 8px 15px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.75rem;">
     <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="color: var(--text-sub); font-weight: 600; letter-spacing: 0.5px;">BACKGROUND</span>
+        <span style="color: var(--text-sub); font-weight: 600; letter-spacing: 1.5px;">BACKGROUND</span>
         <label class="ios-switch" style="transform: scale(0.8); margin: 0; transform-origin: center;">
             <input type="checkbox" id="visualizerToggleInput" onchange="toggleVisualizerMode()">
             <span class="ios-slider"></span>
@@ -88,9 +88,15 @@
           </button>
           <h1 class="view-header" id="viewTitle">All Tracks</h1>
         </div>
-        <button id="editPlaylistBtn" class="btn-edit-playlist hidden" onclick="openEditModal()">
-          <i class="fas fa-pen"></i> Add/Edit Songs
-        </button>
+
+        <div class="playlist-action-buttons">
+          <button id="editPlaylistBtn" class="btn-edit-playlist hidden" onclick="openEditModal()">
+            <i class="fas fa-pen"></i> Add/Edit Songs
+          </button>
+          <button id="sortPlaylistBtn" class="btn-edit-playlist hidden" onclick="openSortPlaylistModal()">
+            <i class="fas fa-sort"></i> Sort Playlist
+          </button>
+        </div>
       </div>
       <div class="track-list-header">
         <div>#</div>
@@ -131,7 +137,7 @@
   </div>
 </div>
 
-<!-- Modals -->
+<!-- Playlist Add/Edit Modal -->
 <div id="playlistModal" class="modal-overlay hidden">
   <div class="modal-content">
     <h3 id="modalTitle">CREATE PLAYLIST</h3>
@@ -141,6 +147,32 @@
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closePlaylistModal()">Cancel</button>
       <button class="btn-save" id="modalSaveBtn" onclick="savePlaylist()">Save Playlist</button>
+    </div>
+  </div>
+</div>
+
+<!-- Playlist Sort Modal -->
+<div id="sortPlaylistModal" class="modal-overlay hidden">
+  <div class="modal-content sort-playlist-modal">
+    <h3 id="sortPlaylistTitle">SORT PLAYLIST</h3>
+
+    <div class="sort-toolbar" aria-label="Quick playlist sorting">
+      <button id="sortByNameBtn" type="button" onclick="quickSortPlaylist('name')">A-Z ↑</button>
+      <button id="sortByArtistBtn" type="button" onclick="quickSortPlaylist('artist')">Artist ↑</button>
+      <button id="sortByUploadedBtn" type="button" onclick="quickSortPlaylist('createdAt')">Uploaded Time ↑</button>
+    </div>
+
+    <div class="sort-list-header" aria-hidden="true">
+      <span>ORDER</span>
+      <span>TRACK</span>
+      <span>ARTIST</span>
+    </div>
+
+    <div id="sortPlaylistList" class="sort-playlist-list"></div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" type="button" onclick="closeSortPlaylistModal()">Cancel</button>
+      <button class="btn-save" type="button" id="saveSortPlaylistBtn" onclick="saveSortedPlaylist()">Save Order</button>
     </div>
   </div>
 </div>

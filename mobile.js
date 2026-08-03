@@ -1,7 +1,3 @@
-// ==========================================
-// MOBILE.JS — Sidebar & Responsive Helpers
-// ==========================================
-
 function openSidebar() {
   document.getElementById('sidebar').classList.add('mobile-open');
   document.getElementById('sidebarOverlay').classList.add('active');
