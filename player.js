@@ -208,6 +208,13 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
     if (titleElement) titleElement.innerText = 'Loading...';
     if (artistElement) artistElement.innerText = track.artist || 'Unknown Artist';
 
+    const coverArtElement = document.getElementById('npCover');
+    if (typeof setCoverImage === 'function') {
+        setCoverImage(coverArtElement, track.cover, track.name);
+    } else if (coverArtElement) {
+        coverArtElement.src = track.cover || '';
+    }
+
     try {
         const response = await fetch(track.file, {
             method: 'GET',
@@ -232,9 +239,6 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
 
         if (titleElement) titleElement.innerText = track.name;
         if (artistElement) artistElement.innerText = track.artist || 'Unknown Artist';
-
-        const coverArtElement = document.getElementById('npCover');
-        if (coverArtElement) coverArtElement.src = track.cover;
 
         if (typeof renderTrackList === 'function') renderTrackList();
 
