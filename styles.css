@@ -3075,3 +3075,66 @@ html, body {
     height: 30px;
   }
 }
+
+/* =============================================
+   SIDEBAR-BOTTOM COVER — NO PLAYER OVERLAP
+   2026-08-04
+   The desktop artwork is anchored entirely inside the sidebar,
+   immediately above the player. The sidebar scroll viewport ends
+   above the artwork, and the player regains its full-width frame.
+============================================= */
+@media (min-width: 1101px) {
+  .sidebar-cover-dock {
+    position: fixed;
+    left: 12px;
+    bottom: calc(var(--player-height) + 12px);
+    width: calc(var(--sidebar-width) - 24px);
+    height: calc(var(--sidebar-width) - 24px);
+    max-width: none;
+    margin: 0;
+    z-index: 1400;
+    border-radius: 12px;
+    pointer-events: none;
+  }
+
+  /* End the scrollable sidebar content before the artwork begins.
+     This is a real exclusion zone, not merely extra scroll padding. */
+  .sidebar-scroll-region {
+    margin-bottom: calc(var(--sidebar-width) - 12px);
+    padding-bottom: 12px;
+  }
+
+  /* The artwork no longer occupies player space. */
+  .player {
+    overflow: hidden;
+    padding: 0 24px;
+    grid-template-columns: minmax(280px, 30%) minmax(410px, 45%) minmax(170px, 25%);
+  }
+
+  .player .now-playing {
+    position: relative;
+    min-width: 0;
+    height: auto;
+    padding-left: 0;
+    overflow: hidden;
+  }
+
+  .player .np-info {
+    max-width: min(100%, 360px);
+  }
+
+  .player #npCover {
+    display: none !important;
+    position: static;
+  }
+
+  /* Full-width player treatment is safe again because the cover ends above it. */
+  .player::before {
+    left: 0;
+  }
+
+  .player-spectrum {
+    left: 0;
+    width: 100%;
+  }
+}
