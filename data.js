@@ -117,13 +117,65 @@ function cleanCoverSearchText(value) {
         .trim();
 }
 
+function containsJapaneseText(value) {
+    return /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uff66-\uff9f]/u.test(String(value || ''));
+}
+
+function katakanaToHiragana(value) {
+    return String(value || '').replace(/[\u30a1-\u30f6]/g, character =>
+        String.fromCharCode(character.charCodeAt(0) - 0x60)
+    );
+}
+
+/**
+ * Produces a comparison-safe title while preserving every writing system.
+ * NFKC also converts full-width Latin text and half-width Katakana into their
+ * normal forms. Katakana is converted to Hiragana so equivalent Japanese
+ * spellings compare more consistently.
+ */
 function normalizeComparableText(value) {
-    return String(value || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, ' ')
+    return katakanaToHiragana(
+        String(value || '')
+            .normalize('NFKC')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+    )
+        .replace(/[’'`]/g, '')
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .replace(/\s+/g, ' ')
         .trim();
+}
+
+function compactComparableText(value) {
+    return normalizeComparableText(value).replace(/\s+/g, '');
+}
+
+function characterBigramSimilarity(leftValue, rightValue) {
+    const left = compactComparableText(leftValue);
+    const right = compactComparableText(rightValue);
+
+    if (!left || !right) return 0;
+    if (left === right) return 1;
+    if (left.length < 2 || right.length < 2) return 0;
+
+    const leftPairs = new Map();
+    for (let index = 0; index < left.length - 1; index++) {
+        const pair = left.slice(index, index + 2);
+        leftPairs.set(pair, (leftPairs.get(pair) || 0) + 1);
+    }
+
+    let overlap = 0;
+    for (let index = 0; index < right.length - 1; index++) {
+        const pair = right.slice(index, index + 2);
+        const remaining = leftPairs.get(pair) || 0;
+        if (remaining > 0) {
+            overlap++;
+            leftPairs.set(pair, remaining - 1);
+        }
+    }
+
+    return (2 * overlap) / ((left.length - 1) + (right.length - 1));
 }
 
 function upgradeArtworkUrl(url, size = 600) {
@@ -142,13 +194,42 @@ function scoreCoverResult(result, trackName, artistName) {
     const resultTrack = normalizeComparableText(result.trackName);
     const resultArtist = normalizeComparableText(result.artistName);
 
+    const compactWantedTrack = compactComparableText(trackName);
+    const compactWantedArtist = compactComparableText(artistName);
+    const compactResultTrack = compactComparableText(result.trackName);
+    const compactResultArtist = compactComparableText(result.artistName);
+
     let score = 0;
 
-    if (wantedTrack && resultTrack === wantedTrack) score += 120;
-    else if (wantedTrack && (resultTrack.includes(wantedTrack) || wantedTrack.includes(resultTrack))) score += 55;
+    if (wantedTrack && resultTrack === wantedTrack) {
+        score += 140;
+    } else if (compactWantedTrack && compactResultTrack === compactWantedTrack) {
+        score += 132;
+    } else if (
+        compactWantedTrack.length >= 2 &&
+        compactResultTrack.length >= 2 &&
+        (compactResultTrack.includes(compactWantedTrack) || compactWantedTrack.includes(compactResultTrack))
+    ) {
+        score += 72;
+    } else {
+        const titleSimilarity = characterBigramSimilarity(trackName, result.trackName);
+        if (titleSimilarity >= 0.45) score += Math.round(titleSimilarity * 65);
+    }
 
-    if (wantedArtist && resultArtist === wantedArtist) score += 100;
-    else if (wantedArtist && (resultArtist.includes(wantedArtist) || wantedArtist.includes(resultArtist))) score += 45;
+    if (wantedArtist && resultArtist === wantedArtist) {
+        score += 120;
+    } else if (compactWantedArtist && compactResultArtist === compactWantedArtist) {
+        score += 112;
+    } else if (
+        compactWantedArtist.length >= 2 &&
+        compactResultArtist.length >= 2 &&
+        (compactResultArtist.includes(compactWantedArtist) || compactWantedArtist.includes(compactResultArtist))
+    ) {
+        score += 62;
+    } else {
+        const artistSimilarity = characterBigramSimilarity(artistName, result.artistName);
+        if (artistSimilarity >= 0.45) score += Math.round(artistSimilarity * 55);
+    }
 
     if (result.kind === 'song' || result.wrapperType === 'track') score += 10;
     if (result.artworkUrl100) score += 10;
@@ -179,15 +260,16 @@ function imageUrlLoads(url, timeoutMs = 7000) {
     });
 }
 
-async function requestItunesSearch(searchText) {
+async function requestItunesSearch(searchText, country = 'US') {
     await throttleCoverLookup();
 
     const params = new URLSearchParams({
         term: searchText,
-        country: 'US',
+        country,
         media: 'music',
         entity: 'song',
-        limit: '10'
+        limit: '25',
+        lang: country === 'JP' ? 'ja_jp' : 'en_us'
     });
 
     const controller = new AbortController();
@@ -838,51 +920,76 @@ async function triggerUpload() {
 async function fetchCoverArt(trackName, artistName) {
     const cleanedTrack = cleanCoverSearchText(trackName);
     const cleanedArtist = cleanCoverSearchText(artistName);
+    const japaneseMetadata = containsJapaneseText(`${cleanedTrack} ${cleanedArtist}`);
 
-    const searchAttempts = [
+    // Japanese metadata gets the Japanese storefront first. The US storefront
+    // remains a fallback because some international releases are indexed there
+    // more cleanly, while non-Japanese uploads retain the previous US-first order.
+    const countryOrder = japaneseMetadata ? ['JP', 'US'] : ['US', 'JP'];
+
+    const rawSearchAttempts = [
         `${cleanedTrack} ${cleanedArtist}`.trim(),
+        `${cleanedArtist} ${cleanedTrack}`.trim(),
         `${trackName || ''} ${artistName || ''}`.trim(),
-        cleanedTrack
-    ].filter((value, index, array) => value && array.indexOf(value) === index);
+        cleanedTrack,
+        getDisplayTrackName(trackName, '')
+    ];
 
-    for (const searchText of searchAttempts) {
-        for (let attempt = 1; attempt <= 2; attempt++) {
-            try {
-                const data = await requestItunesSearch(searchText);
-                const results = Array.isArray(data.results) ? data.results : [];
+    const searchAttempts = rawSearchAttempts.filter((value, index, array) => {
+        if (!value) return false;
+        const normalized = normalizeComparableText(value);
+        return array.findIndex(candidate => normalizeComparableText(candidate) === normalized) === index;
+    });
 
-                const rankedResults = results
-                    .filter(result => result && result.artworkUrl100)
-                    .sort((a, b) =>
-                        scoreCoverResult(b, cleanedTrack, cleanedArtist) -
-                        scoreCoverResult(a, cleanedTrack, cleanedArtist)
+    for (const country of countryOrder) {
+        for (const searchText of searchAttempts) {
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    const data = await requestItunesSearch(searchText, country);
+                    const results = Array.isArray(data.results) ? data.results : [];
+
+                    const rankedResults = results
+                        .filter(result => result && result.artworkUrl100)
+                        .map((result, originalIndex) => ({
+                            result,
+                            originalIndex,
+                            score: scoreCoverResult(result, cleanedTrack, cleanedArtist)
+                        }))
+                        .sort((left, right) =>
+                            right.score - left.score || left.originalIndex - right.originalIndex
+                        );
+
+                    // A wider candidate pool is useful for Japanese catalog results,
+                    // where alternate releases and romanized entries may appear first.
+                    for (const candidate of rankedResults.slice(0, 12)) {
+                        const originalUrl = normalizeCoverUrl(candidate.result.artworkUrl100);
+                        const candidateUrls = [
+                            upgradeArtworkUrl(originalUrl, 600),
+                            upgradeArtworkUrl(originalUrl, 300),
+                            originalUrl
+                        ].filter((url, index, array) => url && array.indexOf(url) === index);
+
+                        for (const candidateUrl of candidateUrls) {
+                            if (await imageUrlLoads(candidateUrl)) {
+                                return candidateUrl;
+                            }
+                        }
+                    }
+
+                    // The request succeeded but none of its artwork URLs loaded.
+                    // Continue with the next query/storefront instead of giving up.
+                    break;
+                } catch (error) {
+                    const isLastAttempt = attempt === 2;
+
+                    console.warn(
+                        `Cover lookup attempt ${attempt} failed for "${searchText}" (${country}):`,
+                        error
                     );
 
-                for (const result of rankedResults.slice(0, 5)) {
-                    const originalUrl = normalizeCoverUrl(result.artworkUrl100);
-                    const highResolutionUrl = upgradeArtworkUrl(originalUrl, 600);
-
-                    if (highResolutionUrl && await imageUrlLoads(highResolutionUrl)) {
-                        return highResolutionUrl;
+                    if (!isLastAttempt) {
+                        await wait(2500 * attempt);
                     }
-
-                    if (originalUrl && originalUrl !== highResolutionUrl && await imageUrlLoads(originalUrl)) {
-                        return originalUrl;
-                    }
-                }
-
-                // The request succeeded but none of its artwork URLs loaded.
-                break;
-            } catch (error) {
-                const isLastAttempt = attempt === 2;
-
-                console.warn(
-                    `Cover lookup attempt ${attempt} failed for "${searchText}":`,
-                    error
-                );
-
-                if (!isLastAttempt) {
-                    await wait(2500 * attempt);
                 }
             }
         }
