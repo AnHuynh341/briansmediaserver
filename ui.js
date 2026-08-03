@@ -129,20 +129,180 @@ function loadPlaylist(index) {
     renderTrackList();
 }
 
+const TRACK_DURATION_CACHE_KEY = 'w41it-track-durations-v1';
+const trackDurationQueue = [];
+const queuedTrackDurationIds = new Set();
+let activeTrackDurationProbes = 0;
+const MAX_TRACK_DURATION_PROBES = 4;
+
+function readTrackDurationCache() {
+    try {
+        const cached = JSON.parse(localStorage.getItem(TRACK_DURATION_CACHE_KEY) || '{}');
+        return cached && typeof cached === 'object' ? cached : {};
+    } catch (error) {
+        console.warn('Could not read duration cache:', error);
+        return {};
+    }
+}
+
+const trackDurationCache = readTrackDurationCache();
+
+function getTrackDurationCacheKey(track) {
+    return `${track.id}|${track.file || ''}`;
+}
+
+function getKnownTrackDuration(track) {
+    const directDuration = Number(track.duration);
+    if (Number.isFinite(directDuration) && directDuration > 0) return directDuration;
+
+    const cachedDuration = Number(trackDurationCache[getTrackDurationCacheKey(track)]);
+    if (Number.isFinite(cachedDuration) && cachedDuration > 0) {
+        track.duration = cachedDuration;
+        return cachedDuration;
+    }
+
+    return null;
+}
+
+function formatTrackDuration(seconds) {
+    const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+    const hours = Math.floor(safeSeconds / 3600);
+    const minutes = Math.floor((safeSeconds % 3600) / 60);
+    const remainingSeconds = safeSeconds % 60;
+
+    if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+    }
+
+    return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
+function formatTrackAddedTime(createdAt) {
+    const date = new Date(createdAt);
+    if (Number.isNaN(date.getTime())) return '—';
+
+    try {
+        return new Intl.DateTimeFormat(undefined, {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }).format(date).replace(',', ' ·');
+    } catch (error) {
+        return date.toLocaleString();
+    }
+}
+
+function updateDurationCells(trackId, duration) {
+    document.querySelectorAll('.track-duration[data-track-id]').forEach(cell => {
+        if (cell.dataset.trackId === trackId) {
+            cell.innerText = formatTrackDuration(duration);
+            cell.classList.remove('duration-loading');
+        }
+    });
+}
+
+function storeTrackDuration(track, duration) {
+    if (!Number.isFinite(duration) || duration <= 0) return;
+
+    track.duration = duration;
+    trackDurationCache[getTrackDurationCacheKey(track)] = Math.round(duration * 10) / 10;
+
+    try {
+        localStorage.setItem(TRACK_DURATION_CACHE_KEY, JSON.stringify(trackDurationCache));
+    } catch (error) {
+        console.warn('Could not save duration cache:', error);
+    }
+
+    updateDurationCells(track.id, duration);
+}
+
+function queueTrackDurationProbe(track) {
+    if (!track || !track.id || !track.file || getKnownTrackDuration(track)) return;
+    if (queuedTrackDurationIds.has(track.id)) return;
+
+    queuedTrackDurationIds.add(track.id);
+    trackDurationQueue.push(track);
+    pumpTrackDurationQueue();
+}
+
+function pumpTrackDurationQueue() {
+    while (activeTrackDurationProbes < MAX_TRACK_DURATION_PROBES && trackDurationQueue.length > 0) {
+        const track = trackDurationQueue.shift();
+        activeTrackDurationProbes += 1;
+
+        probeTrackDuration(track)
+            .then(duration => {
+                if (duration) storeTrackDuration(track, duration);
+            })
+            .catch(error => {
+                console.debug(`Duration metadata unavailable for ${track.name}:`, error.message);
+            })
+            .finally(() => {
+                queuedTrackDurationIds.delete(track.id);
+                activeTrackDurationProbes -= 1;
+                pumpTrackDurationQueue();
+            });
+    }
+}
+
+function probeTrackDuration(track) {
+    return new Promise((resolve, reject) => {
+        const metadataAudio = new Audio();
+        let settled = false;
+
+        const finish = (callback, value) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeoutId);
+            metadataAudio.removeAttribute('src');
+            metadataAudio.load();
+            callback(value);
+        };
+
+        const resolveDuration = () => {
+            const duration = Number(metadataAudio.duration);
+            if (Number.isFinite(duration) && duration > 0) {
+                finish(resolve, duration);
+            }
+        };
+
+        const timeoutId = setTimeout(() => {
+            finish(reject, new Error('metadata request timed out'));
+        }, 12000);
+
+        metadataAudio.preload = 'metadata';
+        metadataAudio.crossOrigin = 'anonymous';
+        metadataAudio.addEventListener('loadedmetadata', resolveDuration, { once: true });
+        metadataAudio.addEventListener('durationchange', resolveDuration);
+        metadataAudio.addEventListener('error', () => {
+            finish(reject, new Error('audio metadata could not be loaded'));
+        }, { once: true });
+        metadataAudio.src = track.file;
+        metadataAudio.load();
+    });
+}
+
 function renderTrackList() {
     const list = document.getElementById('trackList');
+    const header = document.getElementById('trackListHeader');
     if (!list) return;
+
+    const isAdmin = currentUserRole === 'admin';
+    if (header) header.classList.toggle('admin-mode', isAdmin);
 
     list.innerHTML = '';
 
     if (currentPlaylistTracks.length === 0) {
-        list.innerHTML = '<div style="color:var(--text-sub); padding:16px;">No signals detected.</div>';
+        list.innerHTML = '<div class="track-empty-state">No signals detected.</div>';
         return;
     }
 
     currentPlaylistTracks.forEach((track, index) => {
         const div = document.createElement('div');
-        div.className = 'track';
+        div.className = `track${isAdmin ? ' admin-mode' : ''}`;
 
         const isPlaying = allTracks[currentTrackIndex]
             && allTracks[currentTrackIndex].id === track.id;
@@ -160,26 +320,60 @@ function renderTrackList() {
             trackNumber.innerText = String(index + 1);
         }
 
-        const trackInfo = document.createElement('div');
-        trackInfo.className = 'track-info';
+        const artCell = document.createElement('div');
+        artCell.className = 'track-art-cell';
+
+        const cover = document.createElement('img');
+        cover.className = 'track-cover-thumb';
+        cover.src = track.cover || createCoverPlaceholder(track.name);
+        cover.alt = '';
+        cover.loading = 'lazy';
+        cover.onerror = () => {
+            cover.onerror = null;
+            cover.src = createCoverPlaceholder(track.name);
+        };
+        artCell.appendChild(cover);
+
+        const titleCell = document.createElement('div');
+        titleCell.className = 'track-title-cell';
 
         const trackTitle = document.createElement('span');
         trackTitle.className = 'track-title';
         trackTitle.innerText = getDisplayTrackName(track.name);
 
-        const trackMeta = document.createElement('span');
-        trackMeta.className = 'track-meta';
-        trackMeta.innerText = track.artist;
+        const mobileArtist = document.createElement('span');
+        mobileArtist.className = 'mobile-track-artist';
+        mobileArtist.innerText = track.artist || 'Unknown Artist';
 
-        trackInfo.appendChild(trackTitle);
-        trackInfo.appendChild(trackMeta);
+        titleCell.appendChild(trackTitle);
+        titleCell.appendChild(mobileArtist);
+
+        const artistCell = document.createElement('div');
+        artistCell.className = 'track-artist';
+        artistCell.innerText = track.artist || 'Unknown Artist';
+
+        const addedCell = document.createElement('div');
+        addedCell.className = 'track-added-time';
+        addedCell.innerText = formatTrackAddedTime(track.createdAt);
+        addedCell.title = track.createdAt ? new Date(track.createdAt).toLocaleString() : '';
+
+        const durationCell = document.createElement('div');
+        durationCell.className = 'track-duration';
+        durationCell.dataset.trackId = track.id;
+
+        const knownDuration = getKnownTrackDuration(track);
+        if (knownDuration) {
+            durationCell.innerText = formatTrackDuration(knownDuration);
+        } else {
+            durationCell.innerText = '--:--';
+            durationCell.classList.add('duration-loading');
+            queueTrackDurationProbe(track);
+        }
 
         const trackAction = document.createElement('div');
         trackAction.className = 'track-action';
 
-        if (currentUserRole === 'admin') {
-            trackAction.classList.add('admin-track-actions');
-
+        if (isAdmin) {
             const refreshCoverButton = document.createElement('button');
             refreshCoverButton.className = 'cover-refresh-btn';
             refreshCoverButton.title = 'Refetch Cover Art';
@@ -197,13 +391,9 @@ function renderTrackList() {
             trackAction.appendChild(refreshCoverButton);
 
             const deleteButton = document.createElement('button');
-            deleteButton.style.background = 'none';
-            deleteButton.style.border = 'none';
-            deleteButton.style.color = '#ef4444';
-            deleteButton.style.cursor = 'pointer';
-            deleteButton.style.padding = '5px';
-            deleteButton.style.marginLeft = '10px';
+            deleteButton.className = 'track-delete-btn';
             deleteButton.title = 'Permanently Delete Signal';
+            deleteButton.setAttribute('aria-label', `Delete ${getDisplayTrackName(track.name)}`);
 
             const deleteIcon = document.createElement('i');
             deleteIcon.className = 'fas fa-trash-alt';
@@ -218,7 +408,11 @@ function renderTrackList() {
         }
 
         div.appendChild(trackNumber);
-        div.appendChild(trackInfo);
+        div.appendChild(artCell);
+        div.appendChild(titleCell);
+        div.appendChild(artistCell);
+        div.appendChild(addedCell);
+        div.appendChild(durationCell);
         div.appendChild(trackAction);
 
         const originalIndex = allTracks.findIndex(item => item.id === track.id);
@@ -226,6 +420,7 @@ function renderTrackList() {
         list.appendChild(div);
     });
 }
+
 
 
 // =========================================================================

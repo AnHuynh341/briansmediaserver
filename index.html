@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>W41IT</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=shared-playlists-20260804-1">
+  <link rel="stylesheet" href="styles.css?v=rich-track-table-20260804-1">
 </head>
 <body>
 <div id="reactive-bg"></div>
@@ -102,10 +102,14 @@
           </button>
         </div>
       </div>
-      <div class="track-list-header">
-        <div>#</div>
-        <div>Signal Identifier</div>
-        <div><i class="far fa-clock"></i></div>
+      <div class="track-list-header" id="trackListHeader">
+        <div class="track-col-number">#</div>
+        <div class="track-col-art">Art</div>
+        <div class="track-col-title">Title</div>
+        <div class="track-col-artist">Artist</div>
+        <div class="track-col-added">Added Time</div>
+        <div class="track-col-duration">Duration</div>
+        <div class="track-col-actions" aria-hidden="true"></div>
       </div>
       <div id="trackList"></div>
     </div>
@@ -253,7 +257,7 @@
 <script src="data.js?v=shared-playlists-20260804-1"></script>
 <script src="player.js?v=neon-player-20260804-1"></script>
 <script src="auth.js?v=no-temp-upload-20260804-1"></script>
-<script src="ui.js?v=shared-playlists-20260804-1"></script>
+<script src="ui.js?v=rich-track-table-20260804-1"></script>
 <script src="mobile.js"></script>
 </body>
 </html>
