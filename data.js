@@ -335,22 +335,55 @@ async function fetchTracks() {
 
 async function fetchPlaylists() {
     try {
-        const queries = currentUserRole !== 'admin'
-            ? [Query.equal("owner", currentUser), Query.limit(500)]
-            : [Query.limit(500)];
+        // Remember the selected document before rebuilding and sorting the array.
+        // This prevents the active sidebar item from jumping after a save/refresh.
+        const activePlaylistId = currentViewPlaylistIndex > -1
+            ? userPlaylists[currentViewPlaylistIndex]?.id
+            : null;
 
+        // Every signed-in site user may browse and play every playlist.
+        // Ownership is still checked by the edit/sort UI before modification.
         const response = await databases.listDocuments(
             DATABASE_ID,
             PLAYLIST_COLLECTION_ID,
-            queries
+            [Query.limit(500)]
         );
 
-        userPlaylists = response.documents.map(doc => ({
-            id: doc.$id,
-            name: doc.name,
-            ids: Array.isArray(doc.trackIds) ? doc.trackIds : [],
-            owner: doc.owner || 'unknown'
-        }));
+        userPlaylists = response.documents
+            .map(doc => ({
+                id: doc.$id,
+                name: doc.name,
+                ids: Array.isArray(doc.trackIds) ? doc.trackIds : [],
+                owner: doc.owner || 'unknown'
+            }))
+            .sort((a, b) => {
+                const aIsMine = a.owner === currentUser;
+                const bIsMine = b.owner === currentUser;
+
+                // The current user's playlists always stay above shared playlists.
+                if (aIsMine !== bIsMine) return aIsMine ? -1 : 1;
+
+                // Shared playlists are grouped by owner, then alphabetically by name.
+                const ownerOrder = String(a.owner).localeCompare(
+                    String(b.owner),
+                    undefined,
+                    { sensitivity: 'base' }
+                );
+
+                if (ownerOrder !== 0) return ownerOrder;
+
+                return String(a.name).localeCompare(
+                    String(b.name),
+                    undefined,
+                    { sensitivity: 'base' }
+                );
+            });
+
+        if (activePlaylistId) {
+            currentViewPlaylistIndex = userPlaylists.findIndex(
+                playlist => playlist.id === activePlaylistId
+            );
+        }
 
         if (typeof renderPlaylists === 'function') renderPlaylists();
     } catch (error) {

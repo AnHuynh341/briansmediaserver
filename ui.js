@@ -1,50 +1,74 @@
+function appendPlaylistSectionLabel(container, label, iconClass, shared = false) {
+    const section = document.createElement('div');
+    section.className = `playlist-section-label ${shared ? 'shared' : 'mine'}`;
+
+    const icon = document.createElement('i');
+    icon.className = iconClass;
+
+    const text = document.createElement('span');
+    text.innerText = label;
+
+    section.appendChild(icon);
+    section.appendChild(text);
+    container.appendChild(section);
+}
+
 function renderPlaylists() {
     const container = document.getElementById('playlists');
     if (!container) return;
 
     container.innerHTML = '';
 
-    userPlaylists.forEach((pl, index) => {
-        const div = document.createElement('div');
-        div.className = `playlist-item ${currentViewPlaylistIndex === index ? 'active' : ''}`;
+    if (userPlaylists.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'playlist-empty-state';
+        empty.innerText = 'No playlists detected.';
+        container.appendChild(empty);
+        return;
+    }
 
+    let renderedMineHeader = false;
+    let renderedSharedHeader = false;
+
+    userPlaylists.forEach((pl, index) => {
         const isMine = pl.owner === currentUser;
 
-        if (isMine) {
-            const icon = document.createElement('i');
-            icon.className = 'fas fa-folder-open';
+        if (isMine && !renderedMineHeader) {
+            appendPlaylistSectionLabel(container, 'Your Playlists', 'fas fa-star');
+            renderedMineHeader = true;
+        }
 
-            const name = document.createElement('span');
-            name.style.flex = '1';
-            name.style.whiteSpace = 'nowrap';
-            name.style.overflow = 'hidden';
-            name.style.textOverflow = 'ellipsis';
-            name.innerText = pl.name;
+        if (!isMine && !renderedSharedHeader) {
+            appendPlaylistSectionLabel(container, 'Shared Playlists', 'fas fa-users', true);
+            renderedSharedHeader = true;
+        }
 
-            div.appendChild(icon);
-            div.appendChild(name);
-        } else {
-            const icon = document.createElement('i');
-            icon.className = 'fas fa-lock';
-            icon.style.color = 'var(--error)';
-            icon.style.fontSize = '0.85rem';
+        const div = document.createElement('div');
+        div.className = [
+            'playlist-item',
+            isMine ? 'playlist-mine' : 'playlist-shared',
+            currentViewPlaylistIndex === index ? 'active' : ''
+        ].filter(Boolean).join(' ');
 
-            const name = document.createElement('span');
-            name.style.flex = '1';
-            name.style.whiteSpace = 'nowrap';
-            name.style.overflow = 'hidden';
-            name.style.textOverflow = 'ellipsis';
-            name.innerText = pl.name;
+        div.title = isMine
+            ? `${pl.name} — your playlist`
+            : `${pl.name} — shared by ${pl.owner} (play only)`;
 
+        const icon = document.createElement('i');
+        icon.className = isMine ? 'fas fa-folder-open' : 'fas fa-headphones';
+        icon.classList.add('playlist-icon');
+
+        const name = document.createElement('span');
+        name.className = 'playlist-name';
+        name.innerText = pl.name;
+
+        div.appendChild(icon);
+        div.appendChild(name);
+
+        if (!isMine) {
             const owner = document.createElement('span');
-            owner.style.fontSize = '0.7rem';
-            owner.style.color = 'var(--text-sub)';
-            owner.style.fontWeight = 'bold';
-            owner.style.textTransform = 'uppercase';
+            owner.className = 'playlist-owner-badge';
             owner.innerText = pl.owner;
-
-            div.appendChild(icon);
-            div.appendChild(name);
             div.appendChild(owner);
         }
 
