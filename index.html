@@ -118,11 +118,11 @@
     </div>
     <div class="player-controls">
       <div class="buttons">
-        <button class="ctrl-btn" id="shuffleBtn" onclick="toggleShuffle()"><i class="fas fa-random"></i></button>
+        <button class="ctrl-btn" id="shuffleBtn" onclick="toggleShuffle()" title="Shuffle: Off" aria-label="Toggle shuffle" aria-pressed="false"><i class="fas fa-random"></i></button>
         <button class="ctrl-btn" onclick="prevTrack()"><i class="fas fa-step-backward"></i></button>
         <button class="ctrl-btn play-btn" onclick="togglePlay()"><i class="fas fa-play" id="playIcon"></i></button>
         <button class="ctrl-btn" onclick="nextTrack()"><i class="fas fa-step-forward"></i></button>
-        <button class="ctrl-btn" id="repeatBtn" onclick="toggleRepeat()"><i class="fas fa-redo-alt"></i></button>
+        <button class="ctrl-btn" id="repeatBtn" onclick="toggleRepeat()" title="Repeat: Off" aria-label="Repeat off"><i class="fas fa-redo-alt"></i></button>
       </div>
       <div class="progress-container">
         <span class="time" id="currentTime">0:00</span>
