@@ -1290,3 +1290,197 @@ html, body {
     gap: 7px;
   }
 }
+
+/* =============================================
+   LARGE NOW-PLAYING BAR
+   Enlarges the desktop player and album artwork
+   while keeping tablet/mobile layouts practical.
+============================================= */
+:root {
+  --player-height: 126px;
+}
+
+.player {
+  padding: 0 24px;
+  grid-template-columns: minmax(300px, 30%) minmax(360px, 44%) minmax(180px, 26%);
+  column-gap: 18px;
+  border-top-color: rgba(0, 229, 255, 0.14);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.28);
+}
+
+.now-playing {
+  gap: 18px;
+  min-width: 0;
+}
+
+.album-art,
+#npCover {
+  width: 92px;
+  height: 92px;
+  border-radius: 10px;
+}
+
+#npCover {
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+}
+
+.np-info {
+  gap: 5px;
+  min-width: 0;
+}
+
+.np-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.np-artist {
+  font-size: 0.9rem;
+}
+
+.player-controls {
+  gap: 11px;
+}
+
+.buttons {
+  gap: 28px;
+}
+
+.ctrl-btn {
+  font-size: 1.2rem;
+}
+
+.play-btn {
+  width: 44px;
+  height: 44px;
+  font-size: 1rem;
+}
+
+.progress-container {
+  max-width: 680px;
+  gap: 10px;
+}
+
+.time {
+  font-size: 0.8rem;
+  min-width: 44px;
+}
+
+.volume-bar {
+  width: 120px;
+}
+
+@media (max-width: 1100px) {
+  .player {
+    grid-template-columns: minmax(250px, 34%) minmax(330px, 44%) minmax(130px, 22%);
+    padding: 0 18px;
+    column-gap: 12px;
+  }
+
+  .album-art,
+  #npCover {
+    width: 82px;
+    height: 82px;
+  }
+
+  .np-title {
+    font-size: 1.05rem;
+  }
+
+  .buttons {
+    gap: 22px;
+  }
+}
+
+@media (max-width: 900px) {
+  :root {
+    --player-height: 108px;
+  }
+
+  .player {
+    grid-template-columns: minmax(220px, 34%) minmax(300px, 46%) minmax(100px, 20%);
+    padding: 0 14px;
+  }
+
+  .album-art,
+  #npCover {
+    width: 74px;
+    height: 74px;
+    border-radius: 9px;
+  }
+
+  .now-playing {
+    gap: 13px;
+  }
+
+  .np-title {
+    font-size: 1rem;
+  }
+
+  .np-artist {
+    font-size: 0.82rem;
+  }
+
+  .ctrl-btn {
+    font-size: 1.08rem;
+  }
+
+  .play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .volume-bar {
+    width: 76px;
+  }
+}
+
+@media (max-width: 600px) {
+  :root {
+    --player-height: 122px;
+  }
+
+  .player {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    padding: 9px 12px 5px;
+    gap: 5px 8px;
+    column-gap: 8px;
+  }
+
+  .album-art,
+  #npCover {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+  }
+
+  .now-playing {
+    gap: 11px;
+  }
+
+  .np-title {
+    font-size: 0.9rem;
+  }
+
+  .np-artist {
+    font-size: 0.75rem;
+  }
+
+  .buttons {
+    gap: 14px;
+  }
+
+  .ctrl-btn {
+    font-size: 1rem;
+  }
+
+  .play-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .progress-container {
+    max-width: none;
+  }
+}
