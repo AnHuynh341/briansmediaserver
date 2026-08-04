@@ -3219,3 +3219,116 @@ html, body {
     width: 100%;
   }
 }
+
+/* =============================================
+   WIDE SCREEN-BOTTOM COVER + SAFE SIDEBAR SCROLL
+   2026-08-04
+
+   Desktop artwork is anchored to the bottom-left of the screen,
+   sized to the sidebar width with a small outer gutter. It rises
+   above the player while the title/artist begin immediately to its
+   right. The sidebar receives enough trailing scroll space for its
+   final playlist to move completely above the artwork.
+============================================= */
+@media (min-width: 1101px) {
+  :root {
+    --player-cover-gutter: 10px;
+    --player-cover-size: calc(var(--sidebar-width) - (var(--player-cover-gutter) * 2));
+    --player-cover-right: calc(var(--sidebar-width) - var(--player-cover-gutter));
+  }
+
+  /* The player owns the artwork's stacking context, so raise it above
+     the sidebar while leaving application modals above both. */
+  .player {
+    z-index: 1500;
+    overflow: visible;
+    padding: 0 24px 0 0;
+    grid-template-columns:
+      minmax(calc(var(--sidebar-width) + 180px), 36%)
+      minmax(330px, 42%)
+      minmax(150px, 22%);
+    column-gap: 18px;
+  }
+
+  .player .now-playing {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    height: 100%;
+    padding-left: calc(var(--sidebar-width) + 18px);
+    overflow: visible;
+  }
+
+  /* Large bottom-left artwork. Its bottom edge follows the screen,
+     not the top edge of the player, matching the original composition. */
+  .player #npCover,
+  .player .album-art {
+    display: block !important;
+    position: fixed !important;
+    left: var(--player-cover-gutter) !important;
+    bottom: var(--player-cover-gutter) !important;
+    inset: auto auto var(--player-cover-gutter) var(--player-cover-gutter) !important;
+    width: var(--player-cover-size) !important;
+    height: var(--player-cover-size) !important;
+    max-width: none !important;
+    max-height: none !important;
+    padding: 2px;
+    object-fit: cover;
+    border-radius: 13px;
+    border: 1px solid rgba(0, 229, 255, 0.88);
+    background: linear-gradient(
+      135deg,
+      rgba(0, 229, 255, 0.98),
+      rgba(123, 82, 255, 0.82) 52%,
+      rgba(255, 68, 155, 0.9)
+    );
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+      0 0 11px rgba(0, 229, 255, 0.48),
+      0 0 24px rgba(123, 82, 255, 0.2),
+      0 18px 42px rgba(0, 0, 0, 0.56);
+    z-index: 1700;
+    pointer-events: none;
+  }
+
+  .player .np-info {
+    position: relative;
+    z-index: 4;
+    min-width: 0;
+    max-width: 360px;
+    flex: 1 1 auto;
+    align-items: flex-start;
+  }
+
+  .player .np-title,
+  .player .np-artist {
+    max-width: 100%;
+  }
+
+  /* Begin both decorative player effects immediately after the artwork.
+     The spectrum begins at the artwork’s exact right edge. */
+  .player::before {
+    left: var(--player-cover-right);
+  }
+
+  .player-spectrum {
+    left: var(--player-cover-right);
+    width: calc(100% - var(--player-cover-right));
+  }
+
+  /* The artwork covers part of the lower sidebar. A real trailing scroll
+     buffer lets the last playlist rise entirely into the visible area. */
+  .sidebar-scroll-region {
+    margin-bottom: 0 !important;
+    padding-bottom: calc(
+      var(--player-cover-size) - var(--player-height) + 34px
+    ) !important;
+    scroll-padding-bottom: calc(
+      var(--player-cover-size) - var(--player-height) + 34px
+    );
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
