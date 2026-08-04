@@ -98,7 +98,7 @@ function updateLibraryHero() {
     ).size;
 
     if (metaElement) {
-        metaElement.textContent = `${tracks.length} signals • ${artistCount} artists • ${getHeroRuntimeSummary(tracks)}`;
+        metaElement.textContent = `${tracks.length} songs • ${artistCount} artists • ${getHeroRuntimeSummary(tracks)}`;
     }
 
     updateHeroMosaic(tracks);

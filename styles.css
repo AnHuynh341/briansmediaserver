@@ -3427,3 +3427,41 @@ html, body {
     font-size: 0.82rem;
   }
 }
+
+
+/* =============================================
+   HIDDEN SIDEBAR SCROLLBAR + FLUSH COVER EDGES
+   2026-08-04
+
+   The sidebar remains fully scrollable, but its visual scrollbar is
+   removed. The large player artwork sits flush to the left and bottom
+   screen edges while retaining a small right-side breathing gap.
+============================================= */
+
+/* Keep scrolling functionality while removing the visible rail. */
+.sidebar-scroll-region {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-gutter: auto;
+}
+
+.sidebar-scroll-region::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+@media (min-width: 1101px) {
+  .player {
+    --player-cover-gutter: 10px;
+    --player-cover-size: calc(var(--sidebar-width) - var(--player-cover-gutter));
+    --player-cover-right: var(--player-cover-size);
+  }
+
+  .player #npCover,
+  .player .album-art {
+    left: 0 !important;
+    bottom: 0 !important;
+    inset: auto auto 0 0 !important;
+  }
+}
