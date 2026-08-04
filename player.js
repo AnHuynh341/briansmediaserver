@@ -332,8 +332,7 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
     if (artistElement) artistElement.innerText = track.artist || 'Unknown Artist';
 
     const coverArtElements = [
-        document.getElementById('npCover'),
-        document.getElementById('sidebarCover')
+        document.getElementById('npCover')
     ].filter(Boolean);
 
     coverArtElements.forEach(coverArtElement => {

@@ -3138,3 +3138,84 @@ html, body {
     width: 100%;
   }
 }
+
+
+/* =============================================
+   PLAYER-BOTTOM COVER — ARTWORK INSIDE PLAYER
+   2026-08-04
+   The current cover belongs to the bottom player itself:
+   cover at the far left, title/artist immediately to its right.
+   Nothing is docked in or floating over the sidebar.
+============================================= */
+
+/* The old sidebar artwork no longer participates in layout. */
+.sidebar-cover-dock {
+  display: none !important;
+}
+
+.sidebar-scroll-region {
+  margin-bottom: 0 !important;
+  padding-bottom: 18px;
+}
+
+@media (min-width: 1101px) {
+  .player {
+    overflow: hidden;
+    padding: 0 24px 0 10px;
+    grid-template-columns:
+      minmax(360px, 31%)
+      minmax(410px, 44%)
+      minmax(170px, 25%);
+    column-gap: 20px;
+  }
+
+  .player .now-playing {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 17px;
+    min-width: 0;
+    height: 100%;
+    padding-left: 0;
+    overflow: hidden;
+  }
+
+  .player #npCover,
+  .player .album-art {
+    display: block !important;
+    position: relative !important;
+    inset: auto !important;
+    width: calc(var(--player-height) - 18px);
+    height: calc(var(--player-height) - 18px);
+    max-width: calc(var(--player-height) - 18px);
+    max-height: calc(var(--player-height) - 18px);
+    flex: 0 0 calc(var(--player-height) - 18px);
+    object-fit: cover;
+    border-radius: 10px;
+    z-index: 4;
+  }
+
+  .player .np-info {
+    position: relative;
+    z-index: 4;
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 auto;
+    align-items: flex-start;
+  }
+
+  .player .np-title,
+  .player .np-artist {
+    max-width: 100%;
+  }
+
+  /* The artwork is fully inside the player, so both effects may span it. */
+  .player::before {
+    left: 0;
+  }
+
+  .player-spectrum {
+    left: 0;
+    width: 100%;
+  }
+}
