@@ -3332,3 +3332,98 @@ html, body {
     scrollbar-gutter: stable;
   }
 }
+
+/* =============================================
+   STICKY SESSION + SLIM SIDEBAR SCROLLBAR
+   2026-08-04
+
+   Database/navigation stays fixed above the sidebar scroll region.
+   Session pins to the top of that region while Collections scrolls
+   beneath it. The large bottom-left artwork keeps its existing safe
+   scroll buffer and remains visually above the lower sidebar.
+============================================= */
+
+/* Firefox: use the browser's compact scrollbar only in the sidebar. */
+.sidebar-scroll-region {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 229, 255, 0.46) transparent;
+}
+
+/* Chromium/WebKit: slimmer than the site's global 8px scrollbar. */
+.sidebar-scroll-region::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.sidebar-scroll-region::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll-region::-webkit-scrollbar-thumb {
+  min-height: 34px;
+  border-radius: 999px;
+  background: rgba(0, 229, 255, 0.42);
+  box-shadow: 0 0 7px rgba(0, 229, 255, 0.18);
+}
+
+.sidebar-scroll-region::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.76);
+  box-shadow: 0 0 9px rgba(0, 229, 255, 0.3);
+}
+
+/* The scroll region begins immediately below Database, so top: 0 pins
+   Session directly under that navigation line. */
+.session-panel {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin: 0 8px 12px;
+  padding: 15px 15px 14px;
+  background:
+    linear-gradient(145deg, rgba(0, 229, 255, 0.12), rgba(124, 92, 255, 0.065)),
+    rgba(4, 4, 16, 0.94);
+  border-color: rgba(0, 229, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 8px 20px rgba(0, 0, 0, 0.32),
+    0 1px 0 rgba(0, 229, 255, 0.08);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.session-panel-heading {
+  margin-bottom: 11px;
+  font-size: 0.82rem;
+  letter-spacing: 1.35px;
+}
+
+.session-stat-row {
+  padding: 5px 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.session-stat-row strong {
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+/* Keep the first collection comfortably separated from the pinned card. */
+.session-panel + .library-section {
+  margin-top: 2px;
+}
+
+@media (max-width: 900px) {
+  .session-panel {
+    padding: 14px;
+  }
+
+  .session-panel-heading,
+  .session-stat-row {
+    font-size: 0.8rem;
+  }
+
+  .session-stat-row strong {
+    font-size: 0.82rem;
+  }
+}
