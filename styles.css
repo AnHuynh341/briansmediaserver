@@ -3465,3 +3465,105 @@ html, body {
     inset: auto auto 0 0 !important;
   }
 }
+
+/* =============================================
+   COMPACT COVER INSIDE PLAYER BAR
+   2026-08-04
+
+   Restores the artwork to the player itself on desktop. The cover is
+   fully contained within the bar with comfortable outer padding, while
+   title/artist begin immediately to its right. The spectrum and neon
+   top edge begin after the compact artwork block. The obsolete large-
+   cover sidebar scroll buffer is removed.
+============================================= */
+@media (min-width: 1101px) {
+  .player {
+    --compact-player-cover-size: calc(var(--player-height) - 18px);
+    --compact-player-cover-left: 10px;
+    --compact-player-cover-gap: 14px;
+    --compact-player-cover-end: calc(
+      var(--compact-player-cover-left)
+      + var(--compact-player-cover-size)
+      + var(--compact-player-cover-gap)
+    );
+
+    z-index: 100;
+    overflow: hidden;
+    padding: 8px 24px 8px var(--compact-player-cover-left);
+    grid-template-columns:
+      minmax(300px, 31%)
+      minmax(390px, 44%)
+      minmax(160px, 25%);
+    column-gap: 18px;
+  }
+
+  .player .now-playing {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--compact-player-cover-gap);
+    min-width: 0;
+    height: 100%;
+    padding-left: 0;
+    overflow: hidden;
+  }
+
+  .player #npCover,
+  .player .album-art {
+    display: block !important;
+    position: relative !important;
+    inset: auto !important;
+    left: auto !important;
+    bottom: auto !important;
+    width: var(--compact-player-cover-size) !important;
+    height: var(--compact-player-cover-size) !important;
+    max-width: var(--compact-player-cover-size) !important;
+    max-height: var(--compact-player-cover-size) !important;
+    flex: 0 0 var(--compact-player-cover-size);
+    padding: 2px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 229, 255, 0.78);
+    background: linear-gradient(
+      135deg,
+      rgba(0, 229, 255, 0.96),
+      rgba(123, 82, 255, 0.78) 52%,
+      rgba(255, 68, 155, 0.84)
+    );
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+      0 0 9px rgba(0, 229, 255, 0.34),
+      0 0 17px rgba(123, 82, 255, 0.13);
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  .player .np-info {
+    position: relative;
+    z-index: 4;
+    min-width: 0;
+    max-width: 360px;
+    flex: 1 1 auto;
+    align-items: flex-start;
+  }
+
+  .player .np-title,
+  .player .np-artist {
+    max-width: 100%;
+  }
+
+  .player::before {
+    left: var(--compact-player-cover-end);
+  }
+
+  .player-spectrum {
+    left: var(--compact-player-cover-end);
+    width: calc(100% - var(--compact-player-cover-end));
+  }
+
+  .sidebar-scroll-region {
+    margin-bottom: 0 !important;
+    padding-bottom: 18px !important;
+    scroll-padding-bottom: 18px;
+  }
+}
