@@ -34,6 +34,7 @@ let currentUserId = null;
 const audio = document.getElementById('audio');
 const seekbar = document.getElementById('seekbar');
 const volumebar = document.getElementById('volumebar');
+const volumePercent = document.getElementById('volumePercent');
 const playIcon = document.getElementById('playIcon');
 
 // ---- Restore Saved Volume ----

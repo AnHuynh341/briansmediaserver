@@ -595,6 +595,14 @@ function syncPlayerRangeVisuals() {
     updateRangeVisual(volumebar);
 }
 
+function syncVolumeReadout() {
+    if (!volumebar || !volumePercent) return;
+
+    const percentage = Math.round(Math.min(100, Math.max(0, Number(volumebar.value) || 0)));
+    volumePercent.textContent = `${percentage}%`;
+    volumebar.setAttribute('aria-valuetext', `${percentage} percent`);
+}
+
 audio.addEventListener('ended', async () => {
     commitSessionListeningTime();
     const advanced = await nextTrack(true);
@@ -653,10 +661,12 @@ audio.addEventListener('timeupdate', () => {
 volumebar.addEventListener('input', () => {
     audio.volume = volumebar.value / 100;
     updateRangeVisual(volumebar);
+    syncVolumeReadout();
     localStorage.setItem('userVolume', String(audio.volume));
 });
 
 syncPlayerRangeVisuals();
+syncVolumeReadout();
 
 function formatTime(seconds) {
     if (!Number.isFinite(seconds)) return '0:00';
@@ -827,7 +837,7 @@ function renderFrame(timestamp = 0) {
     const barCount = Math.max(42, Math.min(88, Math.floor(width / 14)));
     const gap = Math.max(1.5, width / barCount * 0.24);
     const barWidth = Math.max(1.8, (width - gap * (barCount - 1)) / barCount);
-    const usableHeight = Math.max(10, height - 4);
+    const usableHeight = Math.max(10, height - 2);
 
     for (let index = 0; index < barCount; index += 1) {
         const normalizedIndex = index / Math.max(1, barCount - 1);

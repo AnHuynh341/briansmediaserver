@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>W41IT</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=adaptive-height-20260805-1">
+  <link rel="stylesheet" href="styles.css?v=control-rebalance-20260805-1">
 </head>
 <body>
 <div id="loginPage">
@@ -135,8 +135,9 @@
       </div>
     </div>
     <div class="right-controls">
-      <i class="fas fa-volume-up" style="color:var(--text-sub); font-size:0.9rem;"></i>
-      <input id="volumebar" class="volume-bar" type="range" value="100" min="0" max="100">
+      <i class="fas fa-volume-up volume-icon" aria-hidden="true"></i>
+      <input id="volumebar" class="volume-bar" type="range" value="100" min="0" max="100" aria-label="Volume">
+      <output id="volumePercent" class="volume-percent" for="volumebar">100%</output>
     </div>
   </div>
 </div>
@@ -249,9 +250,9 @@
 
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.1"></script>
-<script src="config.js"></script>
+<script src="config.js?v=control-rebalance-20260805-1"></script>
 <script src="data.js?v=shared-playlists-20260804-1"></script>
-<script src="player.js?v=wide-bottom-cover-20260804-1"></script>
+<script src="player.js?v=control-rebalance-20260805-1"></script>
 <script src="auth.js?v=no-temp-upload-20260804-1"></script>
 <script src="ui.js?v=hero-songs-20260804-1"></script>
 <script src="mobile.js"></script>
