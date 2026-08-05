@@ -29,6 +29,17 @@ let spectrumAutoGain = 1;
 let spectrumSmoothedPeak = 0.35;
 
 // ==========================================
+// STREAMING SOURCE STATE
+// ==========================================
+// Every new load receives a newer generation number. If an older play()
+// promise settles later, it is ignored instead of reviving the old track.
+let trackLoadGeneration = 0;
+
+function isSupersededTrackLoad(loadGeneration) {
+    return loadGeneration !== trackLoadGeneration;
+}
+
+// ==========================================
 // SESSION TELEMETRY
 // ==========================================
 const SESSION_STORAGE_KEY = 'w41it-session-telemetry-v1';
@@ -312,11 +323,16 @@ function markPlaybackStopped() {
 async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
     if (i < 0 || i >= allTracks.length) return false;
 
-    currentTrackIndex = i;
+    const loadGeneration = ++trackLoadGeneration;
     const track = allTracks[i];
     const displayTrackName = typeof getDisplayTrackName === 'function'
         ? getDisplayTrackName(track.name)
         : track.name;
+
+    // Commit the previous track immediately. Replacing `src` below tells the
+    // browser to abandon any pending network request for that old source.
+    markPlaybackStopped();
+    currentTrackIndex = i;
 
     // Create/resume the audio graph while the click gesture is still active.
     if (autoplay) setupVisualizer();
@@ -328,7 +344,9 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
     const titleElement = document.getElementById('npTitle');
     const artistElement = document.getElementById('npArtist');
 
-    if (titleElement) titleElement.innerText = 'Loading...';
+    // Show the selected track immediately instead of leaving the previous
+    // title visible while the browser obtains the first playable byte range.
+    if (titleElement) titleElement.innerText = displayTrackName;
     if (artistElement) artistElement.innerText = track.artist || 'Unknown Artist';
 
     const coverArtElements = [
@@ -343,71 +361,47 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
         }
     });
 
+    if (typeof renderTrackList === 'function') renderTrackList();
+
+    // Revoke legacy Blob URLs left by older versions before moving to direct
+    // media streaming. The browser can now request only the ranges it needs.
+    if (audio.src && audio.src.startsWith('blob:')) {
+        URL.revokeObjectURL(audio.src);
+    }
+
+    audio.crossOrigin = 'anonymous';
+    audio.preload = autoplay ? 'auto' : 'metadata';
+    audio.src = track.file;
+    audio.load();
+
+    // Setting a new source cancels the previous source load. The generation
+    // guard below also prevents a late rejection/resolution from the previous
+    // play request from changing the state of this newer track.
+    if (isSupersededTrackLoad(loadGeneration)) return true;
+
+    if (!autoplay) {
+        return true;
+    }
+
     try {
-        const response = await fetch(track.file, {
-            method: 'GET',
-            mode: 'cors',
-            headers: {
-                Accept: 'audio/mpeg,audio/mp3,audio/flac,*/*'
-            }
-        });
+        await audio.play();
 
-        if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status}`);
-        }
+        if (isSupersededTrackLoad(loadGeneration)) return true;
 
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-
-        if (audio.src && audio.src.startsWith('blob:')) {
-            URL.revokeObjectURL(audio.src);
-        }
-
-        audio.src = blobUrl;
-
-        if (titleElement) titleElement.innerText = displayTrackName;
-        if (artistElement) artistElement.innerText = track.artist || 'Unknown Artist';
-
-        if (typeof renderTrackList === 'function') renderTrackList();
-
-        if (autoplay) {
-            try {
-                await audio.play();
-                if (playIcon) playIcon.className = 'fas fa-pause';
-
-                setupVisualizer();
-                startVisualizer();
-            } catch (playError) {
-                console.warn('Play prevented:', playError);
-                markPlaybackStopped();
-            }
-        } else {
-            markPlaybackStopped();
-        }
-
+        if (playIcon) playIcon.className = 'fas fa-pause';
+        setupVisualizer();
+        startVisualizer();
         return true;
-    } catch (error) {
-        console.error('Failed to load track through fetch:', error);
-
-        if (titleElement) titleElement.innerText = displayTrackName;
-        if (artistElement) artistElement.innerText = track.artist || 'Unknown Artist';
-
-        // Fallback for servers that allow media playback but not fetch/CORS.
-        audio.src = track.file;
-
-        if (autoplay) {
-            try {
-                await audio.play();
-                if (playIcon) playIcon.className = 'fas fa-pause';
-            } catch (playError) {
-                console.warn('Fallback playback failed:', playError);
-                markPlaybackStopped();
-            }
-        } else {
-            markPlaybackStopped();
+    } catch (playError) {
+        // AbortError is expected when the user presses Next/Previous or pauses
+        // before buffering finishes. A newer load owns the player now.
+        if (isSupersededTrackLoad(loadGeneration) || playError?.name === 'AbortError') {
+            return true;
         }
 
-        return true;
+        console.warn('Streaming playback failed:', playError);
+        markPlaybackStopped();
+        return false;
     }
 }
 
@@ -417,14 +411,20 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
 async function togglePlay() {
     if (!audio.src) return;
 
+    const playGeneration = trackLoadGeneration;
     setupVisualizer();
 
     if (audio.paused) {
         try {
             await audio.play();
+
+            if (isSupersededTrackLoad(playGeneration)) return;
+
             if (playIcon) playIcon.className = 'fas fa-pause';
             startVisualizer();
         } catch (error) {
+            if (isSupersededTrackLoad(playGeneration) || error?.name === 'AbortError') return;
+
             console.warn('Play prevented:', error);
             markPlaybackStopped();
         }
@@ -464,13 +464,21 @@ async function nextTrack(isAutoAdvance = false) {
     // Repeat-one applies only when the track finishes naturally.
     // Pressing Next still skips to another track.
     if (repeatMode === 2 && isAutoAdvance) {
+        const repeatGeneration = trackLoadGeneration;
         audio.currentTime = 0;
 
         try {
             await audio.play();
+
+            if (isSupersededTrackLoad(repeatGeneration)) return true;
+
             if (playIcon) playIcon.className = 'fas fa-pause';
             return true;
         } catch (error) {
+            if (isSupersededTrackLoad(repeatGeneration) || error?.name === 'AbortError') {
+                return true;
+            }
+
             console.warn('Could not repeat current track:', error);
             markPlaybackStopped();
             return false;
@@ -619,7 +627,9 @@ audio.addEventListener('play', () => {
 });
 
 audio.addEventListener('pause', () => {
-    if (!audio.ended) markPlaybackStopped();
+    // A source replacement can queue a late pause event. Only stop the player
+    // if the currently active media element is actually paused.
+    if (!audio.ended && audio.paused) markPlaybackStopped();
 });
 
 audio.addEventListener('loadedmetadata', () => {
