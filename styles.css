@@ -3843,3 +3843,63 @@ html, body {
     font-size: 0.66rem;
   }
 }
+
+/* =============================================
+   SPECTRUM BEHIND PLAYER CONTROLS
+   2026-08-05
+
+   Locks the spectrum canvas beneath every interactive player layer and adds
+   a very light center scrim so tall peaks remain visible without washing over
+   the transport buttons or timeline.
+============================================= */
+.player {
+  isolation: isolate;
+}
+
+.player-spectrum {
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+.player .now-playing,
+.player .player-controls,
+.player .right-controls {
+  position: relative;
+  z-index: 5 !important;
+}
+
+.player .player-controls {
+  isolation: isolate;
+}
+
+.player .player-controls .buttons,
+.player .player-controls .progress-container {
+  position: relative;
+  z-index: 2;
+}
+
+/* Subtle contrast shield: the spectrum still moves behind the stack, but
+   bright peaks cannot visually cut through the button glyphs. */
+.player .player-controls::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: -8px -22px;
+  pointer-events: none;
+  border-radius: 26px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(5, 5, 17, 0.54) 0%,
+    rgba(5, 5, 17, 0.28) 52%,
+    rgba(5, 5, 17, 0) 82%
+  );
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+@media (max-width: 600px) {
+  .player .player-controls::before {
+    inset: -6px -10px;
+    border-radius: 20px;
+  }
+}
