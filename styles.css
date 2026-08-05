@@ -3567,3 +3567,145 @@ html, body {
     scroll-padding-bottom: 18px;
   }
 }
+
+/* =============================================
+   ADAPTIVE COMPACT HEIGHTS
+   2026-08-05
+
+   Preserve the roomy desktop layout on tall displays, but reclaim vertical
+   space on short desktop/laptop viewports. Width-based mobile behavior is
+   left untouched.
+============================================= */
+
+/* Common compact desktop/laptop viewport (for example 1366x768 after browser UI). */
+@media (min-width: 901px) and (max-height: 820px) {
+  :root {
+    --player-height: 104px;
+  }
+
+  .player {
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  .player .np-title {
+    font-size: 1.12rem;
+  }
+
+  .player .np-artist {
+    font-size: 0.86rem;
+  }
+
+  .player .buttons {
+    gap: 22px;
+  }
+
+  .player .play-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .player-spectrum {
+    height: 36px;
+  }
+
+  .library-hero {
+    grid-template-columns: 78px minmax(0, 1fr);
+    min-height: 96px;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+  }
+
+  .hero-cover-mosaic {
+    width: 78px;
+    height: 78px;
+  }
+
+  .library-hero .view-header {
+    font-size: clamp(1.48rem, 2vw, 2rem);
+  }
+
+  .hero-eyebrow {
+    font-size: 0.57rem;
+  }
+
+  .hero-meta {
+    margin-top: 4px;
+    font-size: 0.72rem;
+  }
+
+  .hero-primary-btn,
+  .hero-secondary-btn,
+  .library-hero .btn-edit-playlist {
+    min-height: 30px;
+    padding: 5px 10px;
+    font-size: 0.66rem;
+  }
+}
+
+/* Extra-short browser windows: compact further without entering mobile mode. */
+@media (min-width: 901px) and (max-height: 700px) {
+  :root {
+    --player-height: 92px;
+  }
+
+  .player {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .player .np-title {
+    font-size: 1rem;
+  }
+
+  .player .np-artist {
+    font-size: 0.79rem;
+  }
+
+  .player .buttons {
+    gap: 18px;
+  }
+
+  .player .ctrl-btn {
+    font-size: 1.08rem;
+  }
+
+  .player .play-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .player-spectrum {
+    height: 30px;
+  }
+
+  .library-hero {
+    grid-template-columns: 68px minmax(0, 1fr);
+    min-height: 84px;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding: 7px 10px;
+  }
+
+  .hero-cover-mosaic {
+    width: 68px;
+    height: 68px;
+  }
+
+  .library-hero .view-header {
+    font-size: clamp(1.3rem, 1.8vw, 1.75rem);
+  }
+
+  .hero-actions {
+    gap: 5px;
+  }
+
+  .hero-primary-btn,
+  .hero-secondary-btn,
+  .library-hero .btn-edit-playlist {
+    min-height: 28px;
+    padding: 4px 8px;
+    font-size: 0.62rem;
+  }
+}
