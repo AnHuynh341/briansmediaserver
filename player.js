@@ -284,7 +284,7 @@ function updatePlaybackModeButtons() {
     if (shuffleButton) {
         shuffleButton.classList.toggle('active', isShuffle);
         shuffleButton.setAttribute('aria-pressed', String(isShuffle));
-        shuffleButton.title = isShuffle ? 'Shuffle: On' : 'Shuffle: Off';
+        shuffleButton.title = isShuffle ? 'Shuffle: On (S)' : 'Shuffle: Off (S)';
     }
 
     if (!repeatButton) {
@@ -296,13 +296,13 @@ function updatePlaybackModeButtons() {
     repeatButton.removeAttribute('data-repeat-one');
 
     if (repeatMode === 0) {
-        repeatButton.title = 'Repeat: Off';
+        repeatButton.title = 'Repeat: Off (L)';
         repeatButton.setAttribute('aria-label', 'Repeat off');
     } else if (repeatMode === 1) {
-        repeatButton.title = 'Repeat: All tracks';
+        repeatButton.title = 'Repeat: All tracks (L)';
         repeatButton.setAttribute('aria-label', 'Repeat all tracks');
     } else {
-        repeatButton.title = 'Repeat: Current track';
+        repeatButton.title = 'Repeat: Current track (L)';
         repeatButton.setAttribute('aria-label', 'Repeat current track');
         repeatButton.setAttribute('data-repeat-one', 'true');
     }
@@ -890,7 +890,78 @@ function renderFrame(timestamp = 0) {
 }
 
 // ==========================================
-// 5. INITIALIZATION
+// 5. KEYBOARD SHORTCUTS
+// ==========================================
+function shouldIgnorePlayerShortcut(event) {
+    const target = event.target;
+
+    // Never hijack browser/OS shortcuts such as Ctrl+P or Cmd+P.
+    if (event.ctrlKey || event.metaKey || event.altKey) return true;
+
+    // A held key should trigger only once instead of racing through the queue.
+    if (event.repeat) return true;
+
+    // Let form controls keep their normal keyboard behavior. This also prevents
+    // shortcut letters from firing while the user types in login/search/modals.
+    if (
+        target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || target instanceof HTMLButtonElement
+        || target?.isContentEditable
+    ) {
+        return true;
+    }
+
+    // Keep media shortcuts disabled until the login screen has actually closed.
+    const loginPage = document.getElementById('loginPage');
+    if (
+        loginPage
+        && loginPage.style.display !== 'none'
+        && !loginPage.classList.contains('hidden')
+    ) {
+        return true;
+    }
+
+    // Do not change playback behind an open upload/admin/playlist modal.
+    if (document.querySelector('.modal-overlay:not(.hidden)')) return true;
+
+    return false;
+}
+
+function handlePlayerKeyboardShortcut(event) {
+    if (shouldIgnorePlayerShortcut(event)) return;
+
+    const key = String(event.key || '').toLowerCase();
+
+    if (event.code === 'Space' || key === ' ') {
+        event.preventDefault(); // Space normally scrolls the page.
+        void togglePlay();
+        return;
+    }
+
+    switch (key) {
+        case 'n':
+            void nextTrack();
+            break;
+        case 'p':
+            void prevTrack();
+            break;
+        case 's':
+            toggleShuffle();
+            break;
+        case 'l':
+            toggleRepeat();
+            break;
+        default:
+            break;
+    }
+}
+
+document.addEventListener('keydown', handlePlayerKeyboardShortcut);
+
+// ==========================================
+// 6. INITIALIZATION
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     prepareSpectrumCanvas();

@@ -122,11 +122,11 @@
     </div>
     <div class="player-controls">
       <div class="buttons">
-        <button class="ctrl-btn" id="shuffleBtn" onclick="toggleShuffle()" title="Shuffle: Off" aria-label="Toggle shuffle" aria-pressed="false"><i class="fas fa-random"></i></button>
-        <button class="ctrl-btn" onclick="prevTrack()"><i class="fas fa-step-backward"></i></button>
-        <button class="ctrl-btn play-btn" onclick="togglePlay()"><i class="fas fa-play" id="playIcon"></i></button>
-        <button class="ctrl-btn" onclick="nextTrack()"><i class="fas fa-step-forward"></i></button>
-        <button class="ctrl-btn" id="repeatBtn" onclick="toggleRepeat()" title="Repeat: Off" aria-label="Repeat off"><i class="fas fa-redo-alt"></i></button>
+        <button class="ctrl-btn" id="shuffleBtn" onclick="toggleShuffle()" title="Shuffle: Off (S)" aria-label="Toggle shuffle (S)" aria-pressed="false"><i class="fas fa-random"></i></button>
+        <button class="ctrl-btn" onclick="prevTrack()" title="Previous track (P)" aria-label="Previous track (P)"><i class="fas fa-step-backward"></i></button>
+        <button class="ctrl-btn play-btn" onclick="togglePlay()" title="Play / Pause (Space)" aria-label="Play or pause (Space)"><i class="fas fa-play" id="playIcon"></i></button>
+        <button class="ctrl-btn" onclick="nextTrack()" title="Next track (N)" aria-label="Next track (N)"><i class="fas fa-step-forward"></i></button>
+        <button class="ctrl-btn" id="repeatBtn" onclick="toggleRepeat()" title="Repeat: Off (L)" aria-label="Repeat off (L)"><i class="fas fa-redo-alt"></i></button>
       </div>
       <div class="progress-container">
         <span class="time" id="currentTime">0:00</span>
@@ -252,7 +252,7 @@
 <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.1"></script>
 <script src="config.js?v=control-rebalance-20260805-1"></script>
 <script src="data.js?v=shared-playlists-20260804-1"></script>
-<script src="player.js?v=streaming-source-20260806-1"></script>
+<script src="player.js?v=keyboard-controls-20260808-1"></script>
 <script src="auth.js?v=no-temp-upload-20260804-1"></script>
 <script src="ui.js?v=hero-songs-20260804-1"></script>
 <script src="mobile.js"></script>
