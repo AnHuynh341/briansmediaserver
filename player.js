@@ -901,10 +901,17 @@ function shouldIgnorePlayerShortcut(event) {
     // A held key should trigger only once instead of racing through the queue.
     if (event.repeat) return true;
 
-    // Let form controls keep their normal keyboard behavior. This also prevents
-    // shortcut letters from firing while the user types in login/search/modals.
+    // Ignore controls where key presses are actually used for text entry.
+    // Range inputs (seek/volume) are intentionally NOT blocked: after dragging
+    // either slider, Space/N/P/S/L should keep controlling the player immediately.
+    const textEntryInputTypes = new Set([
+        'text', 'search', 'email', 'password', 'url', 'tel', 'number'
+    ]);
+    const isTextEntryInput = target instanceof HTMLInputElement
+        && textEntryInputTypes.has(String(target.type || 'text').toLowerCase());
+
     if (
-        target instanceof HTMLInputElement
+        isTextEntryInput
         || target instanceof HTMLTextAreaElement
         || target instanceof HTMLSelectElement
         || target instanceof HTMLButtonElement
