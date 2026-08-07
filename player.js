@@ -28,6 +28,15 @@ let lastSpectrumFrameAt = 0;
 let spectrumAutoGain = 1;
 let spectrumSmoothedPeak = 0.35;
 
+// A small envelope lets the ribbon grow out of / settle back into its idle line
+// instead of popping on and off. Because the target can reverse mid-transition,
+// rapid Play/Pause/Next/Previous actions remain continuous rather than restarting.
+let spectrumVisibility = 0;
+let spectrumTargetVisibility = 0;
+let spectrumTransitionFrameAt = 0;
+const SPECTRUM_RISE_TAU_MS = 72;
+const SPECTRUM_FALL_TAU_MS = 96;
+
 // ==========================================
 // STREAMING SOURCE STATE
 // ==========================================
@@ -704,7 +713,11 @@ function resizeSpectrumCanvas() {
         spectrumContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     }
 
-    drawIdleSpectrum();
+    // Do not wipe an active rise/fall transition just because setupVisualizer()
+    // checked the canvas again. The idle line is only needed when fully settled.
+    if (spectrumAnimationId === null && spectrumVisibility === 0) {
+        drawIdleSpectrum();
+    }
 }
 
 function prepareSpectrumCanvas() {
@@ -757,12 +770,12 @@ function roundedSpectrumBar(context, x, y, width, height, radius) {
     context.fill();
 }
 
-function drawIdleSpectrum() {
+function drawIdleSpectrum(clearCanvas = true) {
     if (!spectrumCanvas || !spectrumContext) return;
 
     const width = spectrumCanvas.clientWidth;
     const height = spectrumCanvas.clientHeight;
-    spectrumContext.clearRect(0, 0, width, height);
+    if (clearCanvas) spectrumContext.clearRect(0, 0, width, height);
 
     const gradient = spectrumContext.createLinearGradient(0, 0, width, 0);
     gradient.addColorStop(0, 'rgba(0, 229, 255, 0)');
@@ -775,8 +788,39 @@ function drawIdleSpectrum() {
     spectrumContext.fillRect(0, height - 2, width, 1);
 }
 
+function updateSpectrumVisibility(timestamp) {
+    if (!spectrumTransitionFrameAt) {
+        spectrumTransitionFrameAt = timestamp;
+        return;
+    }
+
+    const elapsed = Math.min(80, Math.max(0, timestamp - spectrumTransitionFrameAt));
+    spectrumTransitionFrameAt = timestamp;
+
+    const tau = spectrumTargetVisibility > spectrumVisibility
+        ? SPECTRUM_RISE_TAU_MS
+        : SPECTRUM_FALL_TAU_MS;
+    const blend = 1 - Math.exp(-elapsed / tau);
+
+    spectrumVisibility += (spectrumTargetVisibility - spectrumVisibility) * blend;
+
+    if (Math.abs(spectrumTargetVisibility - spectrumVisibility) < 0.004) {
+        spectrumVisibility = spectrumTargetVisibility;
+    }
+}
+
+function ensureSpectrumAnimation() {
+    if (spectrumAnimationId !== null) return;
+
+    lastSpectrumFrameAt = 0;
+    spectrumTransitionFrameAt = 0;
+    spectrumAnimationId = requestAnimationFrame(renderFrame);
+}
+
 function startVisualizer() {
     if (!setupVisualizer()) return;
+
+    spectrumTargetVisibility = 1;
 
     if (audioCtx?.state === 'suspended') {
         audioCtx.resume().catch(error => {
@@ -784,29 +828,26 @@ function startVisualizer() {
         });
     }
 
-    if (spectrumAnimationId !== null) return;
-    lastSpectrumFrameAt = 0;
-    spectrumAnimationId = requestAnimationFrame(renderFrame);
+    ensureSpectrumAnimation();
 }
 
 function stopVisualizer(drawIdle = true) {
-    if (spectrumAnimationId !== null) {
-        cancelAnimationFrame(spectrumAnimationId);
-        spectrumAnimationId = null;
-    }
+    spectrumTargetVisibility = 0;
 
-    if (drawIdle) drawIdleSpectrum();
+    // Do not cancel an in-progress animation. Let the existing ribbon settle
+    // back down to the idle line. If Play/Next/Previous is hit during that fall,
+    // startVisualizer() simply flips the target back to 1 and the same envelope
+    // reverses direction without a visual pop.
+    if (analyser && dataArray && spectrumCanvas && spectrumContext) {
+        ensureSpectrumAnimation();
+    } else if (drawIdle) {
+        drawIdleSpectrum();
+    }
 }
 
 function renderFrame(timestamp = 0) {
     if (!analyser || !dataArray || !spectrumCanvas || !spectrumContext) {
         spectrumAnimationId = null;
-        return;
-    }
-
-    if (audio.paused || audio.ended) {
-        spectrumAnimationId = null;
-        drawIdleSpectrum();
         return;
     }
 
@@ -816,76 +857,103 @@ function renderFrame(timestamp = 0) {
         return;
     }
     lastSpectrumFrameAt = timestamp;
+    updateSpectrumVisibility(timestamp);
 
-    analyser.getByteFrequencyData(dataArray);
+    const audioIsPlaying = !audio.paused && !audio.ended;
+
+    // While falling, keep the final live spectrum shape and scale it downward.
+    // Sampling only during active playback avoids the bars abruptly collapsing
+    // to zero before the transition itself has had time to finish.
+    if (audioIsPlaying) {
+        analyser.getByteFrequencyData(dataArray);
+    }
 
     const width = spectrumCanvas.clientWidth;
     const height = spectrumCanvas.clientHeight;
     spectrumContext.clearRect(0, 0, width, height);
-    spectrumContext.save();
-    spectrumContext.globalCompositeOperation = 'lighter';
 
-    // Automatic gain normalization follows the spectrum's shape rather than
-    // the player's output-volume setting. Quiet listening therefore remains
-    // visually lively without making loud masters turn into a solid wall.
-    let framePeak = 0;
-    let frameAverage = 0;
-    const analysedBins = Math.max(1, Math.floor(dataArray.length * 0.82));
+    // The old one-pixel idle ribbon stays underneath the animation, so the live
+    // spectrum appears to grow naturally out of it and settle back into it.
+    drawIdleSpectrum(false);
 
-    for (let index = 0; index < analysedBins; index += 1) {
-        const value = dataArray[index] / 255;
-        framePeak = Math.max(framePeak, value);
-        frameAverage += value;
+    const liftProgress = spectrumVisibility * spectrumVisibility * (3 - 2 * spectrumVisibility);
+
+    if (liftProgress > 0.001) {
+        spectrumContext.save();
+        spectrumContext.globalCompositeOperation = 'lighter';
+        spectrumContext.globalAlpha = Math.min(1, 0.08 + liftProgress * 0.92);
+
+        // Automatic gain normalization follows the spectrum's shape rather than
+        // the player's output-volume setting. Quiet listening therefore remains
+        // visually lively without making loud masters turn into a solid wall.
+        let framePeak = 0;
+        let frameAverage = 0;
+        const analysedBins = Math.max(1, Math.floor(dataArray.length * 0.82));
+
+        for (let index = 0; index < analysedBins; index += 1) {
+            const value = dataArray[index] / 255;
+            framePeak = Math.max(framePeak, value);
+            frameAverage += value;
+        }
+
+        frameAverage /= analysedBins;
+        spectrumSmoothedPeak += (Math.max(framePeak, frameAverage * 2.4, 0.08) - spectrumSmoothedPeak) * 0.09;
+
+        const desiredGain = Math.min(5.8, Math.max(1.05, 0.86 / spectrumSmoothedPeak));
+        spectrumAutoGain += (desiredGain - spectrumAutoGain) * 0.075;
+
+        const barCount = Math.max(42, Math.min(88, Math.floor(width / 14)));
+        const gap = Math.max(1.5, width / barCount * 0.24);
+        const barWidth = Math.max(1.8, (width - gap * (barCount - 1)) / barCount);
+        const usableHeight = Math.max(10, height - 2);
+
+        for (let index = 0; index < barCount; index += 1) {
+            const normalizedIndex = index / Math.max(1, barCount - 1);
+            const dataIndex = Math.min(
+                dataArray.length - 1,
+                Math.floor(Math.pow(normalizedIndex, 1.38) * dataArray.length * 0.80)
+            );
+
+            const previousBin = dataArray[Math.max(0, dataIndex - 1)] / 255;
+            const currentBin = dataArray[dataIndex] / 255;
+            const nextBin = dataArray[Math.min(dataArray.length - 1, dataIndex + 1)] / 255;
+            const localShape = (previousBin + currentBin * 2 + nextBin) / 4;
+            const normalizedStrength = Math.min(1, localShape * spectrumAutoGain);
+
+            // A restrained travelling pulse keeps the ribbon breathing between
+            // softer notes; the actual frequency data still controls its shape.
+            const travellingPulse = 0.5 + 0.5 * Math.sin(timestamp * 0.0048 + index * 0.58);
+            const livelyFloor = 0.07 + travellingPulse * (0.035 + frameAverage * 0.12);
+            const shapedStrength = Math.min(1, normalizedStrength * 0.90 + livelyFloor);
+            const easedStrength = Math.pow(shapedStrength, 0.78);
+            const fullBarHeight = Math.max(2.5, easedStrength * usableHeight);
+            const barHeight = 1 + (fullBarHeight - 1) * liftProgress;
+            const x = index * (barWidth + gap);
+            const y = height - barHeight;
+            const hue = (184 + normalizedIndex * 272 + timestamp * 0.008) % 360;
+            const color = `hsla(${hue}, 100%, 68%, ${0.25 + easedStrength * 0.46})`;
+            const verticalGradient = spectrumContext.createLinearGradient(0, y, 0, height);
+
+            verticalGradient.addColorStop(0, color);
+            verticalGradient.addColorStop(0.62, `hsla(${hue}, 100%, 60%, ${0.10 + easedStrength * 0.16})`);
+            verticalGradient.addColorStop(1, `hsla(${hue}, 100%, 56%, 0.018)`);
+
+            spectrumContext.fillStyle = verticalGradient;
+            spectrumContext.shadowColor = `hsla(${hue}, 100%, 64%, ${0.18 + easedStrength * 0.34})`;
+            spectrumContext.shadowBlur = (6 + easedStrength * 9) * liftProgress;
+            roundedSpectrumBar(spectrumContext, x, y, barWidth, barHeight, Math.min(3, barWidth / 2));
+        }
+
+        spectrumContext.restore();
     }
 
-    frameAverage /= analysedBins;
-    spectrumSmoothedPeak += (Math.max(framePeak, frameAverage * 2.4, 0.08) - spectrumSmoothedPeak) * 0.09;
-
-    const desiredGain = Math.min(5.8, Math.max(1.05, 0.86 / spectrumSmoothedPeak));
-    spectrumAutoGain += (desiredGain - spectrumAutoGain) * 0.075;
-
-    const barCount = Math.max(42, Math.min(88, Math.floor(width / 14)));
-    const gap = Math.max(1.5, width / barCount * 0.24);
-    const barWidth = Math.max(1.8, (width - gap * (barCount - 1)) / barCount);
-    const usableHeight = Math.max(10, height - 2);
-
-    for (let index = 0; index < barCount; index += 1) {
-        const normalizedIndex = index / Math.max(1, barCount - 1);
-        const dataIndex = Math.min(
-            dataArray.length - 1,
-            Math.floor(Math.pow(normalizedIndex, 1.38) * dataArray.length * 0.80)
-        );
-
-        const previousBin = dataArray[Math.max(0, dataIndex - 1)] / 255;
-        const currentBin = dataArray[dataIndex] / 255;
-        const nextBin = dataArray[Math.min(dataArray.length - 1, dataIndex + 1)] / 255;
-        const localShape = (previousBin + currentBin * 2 + nextBin) / 4;
-        const normalizedStrength = Math.min(1, localShape * spectrumAutoGain);
-
-        // A restrained travelling pulse keeps the ribbon breathing between
-        // softer notes; the actual frequency data still controls its shape.
-        const travellingPulse = 0.5 + 0.5 * Math.sin(timestamp * 0.0048 + index * 0.58);
-        const livelyFloor = 0.07 + travellingPulse * (0.035 + frameAverage * 0.12);
-        const shapedStrength = Math.min(1, normalizedStrength * 0.90 + livelyFloor);
-        const easedStrength = Math.pow(shapedStrength, 0.78);
-        const barHeight = Math.max(2.5, easedStrength * usableHeight);
-        const x = index * (barWidth + gap);
-        const y = height - barHeight;
-        const hue = (184 + normalizedIndex * 272 + timestamp * 0.008) % 360;
-        const color = `hsla(${hue}, 100%, 68%, ${0.25 + easedStrength * 0.46})`;
-        const verticalGradient = spectrumContext.createLinearGradient(0, y, 0, height);
-
-        verticalGradient.addColorStop(0, color);
-        verticalGradient.addColorStop(0.62, `hsla(${hue}, 100%, 60%, ${0.10 + easedStrength * 0.16})`);
-        verticalGradient.addColorStop(1, `hsla(${hue}, 100%, 56%, 0.018)`);
-
-        spectrumContext.fillStyle = verticalGradient;
-        spectrumContext.shadowColor = `hsla(${hue}, 100%, 64%, ${0.18 + easedStrength * 0.34})`;
-        spectrumContext.shadowBlur = 6 + easedStrength * 9;
-        roundedSpectrumBar(spectrumContext, x, y, barWidth, barHeight, Math.min(3, barWidth / 2));
+    if (spectrumTargetVisibility === 0 && spectrumVisibility === 0) {
+        spectrumAnimationId = null;
+        spectrumTransitionFrameAt = 0;
+        drawIdleSpectrum();
+        return;
     }
 
-    spectrumContext.restore();
     spectrumAnimationId = requestAnimationFrame(renderFrame);
 }
 
