@@ -978,11 +978,17 @@ function shouldIgnorePlayerShortcut(event) {
     const isTextEntryInput = target instanceof HTMLInputElement
         && textEntryInputTypes.has(String(target.type || 'text').toLowerCase());
 
+    // Player transport buttons are safe shortcut targets. A mouse click can leave
+    // one focused, but Space/N/P/S/L should still behave as global player keys.
+    const isPlayerControlButton = target instanceof HTMLButtonElement
+        && target.classList.contains('ctrl-btn')
+        && Boolean(target.closest('.player'));
+
     if (
         isTextEntryInput
         || target instanceof HTMLTextAreaElement
         || target instanceof HTMLSelectElement
-        || target instanceof HTMLButtonElement
+        || (target instanceof HTMLButtonElement && !isPlayerControlButton)
         || target?.isContentEditable
     ) {
         return true;
@@ -1034,6 +1040,22 @@ function handlePlayerKeyboardShortcut(event) {
 }
 
 document.addEventListener('keydown', handlePlayerKeyboardShortcut);
+
+// Mouse/pointer clicks normally leave a button focused. Release that focus after
+// clicking a transport control so the next key press immediately belongs to the
+// global player shortcuts. Keyboard-generated clicks have event.detail === 0,
+// so Tab/Space keyboard navigation keeps its normal focus behavior.
+document.addEventListener('click', event => {
+    if (event.detail === 0) return;
+
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const button = target.closest('.player .ctrl-btn');
+    if (button instanceof HTMLButtonElement) {
+        button.blur();
+    }
+});
 
 // ==========================================
 // 6. INITIALIZATION
