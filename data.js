@@ -327,6 +327,7 @@ async function fetchTracks() {
             loadPlaylist(currentViewPlaylistIndex);
         }
 
+        if (typeof renderRecentlyUploaded === 'function') renderRecentlyUploaded();
         if (typeof renderTrackList === 'function') renderTrackList();
     } catch (error) {
         console.error("Appwrite Fetch Error:", error);
@@ -1058,6 +1059,8 @@ function updateTrackCoverInMemory(trackId, coverUrl) {
     if (playingTrack && playingTrack.id === trackId) {
         setCoverImage(document.getElementById('npCover'), coverUrl, track.name);
     }
+
+    if (typeof renderRecentlyUploaded === 'function') renderRecentlyUploaded();
 }
 
 async function refetchTrackCover(trackId, buttonElement = null) {

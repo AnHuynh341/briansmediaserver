@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>W41IT</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260805-spectrum-clean-1">
+  <link rel="stylesheet" href="styles.css?v=recent-uploads-20260809-1">
 </head>
 <body>
 <div id="loginPage">
@@ -106,6 +106,18 @@
           </div>
         </div>
       </section>
+
+      <section id="recentlyUploadedSection" class="recent-upload-section hidden" aria-labelledby="recentlyUploadedTitle">
+        <div class="recent-upload-heading">
+          <div>
+            <div class="recent-upload-eyebrow">Recently Uploaded</div>
+            <h2 id="recentlyUploadedTitle">What&apos;s New</h2>
+          </div>
+          <span id="recentlyUploadedCount" class="recent-upload-count">Latest 7</span>
+        </div>
+        <div id="recentlyUploadedGrid" class="recent-upload-grid" aria-live="polite"></div>
+      </section>
+
       <div id="trackList"></div>
     </div>
   </div>
@@ -251,10 +263,10 @@
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.1"></script>
 <script src="config.js?v=control-rebalance-20260805-1"></script>
-<script src="data.js?v=shared-playlists-20260804-1"></script>
-<script src="player.js?v=keyboard-button-focus-20260808-1"></script>
+<script src="data.js?v=recent-uploads-20260809-1"></script>
+<script src="player.js?v=recent-upload-card-focus-20260809-1"></script>
 <script src="auth.js?v=no-temp-upload-20260804-1"></script>
-<script src="ui.js?v=hero-songs-20260804-1"></script>
+<script src="ui.js?v=recent-uploads-20260809-1"></script>
 <script src="mobile.js"></script>
 </body>
 </html>

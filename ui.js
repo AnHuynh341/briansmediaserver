@@ -2,6 +2,109 @@
 let activeLibraryView = 'all';
 let activeSearchQuery = '';
 
+const RECENT_UPLOAD_LIMIT = 7;
+
+function getRecentlyUploadedTracks(limit = RECENT_UPLOAD_LIMIT) {
+    return allTracks
+        .map((track, index) => ({
+            track,
+            index,
+            uploadedAt: new Date(track.createdAt || 0).getTime() || 0
+        }))
+        .sort((a, b) => (b.uploadedAt - a.uploadedAt) || (b.index - a.index))
+        .slice(0, limit)
+        .map(entry => entry.track);
+}
+
+function updateRecentlyUploadedVisibility() {
+    const section = document.getElementById('recentlyUploadedSection');
+    if (!section) return;
+
+    const shouldShow = activeLibraryView === 'all' && allTracks.length > 0;
+    section.classList.toggle('hidden', !shouldShow);
+}
+
+function updateRecentlyUploadedActiveState() {
+    const currentTrackId = allTracks[currentTrackIndex]?.id || '';
+
+    document.querySelectorAll('.recent-upload-card[data-track-id]').forEach(card => {
+        const active = card.dataset.trackId === currentTrackId;
+        card.classList.toggle('active', active);
+        card.setAttribute('aria-current', active ? 'true' : 'false');
+    });
+}
+
+function renderRecentlyUploaded() {
+    const section = document.getElementById('recentlyUploadedSection');
+    const grid = document.getElementById('recentlyUploadedGrid');
+    const count = document.getElementById('recentlyUploadedCount');
+
+    if (!section || !grid) return;
+
+    const recentTracks = getRecentlyUploadedTracks();
+    grid.replaceChildren();
+
+    if (count) {
+        count.textContent = recentTracks.length > 0
+            ? `Latest ${recentTracks.length}`
+            : 'No uploads';
+    }
+
+    recentTracks.forEach(track => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'recent-upload-card';
+        card.dataset.trackId = track.id;
+        card.title = `Play ${getDisplayTrackName(track.name)}`;
+        card.setAttribute('aria-label', `Play ${getDisplayTrackName(track.name)} by ${track.artist || 'Unknown Artist'}`);
+
+        const coverWrap = document.createElement('span');
+        coverWrap.className = 'recent-upload-cover-wrap';
+
+        const cover = document.createElement('img');
+        cover.className = 'recent-upload-cover';
+        cover.alt = '';
+        cover.loading = 'eager';
+        cover.decoding = 'async';
+
+        if (typeof setCoverImage === 'function') {
+            setCoverImage(cover, track.cover, getDisplayTrackName(track.name));
+        } else {
+            cover.src = track.cover || createCoverPlaceholder(track.name);
+        }
+
+        const playBadge = document.createElement('span');
+        playBadge.className = 'recent-upload-play-badge';
+        playBadge.setAttribute('aria-hidden', 'true');
+        playBadge.innerHTML = '<i class="fas fa-play"></i>';
+
+        coverWrap.appendChild(cover);
+        coverWrap.appendChild(playBadge);
+
+        const title = document.createElement('span');
+        title.className = 'recent-upload-title';
+        title.textContent = getDisplayTrackName(track.name);
+
+        const artist = document.createElement('span');
+        artist.className = 'recent-upload-artist';
+        artist.textContent = track.artist || 'Unknown Artist';
+
+        card.appendChild(coverWrap);
+        card.appendChild(title);
+        card.appendChild(artist);
+
+        card.addEventListener('click', () => {
+            const originalIndex = allTracks.findIndex(item => item.id === track.id);
+            if (originalIndex > -1) void loadTrack(originalIndex, true);
+        });
+
+        grid.appendChild(card);
+    });
+
+    updateRecentlyUploadedVisibility();
+    updateRecentlyUploadedActiveState();
+}
+
 function formatHeroRuntime(seconds) {
     const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
     const hours = Math.floor(safeSeconds / 3600);
@@ -447,6 +550,8 @@ function renderTrackList() {
 
     if (currentPlaylistTracks.length === 0) {
         list.innerHTML = '<div class="track-empty-state">No signals detected.</div>';
+        updateRecentlyUploadedVisibility();
+        updateRecentlyUploadedActiveState();
         updateLibraryHero();
         return;
     }
@@ -571,6 +676,8 @@ function renderTrackList() {
         list.appendChild(div);
     });
 
+    updateRecentlyUploadedVisibility();
+    updateRecentlyUploadedActiveState();
     updateLibraryHero();
 }
 
