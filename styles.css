@@ -4048,7 +4048,7 @@ html, body {
 
 .recent-upload-title {
   color: #e9e9ff;
-  font-size: 0.78rem;
+  font-size: 0.90rem;
   font-weight: 800;
   line-height: 1.25;
 }
@@ -4060,7 +4060,7 @@ html, body {
 .recent-upload-artist {
   margin-top: 3px;
   color: #77779d;
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   font-weight: 550;
   line-height: 1.2;
 }
@@ -4144,11 +4144,11 @@ html, body {
   }
 
   .recent-upload-title {
-    font-size: 0.72rem;
+    font-size: 0.80rem;
   }
 
   .recent-upload-artist {
-    font-size: 0.61rem;
+    font-size: 0.66rem;
   }
 
   .recent-upload-play-badge {

@@ -49,6 +49,56 @@ function isSupersededTrackLoad(loadGeneration) {
 }
 
 // ==========================================
+// PLAYBACK QUEUE SCOPE
+// ==========================================
+// Most views use currentPlaylistTracks as both the visible list and playback queue.
+// Special shelves such as What's New can temporarily provide their own queue without
+// replacing the visible All Songs list underneath.
+let playbackQueueOverride = null;
+let playbackQueueSource = 'view';
+
+function getPlaybackQueueTracks() {
+    return Array.isArray(playbackQueueOverride)
+        ? playbackQueueOverride
+        : currentPlaylistTracks;
+}
+
+function setPlaybackQueueOverride(tracks, source = 'custom', startingTrackId = null) {
+    const requestedIds = new Set(
+        (Array.isArray(tracks) ? tracks : [])
+            .map(track => track?.id)
+            .filter(Boolean)
+    );
+
+    playbackQueueOverride = allTracks.filter(track => requestedIds.has(track.id));
+
+    // Preserve the caller's explicit order instead of allTracks order.
+    const order = new Map(
+        (Array.isArray(tracks) ? tracks : [])
+            .map((track, index) => [track?.id, index])
+            .filter(([trackId]) => Boolean(trackId))
+    );
+    playbackQueueOverride.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+    playbackQueueSource = source;
+
+    if (isShuffle) {
+        resetShuffleState(startingTrackId || getCurrentTrackId());
+    } else {
+        clearShuffleState();
+    }
+}
+
+function clearPlaybackQueueOverride() {
+    const hadOverride = Array.isArray(playbackQueueOverride);
+    playbackQueueOverride = null;
+    playbackQueueSource = 'view';
+
+    if (hadOverride && isShuffle) {
+        resetShuffleState(getCurrentTrackId());
+    }
+}
+
+// ==========================================
 // SESSION TELEMETRY
 // ==========================================
 const SESSION_STORAGE_KEY = 'w41it-session-telemetry-v1';
@@ -179,7 +229,7 @@ function getCurrentTrackId() {
 }
 
 function getPlayableTrackIds() {
-    return currentPlaylistTracks
+    return getPlaybackQueueTracks()
         .map(track => track?.id)
         .filter(Boolean);
 }
@@ -346,6 +396,13 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
     // Create/resume the audio graph while the click gesture is still active.
     if (autoplay) setupVisualizer();
 
+    // A normal track-row/hero selection returns playback to the currently visible
+    // library/playlist/search queue. Special shelves can opt out with their own
+    // navigation source after installing a queue override first.
+    if (navigationSource === 'direct') {
+        clearPlaybackQueueOverride();
+    }
+
     if (isShuffle && navigationSource === 'direct') {
         registerDirectShuffleSelection(track.id);
     }
@@ -465,7 +522,9 @@ function toggleRepeat() {
 }
 
 async function nextTrack(isAutoAdvance = false) {
-    if (currentPlaylistTracks.length === 0) {
+    const playbackTracks = getPlaybackQueueTracks();
+
+    if (playbackTracks.length === 0) {
         markPlaybackStopped();
         return false;
     }
@@ -509,7 +568,7 @@ async function nextTrack(isAutoAdvance = false) {
     }
 
     const currentTrackId = getCurrentTrackId();
-    const currentIndexInPlaylist = currentPlaylistTracks.findIndex(
+    const currentIndexInPlaylist = playbackTracks.findIndex(
         track => track.id === currentTrackId
     );
 
@@ -519,7 +578,7 @@ async function nextTrack(isAutoAdvance = false) {
     // start from the first track in that view.
     if (currentIndexInPlaylist === -1) nextIndex = 0;
 
-    if (nextIndex >= currentPlaylistTracks.length) {
+    if (nextIndex >= playbackTracks.length) {
         if (repeatMode === 1) {
             nextIndex = 0;
         } else {
@@ -529,7 +588,7 @@ async function nextTrack(isAutoAdvance = false) {
     }
 
     const originalIndex = findAllTracksIndex(
-        currentPlaylistTracks[nextIndex].id
+        playbackTracks[nextIndex].id
     );
 
     if (originalIndex === -1) return false;
@@ -538,7 +597,8 @@ async function nextTrack(isAutoAdvance = false) {
 }
 
 async function prevTrack() {
-    if (!audio.src || currentPlaylistTracks.length === 0) return false;
+    const playbackTracks = getPlaybackQueueTracks();
+    if (!audio.src || playbackTracks.length === 0) return false;
 
     // Standard player behavior: after a few seconds, Previous restarts
     // the current song instead of changing tracks.
@@ -562,12 +622,12 @@ async function prevTrack() {
     }
 
     const currentTrackId = getCurrentTrackId();
-    const currentIndexInPlaylist = currentPlaylistTracks.findIndex(
+    const currentIndexInPlaylist = playbackTracks.findIndex(
         track => track.id === currentTrackId
     );
 
     if (currentIndexInPlaylist === -1) {
-        const firstTrackIndex = findAllTracksIndex(currentPlaylistTracks[0].id);
+        const firstTrackIndex = findAllTracksIndex(playbackTracks[0].id);
         if (firstTrackIndex === -1) return false;
         return loadTrack(firstTrackIndex, true, 'sequential-previous');
     }
@@ -576,7 +636,7 @@ async function prevTrack() {
 
     if (previousIndex < 0) {
         if (repeatMode === 1) {
-            previousIndex = currentPlaylistTracks.length - 1;
+            previousIndex = playbackTracks.length - 1;
         } else {
             audio.currentTime = 0;
             return false;
@@ -584,7 +644,7 @@ async function prevTrack() {
     }
 
     const originalIndex = findAllTracksIndex(
-        currentPlaylistTracks[previousIndex].id
+        playbackTracks[previousIndex].id
     );
 
     if (originalIndex === -1) return false;

@@ -89,7 +89,12 @@ function renderRecentlyUploaded() {
 
         card.addEventListener('click', () => {
             const originalIndex = allTracks.findIndex(item => item.id === track.id);
-            if (originalIndex > -1) void loadTrack(originalIndex, true);
+            if (originalIndex < 0) return;
+
+            // What's New behaves as its own dynamic seven-track playlist. Its order
+            // is newest -> oldest, while shuffle still randomizes only inside this set.
+            setPlaybackQueueOverride(recentTracks, 'whats-new', track.id);
+            void loadTrack(originalIndex, true, 'whats-new-direct');
         });
 
         grid.appendChild(card);
