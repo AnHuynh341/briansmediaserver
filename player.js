@@ -101,33 +101,78 @@ function clearPlaybackQueueOverride() {
 // ==========================================
 // SESSION TELEMETRY
 // ==========================================
-const SESSION_STORAGE_KEY = 'w41it-session-telemetry-v1';
+// "Tracks played" counts completed listening passes, not unique track IDs.
+// Every pass that accumulates at least two thirds of the track's media duration
+// earns +1, so a qualifying song can count again when it is replayed/looped.
+// Progress is accumulated from natural media-time movement instead of currentTime
+// alone, so jumping the seekbar forward does not manufacture listening progress.
+const SESSION_STORAGE_KEY = 'w41it-session-telemetry-v3';
+const PREVIOUS_SESSION_STORAGE_KEY = 'w41it-session-telemetry-v2';
+const LEGACY_SESSION_STORAGE_KEY = 'w41it-session-telemetry-v1';
+const SESSION_TRACK_QUALIFY_FRACTION = 2 / 3;
 let sessionStartedListeningAt = null;
 let sessionUpdateTimer = null;
 
+// Per-playthrough state. Pausing/resuming keeps the same playthrough, while loading
+// another source or starting a Repeat-One cycle begins a fresh eligible pass.
+let sessionPlaythroughTrackId = null;
+let sessionPlaythroughPlayedSeconds = 0;
+let sessionPlaythroughLastMediaTime = null;
+let sessionPlaythroughCounted = false;
+
 function readSessionTelemetry() {
     try {
-        const parsed = JSON.parse(sessionStorage.getItem(SESSION_STORAGE_KEY) || '{}');
+        const currentRaw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (currentRaw) {
+            const parsed = JSON.parse(currentRaw);
+            return {
+                qualifiedPlayCount: Number.isFinite(Number(parsed.qualifiedPlayCount))
+                    ? Math.max(0, Math.floor(Number(parsed.qualifiedPlayCount)))
+                    : 0,
+                listeningSeconds: Number.isFinite(Number(parsed.listeningSeconds))
+                    ? Math.max(0, Number(parsed.listeningSeconds))
+                    : 0
+            };
+        }
+
+        const previousRaw = sessionStorage.getItem(PREVIOUS_SESSION_STORAGE_KEY);
+        if (previousRaw) {
+            const parsed = JSON.parse(previousRaw);
+            return {
+                // v2 counted each qualifying track only once. Preserve those already
+                // earned counts as the starting total, then allow replays from here on.
+                qualifiedPlayCount: Array.isArray(parsed.qualifiedTrackIds)
+                    ? parsed.qualifiedTrackIds.length
+                    : 0,
+                listeningSeconds: Number.isFinite(Number(parsed.listeningSeconds))
+                    ? Math.max(0, Number(parsed.listeningSeconds))
+                    : 0
+            };
+        }
+
+        const legacy = JSON.parse(sessionStorage.getItem(LEGACY_SESSION_STORAGE_KEY) || '{}');
         return {
-            playedTrackIds: Array.isArray(parsed.playedTrackIds) ? parsed.playedTrackIds : [],
-            listeningSeconds: Number.isFinite(Number(parsed.listeningSeconds))
-                ? Math.max(0, Number(parsed.listeningSeconds))
+            // v1 counted on playback start, so those old track counts are intentionally
+            // not migrated into the stricter two-thirds metric.
+            qualifiedPlayCount: 0,
+            listeningSeconds: Number.isFinite(Number(legacy.listeningSeconds))
+                ? Math.max(0, Number(legacy.listeningSeconds))
                 : 0
         };
     } catch (error) {
         console.warn('Could not restore session telemetry:', error);
-        return { playedTrackIds: [], listeningSeconds: 0 };
+        return { qualifiedPlayCount: 0, listeningSeconds: 0 };
     }
 }
 
 const sessionTelemetry = readSessionTelemetry();
-const sessionPlayedTrackIds = new Set(sessionTelemetry.playedTrackIds);
+let sessionQualifiedPlayCount = sessionTelemetry.qualifiedPlayCount;
 let sessionListeningSeconds = sessionTelemetry.listeningSeconds;
 
 function persistSessionTelemetry() {
     try {
         sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-            playedTrackIds: Array.from(sessionPlayedTrackIds),
+            qualifiedPlayCount: Math.max(0, Math.floor(sessionQualifiedPlayCount)),
             listeningSeconds: Math.max(0, Math.floor(sessionListeningSeconds))
         }));
     } catch (error) {
@@ -156,7 +201,7 @@ function updateSessionInfo() {
     const loopElement = document.getElementById('sessionLoopState');
     const liveDot = document.querySelector('.session-live-dot');
 
-    if (trackCountElement) trackCountElement.textContent = String(sessionPlayedTrackIds.size);
+    if (trackCountElement) trackCountElement.textContent = String(sessionQualifiedPlayCount);
     if (listeningElement) listeningElement.textContent = formatSessionListeningTime(getLiveSessionListeningSeconds());
     if (shuffleElement) shuffleElement.textContent = isShuffle ? 'Active' : 'Off';
 
@@ -171,13 +216,60 @@ function updateSessionInfo() {
     if (liveDot) liveDot.classList.toggle('active', !audio.paused && !audio.ended);
 }
 
-function noteCurrentTrackPlayed() {
-    const trackId = getCurrentTrackId();
-    if (!trackId) return;
+function resetSessionPlaythrough(trackId = getCurrentTrackId()) {
+    sessionPlaythroughTrackId = trackId || null;
+    sessionPlaythroughPlayedSeconds = 0;
+    sessionPlaythroughLastMediaTime = null;
+    sessionPlaythroughCounted = false;
+}
 
-    sessionPlayedTrackIds.add(trackId);
+function prepareSessionProgressAfterSeek() {
+    // The next media-time sample establishes a new baseline. This prevents the
+    // seek jump itself from being mistaken for seconds that were actually heard.
+    sessionPlaythroughLastMediaTime = null;
+}
+
+function noteCurrentTrackPlayedIfQualified() {
+    const trackId = getCurrentTrackId();
+    const duration = Number(audio.duration);
+    const currentMediaTime = Number(audio.currentTime);
+
+    if (!trackId) return false;
+
+    if (sessionPlaythroughTrackId !== trackId) {
+        resetSessionPlaythrough(trackId);
+    }
+
+    if (Number.isFinite(currentMediaTime)) {
+        if (
+            sessionPlaythroughLastMediaTime !== null
+            && !audio.seeking
+            && !isSeeking
+        ) {
+            const mediaDelta = currentMediaTime - sessionPlaythroughLastMediaTime;
+
+            // Positive natural movement represents media that really played. Backward
+            // seeks/restarts never subtract progress; forward seek jumps are excluded
+            // because seeking clears the previous baseline before this sample arrives.
+            if (Number.isFinite(mediaDelta) && mediaDelta > 0) {
+                sessionPlaythroughPlayedSeconds += mediaDelta;
+            }
+        }
+
+        sessionPlaythroughLastMediaTime = currentMediaTime;
+    }
+
+    if (sessionPlaythroughCounted) return false;
+    if (!Number.isFinite(duration) || duration <= 0) return false;
+
+    const requiredSeconds = duration * SESSION_TRACK_QUALIFY_FRACTION;
+    if (sessionPlaythroughPlayedSeconds < requiredSeconds) return false;
+
+    sessionPlaythroughCounted = true;
+    sessionQualifiedPlayCount += 1;
     persistSessionTelemetry();
     updateSessionInfo();
+    return true;
 }
 
 function startSessionListeningClock() {
@@ -187,6 +279,7 @@ function startSessionListeningClock() {
 
     if (sessionUpdateTimer === null) {
         sessionUpdateTimer = window.setInterval(() => {
+            noteCurrentTrackPlayedIfQualified();
             updateSessionInfo();
             persistSessionTelemetry();
         }, 1000);
@@ -196,6 +289,8 @@ function startSessionListeningClock() {
 }
 
 function commitSessionListeningTime() {
+    noteCurrentTrackPlayedIfQualified();
+
     if (sessionStartedListeningAt !== null) {
         sessionListeningSeconds += (Date.now() - sessionStartedListeningAt) / 1000;
         sessionStartedListeningAt = null;
@@ -392,6 +487,7 @@ async function loadTrack(i, autoplay = false, navigationSource = 'direct') {
     // browser to abandon any pending network request for that old source.
     markPlaybackStopped();
     currentTrackIndex = i;
+    resetSessionPlaythrough(track.id);
 
     // Create/resume the audio graph while the click gesture is still active.
     if (autoplay) setupVisualizer();
@@ -533,6 +629,7 @@ async function nextTrack(isAutoAdvance = false) {
     // Pressing Next still skips to another track.
     if (repeatMode === 2 && isAutoAdvance) {
         const repeatGeneration = trackLoadGeneration;
+        resetSessionPlaythrough(getCurrentTrackId());
         audio.currentTime = 0;
 
         try {
@@ -603,6 +700,7 @@ async function prevTrack() {
     // Standard player behavior: after a few seconds, Previous restarts
     // the current song instead of changing tracks.
     if (audio.currentTime > 3) {
+        resetSessionPlaythrough(getCurrentTrackId());
         audio.currentTime = 0;
         return true;
     }
@@ -689,7 +787,6 @@ audio.addEventListener('ended', async () => {
 audio.addEventListener('play', () => {
     if (playIcon) playIcon.className = 'fas fa-pause';
     document.querySelector('.player')?.classList.add('is-playing');
-    noteCurrentTrackPlayed();
     startSessionListeningClock();
     setupVisualizer();
     startVisualizer();
@@ -719,6 +816,8 @@ seekbar.addEventListener('input', () => {
 });
 
 seekbar.addEventListener('change', () => {
+    prepareSessionProgressAfterSeek();
+
     if (audio.duration) {
         audio.currentTime = (seekbar.value / 100) * audio.duration;
     }
@@ -727,7 +826,13 @@ seekbar.addEventListener('change', () => {
     isSeeking = false;
 });
 
+audio.addEventListener('seeking', () => {
+    prepareSessionProgressAfterSeek();
+});
+
 audio.addEventListener('timeupdate', () => {
+    noteCurrentTrackPlayedIfQualified();
+
     if (audio.duration && !isSeeking) {
         seekbar.value = (audio.currentTime / audio.duration) * 100;
         updateRangeVisual(seekbar);
