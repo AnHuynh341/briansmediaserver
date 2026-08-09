@@ -3886,6 +3886,7 @@ html, body {
    2026-08-09
    Seven newest uploads on the All Tracks front page. The section scrolls
    normally with the library; only .library-hero remains sticky.
+   Deliberately uses one clean title, followed by an All Songs heading.
 ============================================= */
 .recent-upload-section {
   position: relative;
@@ -3901,20 +3902,7 @@ html, body {
 }
 
 .recent-upload-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 14px;
   margin: 0 2px 9px;
-}
-
-.recent-upload-eyebrow {
-  margin-bottom: 2px;
-  color: var(--accent);
-  font-size: 0.56rem;
-  font-weight: 900;
-  letter-spacing: 1.35px;
-  text-transform: uppercase;
 }
 
 .recent-upload-heading h2 {
@@ -3925,12 +3913,12 @@ html, body {
   letter-spacing: -0.2px;
 }
 
-.recent-upload-count {
-  padding-bottom: 1px;
-  color: #77779a;
-  font-size: 0.66rem;
-  font-weight: 700;
-  white-space: nowrap;
+.all-songs-heading {
+  margin: 2px 4px 9px;
+  color: #f0f0ff;
+  font-size: 1.02rem;
+  line-height: 1.15;
+  letter-spacing: -0.15px;
 }
 
 .recent-upload-grid {
@@ -4107,8 +4095,14 @@ html, body {
     margin-bottom: 7px;
   }
 
-  .recent-upload-heading h2 {
+  .recent-upload-heading h2,
+  .all-songs-heading {
     font-size: 0.98rem;
+  }
+
+  .all-songs-heading {
+    margin-left: 2px;
+    margin-bottom: 7px;
   }
 }
 
@@ -4137,10 +4131,6 @@ html, body {
 
   .recent-upload-heading h2 {
     font-size: 0.98rem;
-  }
-
-  .recent-upload-count {
-    font-size: 0.61rem;
   }
 
   .recent-upload-grid {

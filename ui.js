@@ -18,10 +18,11 @@ function getRecentlyUploadedTracks(limit = RECENT_UPLOAD_LIMIT) {
 
 function updateRecentlyUploadedVisibility() {
     const section = document.getElementById('recentlyUploadedSection');
-    if (!section) return;
-
+    const allSongsHeading = document.getElementById('allSongsHeading');
     const shouldShow = activeLibraryView === 'all' && allTracks.length > 0;
-    section.classList.toggle('hidden', !shouldShow);
+
+    if (section) section.classList.toggle('hidden', !shouldShow);
+    if (allSongsHeading) allSongsHeading.classList.toggle('hidden', !shouldShow);
 }
 
 function updateRecentlyUploadedActiveState() {
@@ -37,18 +38,11 @@ function updateRecentlyUploadedActiveState() {
 function renderRecentlyUploaded() {
     const section = document.getElementById('recentlyUploadedSection');
     const grid = document.getElementById('recentlyUploadedGrid');
-    const count = document.getElementById('recentlyUploadedCount');
 
     if (!section || !grid) return;
 
     const recentTracks = getRecentlyUploadedTracks();
     grid.replaceChildren();
-
-    if (count) {
-        count.textContent = recentTracks.length > 0
-            ? `Latest ${recentTracks.length}`
-            : 'No uploads';
-    }
 
     recentTracks.forEach(track => {
         const card = document.createElement('button');
