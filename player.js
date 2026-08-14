@@ -1219,6 +1219,17 @@ function handlePlayerKeyboardShortcut(event) {
             case 'm':
                 if (typeof toggleVideoMute === 'function') toggleVideoMute();
                 break;
+            case 'c':
+                if (typeof toggleVideoSubtitles === 'function') toggleVideoSubtitles();
+                break;
+            case 'arrowleft':
+                event.preventDefault();
+                if (typeof seekVideoBy === 'function') seekVideoBy(-5);
+                break;
+            case 'arrowright':
+                event.preventDefault();
+                if (typeof seekVideoBy === 'function') seekVideoBy(5);
+                break;
             default:
                 break;
         }

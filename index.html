@@ -211,7 +211,7 @@
         <div class="video-watch-layout">
           <div class="video-watch-primary">
             <div class="video-stage" id="videoStage">
-              <video id="videoPlayer" preload="metadata" playsinline crossorigin="anonymous"></video>
+              <video id="videoPlayer" preload="metadata" playsinline crossorigin="anonymous" aria-keyshortcuts="Space C ArrowLeft ArrowRight N P M"></video>
               <button id="videoStagePlayBtn" class="video-stage-play" type="button" onclick="toggleVideoPlayback()" aria-label="Play video">
                 <i class="fas fa-play"></i>
               </button>
@@ -219,7 +219,7 @@
             </div>
 
             <div class="video-control-deck" aria-label="Video controls">
-              <input id="videoSeekbar" class="video-seekbar" type="range" min="0" max="1000" value="0" aria-label="Video progress">
+              <input id="videoSeekbar" class="video-seekbar" type="range" min="0" max="1000" value="0" aria-label="Video progress" aria-keyshortcuts="ArrowLeft ArrowRight" title="Left / Right Arrow: seek 5 seconds">
               <div class="video-control-row">
                 <div class="video-control-left">
                   <button type="button" class="video-control-btn" onclick="videoPreviousEpisode()" title="Previous episode"><i class="fas fa-step-backward"></i></button>
@@ -230,7 +230,7 @@
                   <span id="videoTimeReadout" class="video-time-readout">0:00 / 23:51</span>
                 </div>
                 <div class="video-control-right">
-                  <label class="video-subtitle-control" title="Subtitle track">
+                  <label class="video-subtitle-control" title="Subtitle track (C)">
                     <i class="fas fa-closed-captioning"></i>
                     <span>Subtitles</span>
                     <select id="videoSubtitleSelect" aria-label="Subtitle language">
@@ -249,6 +249,10 @@
                           <button type="button" data-video-rate="1.5" onclick="setVideoPlaybackRate(1.5)">1.5×</button>
                           <button type="button" data-video-rate="2" onclick="setVideoPlaybackRate(2)">2×</button>
                         </div>
+                      </div>
+                      <div class="video-settings-row">
+                        <span>Auto-switch episode</span>
+                        <button id="videoAutoSwitchToggle" type="button" class="video-settings-toggle active" onclick="toggleVideoAutoSwitch()" aria-pressed="true">On</button>
                       </div>
                       <div class="video-settings-row">
                         <span>Loop episode</span>
@@ -429,10 +433,10 @@
 <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.1"></script>
 <script src="config.js?v=control-rebalance-20260805-1"></script>
 <script src="data.js?v=whats-new-clean-20260809-1"></script>
-<script src="player.js?v=video-keyboard-routing-20260814-1"></script>
+<script src="player.js?v=video-episode-controls-20260815-1"></script>
 <script src="auth.js?v=no-temp-upload-20260804-1"></script>
 <script src="ui.js?v=whats-new-queue-20260809-1"></script>
-<script src="video.js?v=video-library-portals-clean-20260814-2"></script>
+<script src="video.js?v=video-episode-controls-20260815-1"></script>
 <script src="mobile.js"></script>
 
 

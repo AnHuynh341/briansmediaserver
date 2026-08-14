@@ -344,6 +344,26 @@ const VIDEO_SERIES = [
 
 const VIDEO_EPISODE_DURATIONS = ['23:41', '23:28', '23:17', '23:45', '23:36', '23:36', '23:51', '24:02', '23:44', '24:15', '23:38', '24:30'];
 
+const VIDEO_AUTO_SWITCH_STORAGE_KEY = 'w41it-video-auto-switch-episode';
+
+function readVideoAutoSwitchPreference() {
+    try {
+        const stored = window.localStorage.getItem(VIDEO_AUTO_SWITCH_STORAGE_KEY);
+        return stored === null ? true : stored === 'true';
+    } catch {
+        return true;
+    }
+}
+
+function saveVideoAutoSwitchPreference() {
+    try {
+        window.localStorage.setItem(
+            VIDEO_AUTO_SWITCH_STORAGE_KEY,
+            String(videoState.autoSwitchEpisode)
+        );
+    } catch {}
+}
+
 const videoState = {
     activeSeriesId: 'smoking-behind-supermarket',
     activeEpisode: 6,
@@ -352,8 +372,10 @@ const videoState = {
     fallbackPlaying: false,
     currentSeconds: 0,
     subtitleLanguage: null,
+    lastSubtitleLanguage: null,
     playbackRate: 1,
-    loopEpisode: false
+    loopEpisode: false,
+    autoSwitchEpisode: readVideoAutoSwitchPreference()
 };
 
 function normalizeVideoSubtitles(subtitles) {
@@ -828,7 +850,7 @@ function videoPreviousEpisode() {
     openVideoWatch(series.id, episodes[currentIndex - 1].number);
 }
 
-function videoNextEpisode() {
+function videoNextEpisode({ autoplay = false } = {}) {
     const series = getVideoSeries(videoState.activeSeriesId);
     const episodes = makeVideoEpisodes(series);
     const currentIndex = episodes.findIndex(episode => episode.number === videoState.activeEpisode);
@@ -836,7 +858,24 @@ function videoNextEpisode() {
         showVideoToast('This is the last available episode.');
         return;
     }
-    openVideoWatch(series.id, episodes[currentIndex + 1].number);
+
+    const nextEpisode = episodes[currentIndex + 1];
+    openVideoWatch(series.id, nextEpisode.number);
+
+    if (!autoplay) return;
+
+    const video = document.getElementById('videoPlayer');
+    if (nextEpisode.fileUrl && video) {
+        const playAttempt = video.play();
+        playAttempt?.catch?.(error => {
+            console.warn('Automatic next-episode playback failed:', error);
+            showVideoToast('The next episode is ready. Press play to continue.');
+        });
+        return;
+    }
+
+    videoState.fallbackPlaying = true;
+    updateVideoPlaybackButtons();
 }
 
 function toggleVideoMute() {
@@ -889,6 +928,13 @@ function updateVideoSettingsUi() {
         button.setAttribute('aria-pressed', Math.abs(buttonRate - rate) < 0.001 ? 'true' : 'false');
     });
 
+    const autoSwitchButton = document.getElementById('videoAutoSwitchToggle');
+    if (autoSwitchButton) {
+        autoSwitchButton.textContent = videoState.autoSwitchEpisode ? 'On' : 'Off';
+        autoSwitchButton.classList.toggle('active', videoState.autoSwitchEpisode);
+        autoSwitchButton.setAttribute('aria-pressed', videoState.autoSwitchEpisode ? 'true' : 'false');
+    }
+
     const loopButton = document.getElementById('videoLoopToggle');
     if (loopButton) {
         loopButton.textContent = videoState.loopEpisode ? 'On' : 'Off';
@@ -905,8 +951,27 @@ function setVideoPlaybackRate(rate) {
     updateVideoSettingsUi();
 }
 
+function toggleVideoAutoSwitch() {
+    videoState.autoSwitchEpisode = !videoState.autoSwitchEpisode;
+
+    const video = document.getElementById('videoPlayer');
+    if (videoState.autoSwitchEpisode && videoState.loopEpisode) {
+        videoState.loopEpisode = false;
+        if (video) video.loop = false;
+    }
+
+    saveVideoAutoSwitchPreference();
+    updateVideoSettingsUi();
+}
+
 function toggleVideoLoop() {
     videoState.loopEpisode = !videoState.loopEpisode;
+
+    if (videoState.loopEpisode && videoState.autoSwitchEpisode) {
+        videoState.autoSwitchEpisode = false;
+        saveVideoAutoSwitchPreference();
+    }
+
     const video = document.getElementById('videoPlayer');
     if (video) video.loop = videoState.loopEpisode;
     updateVideoSettingsUi();
@@ -915,6 +980,33 @@ function toggleVideoLoop() {
 function updateVideoTimeReadout(current, duration) {
     const readout = document.getElementById('videoTimeReadout');
     if (readout) readout.textContent = `${formatVideoTime(current)} / ${formatVideoTime(duration)}`;
+}
+
+function seekVideoBy(offsetSeconds) {
+    const video = document.getElementById('videoPlayer');
+    const series = getVideoSeries(videoState.activeSeriesId);
+    const episode = getVideoEpisode(series, videoState.activeEpisode);
+    const duration = Number.isFinite(video?.duration) && video.duration > 0
+        ? video.duration
+        : parseDurationSeconds(episode.duration);
+    const current = video?.currentSrc && Number.isFinite(video.currentTime)
+        ? video.currentTime
+        : videoState.currentSeconds;
+    const target = Math.max(0, Math.min(duration, current + Number(offsetSeconds || 0)));
+
+    if (video?.currentSrc && Number.isFinite(video.duration)) {
+        video.currentTime = target;
+    } else {
+        videoState.currentSeconds = target;
+    }
+
+    const seekbar = document.getElementById('videoSeekbar');
+    if (seekbar) {
+        const value = duration > 0 ? Math.round((target / duration) * 1000) : 0;
+        seekbar.value = String(value);
+        updateVideoRangeFill(seekbar, value);
+    }
+    updateVideoTimeReadout(target, duration);
 }
 
 function removeVideoSubtitleTracks(video) {
@@ -932,6 +1024,7 @@ function removeVideoSubtitleTracks(video) {
 
 function chooseVideoSubtitleLanguage(subtitles = []) {
     const available = new Set(subtitles.map(track => track.lang));
+    if (videoState.subtitleLanguage === 'off') return 'off';
     if (videoState.subtitleLanguage && available.has(videoState.subtitleLanguage)) {
         return videoState.subtitleLanguage;
     }
@@ -996,6 +1089,7 @@ function applySelectedSubtitle() {
 
     const selectedLanguage = select.value || 'off';
     videoState.subtitleLanguage = selectedLanguage;
+    if (selectedLanguage !== 'off') videoState.lastSubtitleLanguage = selectedLanguage;
     const trackElements = Array.from(video.querySelectorAll('track'));
 
     // Control only the track elements that belong to the current episode.
@@ -1015,6 +1109,32 @@ function applySelectedSubtitle() {
     if (trackElements.length === 0) {
         showVideoToast('No subtitle tracks are available for this episode yet.');
     }
+}
+
+function toggleVideoSubtitles() {
+    const select = document.getElementById('videoSubtitleSelect');
+    if (!select) return;
+
+    const subtitleOptions = Array.from(select.options).filter(option => option.value !== 'off');
+    if (subtitleOptions.length === 0) {
+        showVideoToast('No subtitle tracks are available for this episode yet.');
+        return;
+    }
+
+    if (select.value === 'off') {
+        const nextOption = subtitleOptions.find(
+            option => option.value === videoState.lastSubtitleLanguage
+        ) || subtitleOptions[0];
+        select.value = nextOption.value;
+        applySelectedSubtitle();
+        showVideoToast(`Subtitles on: ${nextOption.textContent}.`);
+        return;
+    }
+
+    videoState.lastSubtitleLanguage = select.value;
+    select.value = 'off';
+    applySelectedSubtitle();
+    showVideoToast('Subtitles off.');
 }
 
 function scrollVideoLibraryIntoView() {
@@ -1114,7 +1234,9 @@ function initializeVideo() {
         video.addEventListener('volumechange', updateVideoVolumeUi);
         video.addEventListener('ended', () => {
             updateVideoPlaybackButtons();
-            if (!videoState.loopEpisode) videoNextEpisode();
+            if (!videoState.loopEpisode && videoState.autoSwitchEpisode) {
+                videoNextEpisode({ autoplay: true });
+            }
         });
         video.addEventListener('timeupdate', () => {
             if (!Number.isFinite(video.duration) || video.duration <= 0) return;
@@ -1156,7 +1278,9 @@ function initializeVideo() {
         if (videoState.currentSeconds >= duration) {
             videoState.fallbackPlaying = false;
             updateVideoPlaybackButtons();
-            videoNextEpisode();
+            if (!videoState.loopEpisode && videoState.autoSwitchEpisode) {
+                videoNextEpisode({ autoplay: true });
+            }
         }
     }, 1000);
 
