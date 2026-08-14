@@ -36,7 +36,7 @@ const VIDEO_SERIES = [
         episodes: [
                         {
                 number: 1,
-                title: "1",
+                title: "Smoking Behind the Supermarket with You",
                 duration: "23:53",
                 quality: "720p",
                 thumbnailPath: "/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E01/thumbnail.jpg",
