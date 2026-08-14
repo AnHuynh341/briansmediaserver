@@ -5,7 +5,58 @@
 // Later, replace VIDEO_MOCK_SERIES with Appwrite videoSeries/videoEpisodes
 // documents (and real VPS file/subtitle URLs) without rebuilding the UI.
 
+const VIDEO_MEDIA_ORIGIN = 'https://media.anhuynh341.online';
+
+function resolveVideoMediaUrl(path) {
+    if (!path) return '';
+    if (/^https?:\/\//i.test(path)) return path;
+    const normalizedPath = String(path).startsWith('/') ? String(path) : `/${path}`;
+    return `${VIDEO_MEDIA_ORIGIN}${normalizedPath}`;
+}
+
+function getVideoSeriesPoster(series) {
+    return series.posterPath ? resolveVideoMediaUrl(series.posterPath) : series.poster;
+}
+
+function getVideoSeriesBackdrop(series) {
+    return series.backdropPath
+        ? resolveVideoMediaUrl(series.backdropPath)
+        : (series.backdrop || getVideoSeriesPoster(series));
+}
+
 const VIDEO_MOCK_SERIES = [
+    {
+        id: 'smoking-behind-supermarket',
+        title: 'Smoking Behind the Supermarket with You',
+        year: 2026,
+        genre: 'Drama',
+        posterPath: '/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/thumbnail.jpg',
+        backdropPath: '/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/thumbnail.jpg',
+        description: 'Real VPS streaming test. Video, artwork and subtitles are served from the W41IT media origin.',
+        episodes: [
+            {
+                number: 6,
+                title: 'Lingering Scent Behind the Supermarket with You',
+                duration: '23:50',
+                quality: '1080p',
+                thumbnailPath: '/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/thumbnail.jpg',
+                videoPath: '/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/video.mp4',
+                subtitles: [
+                    {
+                        lang: 'en',
+                        label: 'English',
+                        path: '/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/en.vtt',
+                        default: true
+                    },
+                    {
+                        lang: 'vi',
+                        label: 'Vietnamese',
+                        path: '/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/vi.vtt'
+                    }
+                ]
+            }
+        ]
+    },
     {
         id: 'nocturne-protocol',
         title: 'Nocturne Protocol',
@@ -95,21 +146,52 @@ const videoMockState = {
     currentSeconds: 0
 };
 
+function normalizeVideoSubtitles(subtitles) {
+    if (Array.isArray(subtitles)) {
+        return subtitles
+            .map((track, index) => ({
+                lang: track?.lang || `sub-${index + 1}`,
+                label: track?.label || track?.lang || `Subtitle ${index + 1}`,
+                src: resolveVideoMediaUrl(track?.path || track?.src || ''),
+                default: Boolean(track?.default)
+            }))
+            .filter(track => Boolean(track.src));
+    }
+
+    return Object.entries(subtitles || {})
+        .map(([lang, src]) => ({
+            lang,
+            label: lang === 'vi' ? 'Vietnamese' : lang === 'ja' ? 'Japanese' : 'English',
+            src: resolveVideoMediaUrl(src),
+            default: lang === 'en'
+        }))
+        .filter(track => Boolean(track.src));
+}
+
 function makeVideoEpisodes(series) {
+    if (Array.isArray(series.episodes) && series.episodes.length > 0) {
+        return series.episodes.map((episode, index) => ({
+            id: episode.id || `${series.id}-e${episode.number ?? index + 1}`,
+            number: Number(episode.number ?? index + 1),
+            title: episode.title || `Episode ${episode.number ?? index + 1}`,
+            duration: episode.duration || VIDEO_EPISODE_DURATIONS[index % VIDEO_EPISODE_DURATIONS.length],
+            quality: episode.quality || '1080p',
+            thumbnail: resolveVideoMediaUrl(episode.thumbnailPath || episode.thumbnail || ''),
+            fileUrl: resolveVideoMediaUrl(episode.videoPath || episode.fileUrl || ''),
+            subtitles: normalizeVideoSubtitles(episode.subtitles)
+        }));
+    }
+
     const titles = series.episodeTitles || [];
     return titles.map((title, index) => ({
         id: `${series.id}-e${index + 1}`,
         number: index + 1,
         title,
         duration: VIDEO_EPISODE_DURATIONS[index % VIDEO_EPISODE_DURATIONS.length],
+        quality: '720p',
         thumbnail: `assets/video/episode-${String((index % 6) + 1).padStart(2, '0')}.jpg`,
-        // Frontend mock only. Later this becomes a VPS HTTPS URL.
         fileUrl: '',
-        subtitles: {
-            en: '',
-            vi: '',
-            ja: ''
-        }
+        subtitles: []
     }));
 }
 
@@ -194,7 +276,7 @@ function createVideoSeriesCard(series, { compact = false, isNew = false } = {}) 
     art.className = 'video-series-art';
 
     const image = document.createElement('img');
-    image.src = series.poster;
+    image.src = getVideoSeriesPoster(series);
     image.alt = '';
     image.loading = compact ? 'eager' : 'lazy';
     art.appendChild(image);
@@ -311,10 +393,12 @@ function showVideoHome() {
 function openVideoWatch(seriesId, episodeNumber = 1) {
     const series = getVideoSeries(seriesId);
     const episodes = makeVideoEpisodes(series);
-    const maxEpisode = Math.max(1, episodes.length);
+    const requestedEpisode = Number(episodeNumber);
+    const selectedEpisode = episodes.find(episode => episode.number === requestedEpisode) || episodes[0];
+    if (!selectedEpisode) return;
 
     videoMockState.activeSeriesId = series.id;
-    videoMockState.activeEpisode = Math.max(1, Math.min(Number(episodeNumber) || 1, maxEpisode));
+    videoMockState.activeEpisode = selectedEpisode.number;
     videoMockState.currentSeconds = 0;
     videoMockState.mockPlaying = false;
 
@@ -336,7 +420,7 @@ function renderVideoWatchView() {
         video.pause();
         video.removeAttribute('src');
         video.load();
-        video.poster = series.backdrop || series.poster;
+        video.poster = getVideoSeriesBackdrop(series);
 
         if (episode.fileUrl) {
             video.src = episode.fileUrl;
@@ -344,6 +428,7 @@ function renderVideoWatchView() {
             video.load();
         } else {
             removeVideoSubtitleTracks(video);
+            rebuildVideoSubtitleSelector([]);
         }
     }
 
@@ -366,15 +451,18 @@ function renderVideoWatchView() {
             <span>Episode ${episode.number}</span>
             <span>${episode.duration}</span>
             <span>${escapeVideoHtml(series.genre)}</span>
-            <span>720p</span>
-            <span>Frontend mock</span>`;
+            <span>${escapeVideoHtml(episode.quality || '720p')}</span>
+            <span>${episode.fileUrl ? 'VPS stream' : 'Frontend mock'}</span>`;
     }
+
+    const qualityBadge = document.querySelector('#videoStage .video-quality-badge');
+    if (qualityBadge) qualityBadge.textContent = episode.quality || '720p';
 
     const panelTitle = document.getElementById('videoEpisodePanelTitle');
     if (panelTitle) panelTitle.textContent = series.title;
     const poster = document.getElementById('videoEpisodeSeriesPoster');
     if (poster) {
-        poster.src = series.poster;
+        poster.src = getVideoSeriesPoster(series);
         poster.alt = `${series.title} cover`;
     }
     const count = document.getElementById('videoEpisodeCount');
@@ -469,21 +557,24 @@ async function toggleVideoPlayback() {
 
 function videoPreviousEpisode() {
     const series = getVideoSeries(videoMockState.activeSeriesId);
-    if (videoMockState.activeEpisode <= 1) {
-        showVideoMockToast('This is the first episode.');
+    const episodes = makeVideoEpisodes(series);
+    const currentIndex = episodes.findIndex(episode => episode.number === videoMockState.activeEpisode);
+    if (currentIndex <= 0) {
+        showVideoMockToast('This is the first available episode.');
         return;
     }
-    openVideoWatch(series.id, videoMockState.activeEpisode - 1);
+    openVideoWatch(series.id, episodes[currentIndex - 1].number);
 }
 
 function videoNextEpisode() {
     const series = getVideoSeries(videoMockState.activeSeriesId);
     const episodes = makeVideoEpisodes(series);
-    if (videoMockState.activeEpisode >= episodes.length) {
-        showVideoMockToast('This is the last episode in the mock series.');
+    const currentIndex = episodes.findIndex(episode => episode.number === videoMockState.activeEpisode);
+    if (currentIndex < 0 || currentIndex >= episodes.length - 1) {
+        showVideoMockToast('This is the last available episode.');
         return;
     }
-    openVideoWatch(series.id, videoMockState.activeEpisode + 1);
+    openVideoWatch(series.id, episodes[currentIndex + 1].number);
 }
 
 function toggleVideoMute() {
@@ -513,17 +604,44 @@ function removeVideoSubtitleTracks(video) {
     video.querySelectorAll('track').forEach(track => track.remove());
 }
 
+function rebuildVideoSubtitleSelector(subtitles = []) {
+    const select = document.getElementById('videoSubtitleSelect');
+    if (!select) return;
+
+    select.replaceChildren();
+
+    subtitles.forEach(track => {
+        const option = document.createElement('option');
+        option.value = track.lang;
+        option.textContent = track.label;
+        option.selected = Boolean(track.default);
+        select.appendChild(option);
+    });
+
+    const off = document.createElement('option');
+    off.value = 'off';
+    off.textContent = 'Off';
+    if (subtitles.length === 0) off.selected = true;
+    select.appendChild(off);
+}
+
 function installVideoSubtitleTracks(video, episode) {
     removeVideoSubtitleTracks(video);
-    Object.entries(episode.subtitles || {}).forEach(([lang, src]) => {
-        if (!src) return;
+    const subtitles = Array.isArray(episode.subtitles) ? episode.subtitles : [];
+    rebuildVideoSubtitleSelector(subtitles);
+
+    subtitles.forEach((subtitle, index) => {
+        if (!subtitle.src) return;
         const track = document.createElement('track');
         track.kind = 'subtitles';
-        track.srclang = lang;
-        track.label = lang === 'vi' ? 'Vietnamese' : lang === 'ja' ? 'Japanese' : 'English';
-        track.src = src;
+        track.srclang = subtitle.lang;
+        track.label = subtitle.label;
+        track.src = subtitle.src;
+        track.default = Boolean(subtitle.default || (index === 0 && !subtitles.some(item => item.default)));
         video.appendChild(track);
     });
+
+    requestAnimationFrame(applySelectedSubtitle);
 }
 
 function applySelectedSubtitle() {
@@ -537,7 +655,7 @@ function applySelectedSubtitle() {
     });
 
     if (!video.querySelector('track')) {
-        showVideoMockToast(`Subtitle selector ready: ${select.options[select.selectedIndex]?.text || 'Off'}. Add .vtt URLs later.`);
+        showVideoMockToast('No subtitle tracks are available for this episode yet.');
     }
 }
 
