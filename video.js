@@ -145,6 +145,7 @@ const VIDEO_GENRES = ['All', ...new Set(VIDEO_SERIES.map(series => series.genre)
 const videoState = {
     activeSeriesId: 'smoking-behind-supermarket',
     activeEpisode: 6,
+    activeLibrary: 'anime',
     activeGenre: 'All',
     search: '',
     toastTimer: null,
@@ -306,15 +307,74 @@ function switchMediaMode(mode) {
 }
 
 function renderVideoHome() {
-    const hero = document.querySelector('.video-hero');
-    const featuredSeries = VIDEO_SERIES[0];
-    if (hero && featuredSeries) {
-        hero.style.setProperty('--video-hero-image', `url("${getVideoSeriesBackdrop(featuredSeries)}")`);
-    }
-
+    renderVideoLibraryPortals();
     renderVideoGenreFilters();
     renderVideoWhatsNew();
     renderVideoSeriesGrid();
+    syncVideoLibrarySelection();
+}
+
+function getVideoAnimePortalImages(limit = 5) {
+    const seriesArtwork = VIDEO_SERIES.map(series => getVideoSeriesPoster(series));
+    const episodeArtwork = VIDEO_SERIES.flatMap(series =>
+        makeVideoEpisodes(series).map(episode => episode.thumbnail)
+    );
+
+    return [...new Set([...seriesArtwork, ...episodeArtwork].filter(Boolean))].slice(0, limit);
+}
+
+function renderVideoLibraryPortals() {
+    const collage = document.getElementById('videoAnimeCollage');
+    if (collage) {
+        collage.replaceChildren();
+        getVideoAnimePortalImages().forEach(src => {
+            const image = document.createElement('img');
+            image.src = src;
+            image.alt = '';
+            image.loading = 'eager';
+            image.decoding = 'async';
+            collage.appendChild(image);
+        });
+    }
+
+    const seriesCount = VIDEO_SERIES.length;
+    const episodeCount = VIDEO_SERIES.reduce(
+        (total, series) => total + makeVideoEpisodes(series).length,
+        0
+    );
+    const meta = document.getElementById('videoAnimePortalMeta');
+    if (meta) {
+        meta.textContent = seriesCount > 0
+            ? `${seriesCount} series • ${episodeCount} episode${episodeCount === 1 ? '' : 's'}`
+            : 'No anime added yet';
+    }
+}
+
+function syncVideoLibrarySelection() {
+    const showAnime = videoState.activeLibrary !== 'youtube';
+    const animePortal = document.getElementById('videoAnimePortal');
+    const youtubePortal = document.getElementById('videoYoutubePortal');
+    const animeLibrary = document.getElementById('videoAnimeLibrary');
+    const youtubeLibrary = document.getElementById('videoYoutubeLibrary');
+    const search = document.querySelector('.video-search');
+
+    animePortal?.classList.toggle('active', showAnime);
+    animePortal?.setAttribute('aria-pressed', showAnime ? 'true' : 'false');
+    youtubePortal?.classList.toggle('active', !showAnime);
+    youtubePortal?.setAttribute('aria-pressed', showAnime ? 'false' : 'true');
+    animeLibrary?.classList.toggle('hidden', !showAnime);
+    youtubeLibrary?.classList.toggle('hidden', showAnime);
+
+    // Search currently targets the Anime catalog. It will return for YouTube
+    // when the VPS directory is backed by a generated catalog.
+    search?.classList.toggle('hidden', !showAnime);
+}
+
+function selectVideoLibrary(library) {
+    if (library !== 'anime' && library !== 'youtube') return;
+    videoState.activeLibrary = library;
+    syncVideoLibrarySelection();
+    scrollVideoLibraryIntoView();
 }
 
 function createVideoSeriesCard(series, { compact = false, isNew = false } = {}) {
@@ -794,7 +854,12 @@ function applySelectedSubtitle() {
 }
 
 function scrollVideoLibraryIntoView() {
-    document.getElementById('videoAllSeriesSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const targetId = videoState.activeLibrary === 'youtube'
+        ? 'videoYoutubeLibrary'
+        : 'videoAnimeLibrary';
+    requestAnimationFrame(() => {
+        document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 }
 
 function showVideoToast(message) {
@@ -823,7 +888,7 @@ function initializeVideo() {
     if (search) {
         search.addEventListener('input', event => {
             videoState.search = event.target.value || '';
-            renderVideoSeriesGrid();
+            if (videoState.activeLibrary === 'anime') renderVideoSeriesGrid();
         });
     }
 
