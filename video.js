@@ -34,7 +34,23 @@ const VIDEO_SERIES = [
         backdropPath: '/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/thumbnail.jpg',
         description: 'VPS-backed video library. Video, artwork and subtitles are served from the W41IT media origin.',
         episodes: [
-            {
+                        {
+                number: 1,
+                title: "1",
+                duration: "23:53",
+                quality: "720p",
+                thumbnailPath: "/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E01/thumbnail.jpg",
+                videoPath: "/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E01/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English (CR)",
+                        path: "/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E01/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+{
                 number: 6,
                 title: 'Lingering Scent Behind the Supermarket with You',
                 duration: '23:50',
