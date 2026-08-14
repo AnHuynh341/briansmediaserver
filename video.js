@@ -66,6 +66,22 @@ const VIDEO_SERIES = [
                     }
                 ]
             },
+            {
+                number: 3,
+                title: "Smoking Behind the Supermarket with You and More",
+                duration: "23:50",
+                quality: "720p",
+                thumbnailPath: "/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E03/thumbnail.jpg",
+                videoPath: "/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E03/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English (CR)",
+                        path: "/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E03/en.vtt",
+                        default: true
+                    }
+                ]
+            },
 {
                 number: 6,
                 title: 'Lingering Scent Behind the Supermarket with You',
