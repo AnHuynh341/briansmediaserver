@@ -161,6 +161,182 @@ const VIDEO_SERIES = [
                         default: true
                     }
                 ]
+            },
+            {
+                number: 2,
+                title: "See You Tomorrow",
+                duration: "23:44",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E02/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E02/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E02/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 3,
+                title: "Be Right There",
+                duration: "23:46",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E03/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E03/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E03/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 4,
+                title: "Jumping Girl(s)",
+                duration: "23:44",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E04/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E04/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E04/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 5,
+                title: "Flightless Fish",
+                duration: "23:46",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E05/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E05/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E05/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 6,
+                title: "Eight Views",
+                duration: "23:46",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E06/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E06/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E06/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 7,
+                title: "To Your House",
+                duration: "23:46",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E07/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E07/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E07/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 8,
+                title: "Bocchi the Rock",
+                duration: "23:44",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E08/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E08/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E08/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 9,
+                title: "Enoshima Escarlator",
+                duration: "23:46",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E09/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E09/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E09/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 10,
+                title: "After Dark",
+                duration: "23:44",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E10/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E10/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E10/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 11,
+                title: "Duodecimal Sunset",
+                duration: "23:46",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E11/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E11/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E11/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 12,
+                title: "Morning Light Falls on You",
+                duration: "23:46",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E12/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E12/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E12/en.vtt",
+                        default: true
+                    }
+                ]
             }
         ]
     }
