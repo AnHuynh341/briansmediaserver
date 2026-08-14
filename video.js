@@ -140,14 +140,11 @@ const VIDEO_SERIES = [
 ];
 
 const VIDEO_EPISODE_DURATIONS = ['23:41', '23:28', '23:17', '23:45', '23:36', '23:36', '23:51', '24:02', '23:44', '24:15', '23:38', '24:30'];
-const VIDEO_GENRES = ['All', ...new Set(VIDEO_SERIES.map(series => series.genre).filter(Boolean))];
 
 const videoState = {
     activeSeriesId: 'smoking-behind-supermarket',
     activeEpisode: 6,
     activeLibrary: 'anime',
-    activeGenre: 'All',
-    search: '',
     toastTimer: null,
     fallbackPlaying: false,
     currentSeconds: 0,
@@ -308,7 +305,6 @@ function switchMediaMode(mode) {
 
 function renderVideoHome() {
     renderVideoLibraryPortals();
-    renderVideoGenreFilters();
     renderVideoWhatsNew();
     renderVideoSeriesGrid();
     syncVideoLibrarySelection();
@@ -356,7 +352,6 @@ function syncVideoLibrarySelection() {
     const youtubePortal = document.getElementById('videoYoutubePortal');
     const animeLibrary = document.getElementById('videoAnimeLibrary');
     const youtubeLibrary = document.getElementById('videoYoutubeLibrary');
-    const search = document.querySelector('.video-search');
 
     animePortal?.classList.toggle('active', showAnime);
     animePortal?.setAttribute('aria-pressed', showAnime ? 'true' : 'false');
@@ -364,10 +359,6 @@ function syncVideoLibrarySelection() {
     youtubePortal?.setAttribute('aria-pressed', showAnime ? 'false' : 'true');
     animeLibrary?.classList.toggle('hidden', !showAnime);
     youtubeLibrary?.classList.toggle('hidden', showAnime);
-
-    // Search currently targets the Anime catalog. It will return for YouTube
-    // when the VPS directory is backed by a generated catalog.
-    search?.classList.toggle('hidden', !showAnime);
 }
 
 function selectVideoLibrary(library) {
@@ -382,7 +373,8 @@ function createVideoSeriesCard(series, { compact = false, isNew = false } = {}) 
     card.type = 'button';
     card.className = 'video-series-card';
     card.dataset.seriesId = series.id;
-    const firstEpisode = makeVideoEpisodes(series)[0];
+    const episodes = makeVideoEpisodes(series);
+    const firstEpisode = episodes[0];
     card.onclick = () => openVideoWatch(series.id, firstEpisode?.number);
 
     const art = document.createElement('span');
@@ -407,7 +399,7 @@ function createVideoSeriesCard(series, { compact = false, isNew = false } = {}) 
 
     const meta = document.createElement('span');
     meta.className = 'video-series-meta';
-    meta.textContent = `${series.genre} • ${series.year}`;
+    meta.textContent = `${series.year} • ${episodes.length} episode${episodes.length === 1 ? '' : 's'}`;
 
     card.append(art, title, meta);
     return card;
@@ -422,47 +414,17 @@ function renderVideoWhatsNew() {
     });
 }
 
-function renderVideoGenreFilters() {
-    const filters = document.getElementById('videoGenreFilters');
-    if (!filters) return;
-    filters.replaceChildren();
-
-    VIDEO_GENRES.forEach(genre => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `video-filter-chip${videoState.activeGenre === genre ? ' active' : ''}`;
-        button.textContent = genre;
-        button.onclick = () => {
-            videoState.activeGenre = genre;
-            renderVideoGenreFilters();
-            renderVideoSeriesGrid();
-        };
-        filters.appendChild(button);
-    });
-}
-
 function renderVideoSeriesGrid() {
     const grid = document.getElementById('videoSeriesGrid');
     if (!grid) return;
 
-    const query = videoState.search.trim().toLowerCase();
-    const activeGenre = videoState.activeGenre;
-    const filtered = VIDEO_SERIES.filter(series => {
-        const genreMatches = activeGenre === 'All' || series.genre === activeGenre;
-        const queryMatches = !query
-            || series.title.toLowerCase().includes(query)
-            || series.genre.toLowerCase().includes(query)
-            || series.description.toLowerCase().includes(query);
-        return genreMatches && queryMatches;
-    });
-
     grid.replaceChildren();
-    filtered.forEach(series => grid.appendChild(createVideoSeriesCard(series)));
+    VIDEO_SERIES.forEach(series => grid.appendChild(createVideoSeriesCard(series)));
 
-    if (filtered.length === 0) {
+    if (VIDEO_SERIES.length === 0) {
         const empty = document.createElement('div');
         empty.style.cssText = 'grid-column:1/-1;padding:28px 4px;color:#8f9bad;font-size:.82rem;';
-        empty.textContent = 'No series match this filter.';
+        empty.textContent = 'No anime series have been added yet.';
         grid.appendChild(empty);
     }
 }
@@ -534,7 +496,6 @@ function renderVideoWatchView() {
             <span>Season 1</span>
             <span>Episode ${episode.number}</span>
             <span>${episode.duration}</span>
-            <span>${escapeVideoHtml(series.genre)}</span>
             <span>${escapeVideoHtml(episode.quality || '720p')}</span>
             <span>${episode.fileUrl ? 'VPS stream' : 'No source'}</span>`;
     }
@@ -883,14 +844,6 @@ function escapeVideoHtml(value) {
 
 function initializeVideo() {
     renderVideoHome();
-
-    const search = document.getElementById('videoSearchInput');
-    if (search) {
-        search.addEventListener('input', event => {
-            videoState.search = event.target.value || '';
-            if (videoState.activeLibrary === 'anime') renderVideoSeriesGrid();
-        });
-    }
 
     const subtitleSelect = document.getElementById('videoSubtitleSelect');
     subtitleSelect?.addEventListener('change', () => {
