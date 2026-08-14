@@ -582,7 +582,7 @@
   padding-top: 16px;
 }
 .video-watch-topbar {
-  max-width: 1660px;
+  max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -612,10 +612,10 @@
 }
 .video-watch-layout {
   width: 100%;
-  max-width: 1660px;
+  max-width: 1400px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1280px) minmax(300px, 350px);
+  grid-template-columns: minmax(0, 1024px) minmax(300px, 350px);
   align-items: start;
   justify-content: center;
   gap: 14px;
