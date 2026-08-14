@@ -69,7 +69,10 @@ const videoState = {
     search: '',
     toastTimer: null,
     fallbackPlaying: false,
-    currentSeconds: 0
+    currentSeconds: 0,
+    subtitleLanguage: null,
+    playbackRate: 1,
+    loopEpisode: false
 };
 
 function normalizeVideoSubtitles(subtitles) {
@@ -144,6 +147,44 @@ function formatVideoTime(seconds) {
     return hours > 0
         ? `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
         : `${minutes}:${String(secs).padStart(2, '0')}`;
+}
+
+function updateVideoRangeFill(input, value = input?.value) {
+    if (!input) return;
+    const min = Number(input.min || 0);
+    const max = Number(input.max || 100);
+    const numericValue = Number(value);
+    const safeValue = Number.isFinite(numericValue) ? numericValue : min;
+    const span = max - min;
+    const percent = span > 0
+        ? Math.max(0, Math.min(100, ((safeValue - min) / span) * 100))
+        : 0;
+    input.style.setProperty('--video-range-fill', `${percent}%`);
+}
+
+function updateVideoVolumeUi() {
+    const video = document.getElementById('videoPlayer');
+    const volume = document.getElementById('videoVolume');
+    const button = document.getElementById('videoMuteBtn');
+    if (!video) return;
+
+    const volumePercent = Math.round(Math.max(0, Math.min(1, video.volume)) * 100);
+    if (volume) {
+        volume.value = String(volumePercent);
+        // Keep the chosen volume value while muted, but visually empty the bar.
+        updateVideoRangeFill(volume, video.muted ? 0 : volumePercent);
+    }
+
+    if (button) {
+        const icon = video.muted || video.volume === 0
+            ? 'fa-volume-mute'
+            : video.volume < 0.5
+                ? 'fa-volume-down'
+                : 'fa-volume-up';
+        button.innerHTML = `<i class="fas ${icon}"></i>`;
+        button.setAttribute('aria-label', video.muted ? 'Unmute video' : 'Mute video');
+        button.title = video.muted ? 'Unmute' : 'Mute';
+    }
 }
 
 function switchMediaMode(mode) {
@@ -373,6 +414,13 @@ function renderVideoWatchView() {
 
     renderVideoEpisodeList(series, episodes);
     resetVideoControlState(episode);
+    closeVideoSettings();
+
+    if (video) {
+        video.playbackRate = videoState.playbackRate;
+        video.loop = videoState.loopEpisode;
+    }
+    updateVideoSettingsUi();
 }
 
 function renderVideoEpisodeList(series, episodes = makeVideoEpisodes(series)) {
@@ -411,11 +459,15 @@ function renderVideoEpisodeList(series, episodes = makeVideoEpisodes(series)) {
 
 function resetVideoControlState(episode) {
     const seek = document.getElementById('videoSeekbar');
-    if (seek) seek.value = '0';
+    if (seek) {
+        seek.value = '0';
+        updateVideoRangeFill(seek, 0);
+    }
     videoState.currentSeconds = 0;
     videoState.fallbackPlaying = false;
     updateVideoTimeReadout(0, parseDurationSeconds(episode.duration));
     updateVideoPlaybackButtons();
+    updateVideoVolumeUi();
 }
 
 function updateVideoPlaybackButtons() {
@@ -426,12 +478,14 @@ function updateVideoPlaybackButtons() {
 
     const playButton = document.getElementById('videoPlayBtn');
     const stageButton = document.getElementById('videoStagePlayBtn');
+    const qualityBadge = document.querySelector('#videoStage .video-quality-badge');
     if (playButton) playButton.innerHTML = `<i class="${iconClass}"></i>`;
     if (stageButton) {
         stageButton.innerHTML = `<i class="${iconClass}"></i>`;
         stageButton.setAttribute('aria-label', playing ? 'Pause video' : 'Play video');
         stageButton.classList.toggle('is-hidden', playing);
     }
+    qualityBadge?.classList.toggle('is-hidden', playing);
 }
 
 async function toggleVideoPlayback() {
@@ -485,8 +539,7 @@ function toggleVideoMute() {
     const video = document.getElementById('videoPlayer');
     if (!video) return;
     video.muted = !video.muted;
-    const button = document.getElementById('videoMuteBtn');
-    if (button) button.innerHTML = `<i class="fas ${video.muted ? 'fa-volume-mute' : 'fa-volume-up'}"></i>`;
+    updateVideoVolumeUi();
 }
 
 function toggleVideoFullscreen() {
@@ -499,34 +552,111 @@ function toggleVideoFullscreen() {
     stage.requestFullscreen?.().catch(() => showVideoToast('Fullscreen is unavailable in this browser.'));
 }
 
+function closeVideoSettings() {
+    const menu = document.getElementById('videoSettingsMenu');
+    const button = document.getElementById('videoSettingsBtn');
+    if (!menu || !button) return;
+    menu.classList.remove('is-open');
+    menu.setAttribute('aria-hidden', 'true');
+    button.setAttribute('aria-expanded', 'false');
+}
+
+function toggleVideoSettings(event) {
+    event?.stopPropagation?.();
+    const menu = document.getElementById('videoSettingsMenu');
+    const button = document.getElementById('videoSettingsBtn');
+    if (!menu || !button) return;
+
+    const opening = !menu.classList.contains('is-open');
+    closeVideoSettings();
+    if (opening) {
+        menu.classList.add('is-open');
+        menu.setAttribute('aria-hidden', 'false');
+        button.setAttribute('aria-expanded', 'true');
+        updateVideoSettingsUi();
+    }
+}
+
+function updateVideoSettingsUi() {
+    const rate = Number(videoState.playbackRate) || 1;
+    document.querySelectorAll('[data-video-rate]').forEach(button => {
+        const buttonRate = Number(button.dataset.videoRate);
+        button.classList.toggle('active', Math.abs(buttonRate - rate) < 0.001);
+        button.setAttribute('aria-pressed', Math.abs(buttonRate - rate) < 0.001 ? 'true' : 'false');
+    });
+
+    const loopButton = document.getElementById('videoLoopToggle');
+    if (loopButton) {
+        loopButton.textContent = videoState.loopEpisode ? 'On' : 'Off';
+        loopButton.classList.toggle('active', videoState.loopEpisode);
+        loopButton.setAttribute('aria-pressed', videoState.loopEpisode ? 'true' : 'false');
+    }
+}
+
+function setVideoPlaybackRate(rate) {
+    const safeRate = Math.min(2, Math.max(0.5, Number(rate) || 1));
+    videoState.playbackRate = safeRate;
+    const video = document.getElementById('videoPlayer');
+    if (video) video.playbackRate = safeRate;
+    updateVideoSettingsUi();
+}
+
+function toggleVideoLoop() {
+    videoState.loopEpisode = !videoState.loopEpisode;
+    const video = document.getElementById('videoPlayer');
+    if (video) video.loop = videoState.loopEpisode;
+    updateVideoSettingsUi();
+}
+
 function updateVideoTimeReadout(current, duration) {
     const readout = document.getElementById('videoTimeReadout');
     if (readout) readout.textContent = `${formatVideoTime(current)} / ${formatVideoTime(duration)}`;
 }
 
 function removeVideoSubtitleTracks(video) {
-    video.querySelectorAll('track').forEach(track => track.remove());
+    if (!video) return;
+
+    Array.from(video.textTracks || []).forEach(track => {
+        track.mode = 'disabled';
+    });
+
+    video.querySelectorAll('track').forEach(track => {
+        track.default = false;
+        track.remove();
+    });
+}
+
+function chooseVideoSubtitleLanguage(subtitles = []) {
+    const available = new Set(subtitles.map(track => track.lang));
+    if (videoState.subtitleLanguage && available.has(videoState.subtitleLanguage)) {
+        return videoState.subtitleLanguage;
+    }
+
+    const preferred = subtitles.find(track => track.default) || subtitles[0];
+    return preferred?.lang || 'off';
 }
 
 function rebuildVideoSubtitleSelector(subtitles = []) {
     const select = document.getElementById('videoSubtitleSelect');
     if (!select) return;
 
+    const selectedLanguage = chooseVideoSubtitleLanguage(subtitles);
     select.replaceChildren();
 
     subtitles.forEach(track => {
         const option = document.createElement('option');
         option.value = track.lang;
         option.textContent = track.label;
-        option.selected = Boolean(track.default);
         select.appendChild(option);
     });
 
     const off = document.createElement('option');
     off.value = 'off';
     off.textContent = 'Off';
-    if (subtitles.length === 0) off.selected = true;
     select.appendChild(off);
+
+    select.value = selectedLanguage;
+    videoState.subtitleLanguage = selectedLanguage;
 }
 
 function installVideoSubtitleTracks(video, episode) {
@@ -534,18 +664,25 @@ function installVideoSubtitleTracks(video, episode) {
     const subtitles = Array.isArray(episode.subtitles) ? episode.subtitles : [];
     rebuildVideoSubtitleSelector(subtitles);
 
-    subtitles.forEach((subtitle, index) => {
+    subtitles.forEach(subtitle => {
         if (!subtitle.src) return;
-        const track = document.createElement('track');
-        track.kind = 'subtitles';
-        track.srclang = subtitle.lang;
-        track.label = subtitle.label;
-        track.src = subtitle.src;
-        track.default = Boolean(subtitle.default || (index === 0 && !subtitles.some(item => item.default)));
-        video.appendChild(track);
+
+        const trackElement = document.createElement('track');
+        trackElement.kind = 'subtitles';
+        trackElement.srclang = subtitle.lang;
+        trackElement.label = subtitle.label;
+        trackElement.src = subtitle.src;
+
+        // Do not use the HTML default flag. Some browsers can re-enable the
+        // default text track asynchronously and leave two subtitle tracks showing.
+        trackElement.default = false;
+        trackElement.addEventListener('load', () => applySelectedSubtitle());
+        video.appendChild(trackElement);
+
+        if (trackElement.track) trackElement.track.mode = 'disabled';
     });
 
-    requestAnimationFrame(applySelectedSubtitle);
+    requestAnimationFrame(() => applySelectedSubtitle());
 }
 
 function applySelectedSubtitle() {
@@ -553,12 +690,25 @@ function applySelectedSubtitle() {
     const select = document.getElementById('videoSubtitleSelect');
     if (!video || !select) return;
 
-    const selectedLanguage = select.value;
-    Array.from(video.textTracks || []).forEach(track => {
-        track.mode = selectedLanguage !== 'off' && track.language === selectedLanguage ? 'showing' : 'disabled';
+    const selectedLanguage = select.value || 'off';
+    videoState.subtitleLanguage = selectedLanguage;
+    const trackElements = Array.from(video.querySelectorAll('track'));
+
+    // Control only the track elements that belong to the current episode.
+    // Disable all of them first, then enable exactly one. This avoids stale
+    // TextTrack entries or browser "default" races leaving two tracks visible.
+    trackElements.forEach(trackElement => {
+        if (trackElement.track) trackElement.track.mode = 'disabled';
     });
 
-    if (!video.querySelector('track')) {
+    if (selectedLanguage !== 'off') {
+        const selectedTrackElement = trackElements.find(
+            trackElement => trackElement.srclang === selectedLanguage
+        );
+        if (selectedTrackElement?.track) selectedTrackElement.track.mode = 'showing';
+    }
+
+    if (trackElements.length === 0) {
         showVideoToast('No subtitle tracks are available for this episode yet.');
     }
 }
@@ -598,32 +748,47 @@ function initializeVideo() {
     }
 
     const subtitleSelect = document.getElementById('videoSubtitleSelect');
-    subtitleSelect?.addEventListener('change', applySelectedSubtitle);
+    subtitleSelect?.addEventListener('change', () => {
+        applySelectedSubtitle();
+        // Re-apply after the browser has processed the select/change event.
+        requestAnimationFrame(() => applySelectedSubtitle());
+    });
 
     const volume = document.getElementById('videoVolume');
-    volume?.addEventListener('input', event => {
-        const video = document.getElementById('videoPlayer');
-        if (video) {
-            video.volume = Math.max(0, Math.min(1, Number(event.target.value) / 100));
-            if (video.volume > 0) video.muted = false;
-        }
-    });
+    if (volume) {
+        updateVideoRangeFill(volume, Number(volume.value));
+        volume.addEventListener('input', event => {
+            const video = document.getElementById('videoPlayer');
+            const nextVolume = Math.max(0, Math.min(1, Number(event.target.value) / 100));
+            updateVideoRangeFill(volume, Number(event.target.value));
+            if (video) {
+                video.volume = nextVolume;
+                if (nextVolume > 0) video.muted = false;
+                updateVideoVolumeUi();
+            }
+        });
+    }
 
     const seek = document.getElementById('videoSeekbar');
-    seek?.addEventListener('input', event => {
-        const video = document.getElementById('videoPlayer');
-        const series = getVideoSeries(videoState.activeSeriesId);
-        const episode = getVideoEpisode(series, videoState.activeEpisode);
-        const duration = video?.duration && Number.isFinite(video.duration)
-            ? video.duration
-            : parseDurationSeconds(episode.duration);
-        const target = duration * (Number(event.target.value) / 1000);
+    if (seek) {
+        updateVideoRangeFill(seek, Number(seek.value));
+        seek.addEventListener('input', event => {
+            const video = document.getElementById('videoPlayer');
+            const series = getVideoSeries(videoState.activeSeriesId);
+            const episode = getVideoEpisode(series, videoState.activeEpisode);
+            const duration = video?.duration && Number.isFinite(video.duration)
+                ? video.duration
+                : parseDurationSeconds(episode.duration);
+            const sliderValue = Number(event.target.value);
+            const target = duration * (sliderValue / 1000);
 
-        if (video?.currentSrc && Number.isFinite(video.duration)) video.currentTime = target;
-        else videoState.currentSeconds = target;
+            updateVideoRangeFill(seek, sliderValue);
+            if (video?.currentSrc && Number.isFinite(video.duration)) video.currentTime = target;
+            else videoState.currentSeconds = target;
 
-        updateVideoTimeReadout(target, duration);
-    });
+            updateVideoTimeReadout(target, duration);
+        });
+    }
 
     const video = document.getElementById('videoPlayer');
     if (video) {
@@ -633,17 +798,43 @@ function initializeVideo() {
             if (event.button !== 0) return;
             void toggleVideoPlayback();
         });
+        video.addEventListener('loadedmetadata', () => {
+            video.playbackRate = videoState.playbackRate;
+            video.loop = videoState.loopEpisode;
+            applySelectedSubtitle();
+            const seekbar = document.getElementById('videoSeekbar');
+            if (seekbar && Number.isFinite(video.duration) && video.duration > 0) {
+                const value = Math.round((video.currentTime / video.duration) * 1000);
+                seekbar.value = String(value);
+                updateVideoRangeFill(seekbar, value);
+            }
+            updateVideoVolumeUi();
+        });
+        video.addEventListener('volumechange', updateVideoVolumeUi);
         video.addEventListener('ended', () => {
             updateVideoPlaybackButtons();
-            videoNextEpisode();
+            if (!videoState.loopEpisode) videoNextEpisode();
         });
         video.addEventListener('timeupdate', () => {
             if (!Number.isFinite(video.duration) || video.duration <= 0) return;
             const seekbar = document.getElementById('videoSeekbar');
-            if (seekbar) seekbar.value = String(Math.round((video.currentTime / video.duration) * 1000));
+            if (seekbar) {
+                const value = Math.round((video.currentTime / video.duration) * 1000);
+                seekbar.value = String(value);
+                updateVideoRangeFill(seekbar, value);
+            }
             updateVideoTimeReadout(video.currentTime, video.duration);
         });
     }
+
+    document.addEventListener('click', event => {
+        const settingsWrap = event.target?.closest?.('.video-settings-wrap');
+        if (!settingsWrap) closeVideoSettings();
+    });
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeVideoSettings();
+    });
 
     // Keep fallback controls functional for catalog entries that do not yet have a source.
     setInterval(() => {
@@ -654,7 +845,11 @@ function initializeVideo() {
         videoState.currentSeconds = Math.min(duration, videoState.currentSeconds + 1);
 
         const seekbar = document.getElementById('videoSeekbar');
-        if (seekbar) seekbar.value = String(Math.round((videoState.currentSeconds / duration) * 1000));
+        if (seekbar) {
+            const value = Math.round((videoState.currentSeconds / duration) * 1000);
+            seekbar.value = String(value);
+            updateVideoRangeFill(seekbar, value);
+        }
         updateVideoTimeReadout(videoState.currentSeconds, duration);
 
         if (videoState.currentSeconds >= duration) {

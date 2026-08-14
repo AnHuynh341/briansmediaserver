@@ -6,7 +6,7 @@
   <title>W41IT</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=site-monitor-link-20260813-1">
-  <link rel="stylesheet" href="video.css?v=video-controls-20260814-1">
+  <link rel="stylesheet" href="video.css?v=video-range-fill-20260814-1">
 </head>
 <body>
 <div id="loginPage">
@@ -222,7 +222,25 @@
                       <option value="off">Off</option>
                     </select>
                   </label>
-                  <button type="button" class="video-control-btn" onclick="showVideoToast('Playback settings are not wired yet.')" title="Settings"><i class="fas fa-cog"></i></button>
+                  <div class="video-settings-wrap">
+                    <button id="videoSettingsBtn" type="button" class="video-control-btn" onclick="toggleVideoSettings(event)" title="Settings" aria-label="Video settings" aria-expanded="false" aria-controls="videoSettingsMenu"><i class="fas fa-cog"></i></button>
+                    <div id="videoSettingsMenu" class="video-settings-menu" role="dialog" aria-label="Video settings" aria-hidden="true">
+                      <div class="video-settings-section">
+                        <span class="video-settings-label">Playback speed</span>
+                        <div id="videoPlaybackRateOptions" class="video-settings-rate-options" role="group" aria-label="Playback speed">
+                          <button type="button" data-video-rate="0.75" onclick="setVideoPlaybackRate(0.75)">0.75×</button>
+                          <button type="button" data-video-rate="1" onclick="setVideoPlaybackRate(1)">Normal</button>
+                          <button type="button" data-video-rate="1.25" onclick="setVideoPlaybackRate(1.25)">1.25×</button>
+                          <button type="button" data-video-rate="1.5" onclick="setVideoPlaybackRate(1.5)">1.5×</button>
+                          <button type="button" data-video-rate="2" onclick="setVideoPlaybackRate(2)">2×</button>
+                        </div>
+                      </div>
+                      <div class="video-settings-row">
+                        <span>Loop episode</span>
+                        <button id="videoLoopToggle" type="button" class="video-settings-toggle" onclick="toggleVideoLoop()" aria-pressed="false">Off</button>
+                      </div>
+                    </div>
+                  </div>
                   <button type="button" class="video-control-btn" onclick="toggleVideoFullscreen()" title="Fullscreen"><i class="fas fa-expand"></i></button>
                 </div>
               </div>
@@ -399,7 +417,7 @@
 <script src="player.js?v=video-keyboard-routing-20260814-1"></script>
 <script src="auth.js?v=no-temp-upload-20260804-1"></script>
 <script src="ui.js?v=whats-new-queue-20260809-1"></script>
-<script src="video.js?v=video-controls-20260814-1"></script>
+<script src="video.js?v=video-range-fill-20260814-1"></script>
 <script src="mobile.js"></script>
 </body>
 </html>
