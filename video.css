@@ -616,14 +616,13 @@
     min(64vw, calc(177.78vh - 533px)),
     1920px
   );
-  --video-episodes-column: clamp(320px, 23vw, 480px);
   width: 100%;
   max-width: none;
   margin: 0;
   display: grid;
   grid-template-columns:
     minmax(0, var(--video-player-column))
-    minmax(320px, var(--video-episodes-column));
+    minmax(320px, 1fr);
   align-items: start;
   justify-content: start;
   gap: clamp(14px, 1vw, 22px);
@@ -1096,6 +1095,53 @@
 .video-toast.visible {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+@media (min-width: 1600px) {
+  .video-episode-panel-header {
+    grid-template-columns: clamp(116px, 7vw, 190px) minmax(0, 1fr);
+    gap: clamp(14px, 0.9vw, 20px);
+    padding: clamp(14px, 0.9vw, 20px);
+  }
+  .video-episode-panel-header h2 {
+    font-size: clamp(1rem, 0.82vw, 1.18rem);
+    line-height: 1.2;
+    white-space: normal;
+  }
+  .video-episode-panel-header span,
+  .video-episode-panel-header strong {
+    font-size: clamp(0.72rem, 0.6vw, 0.86rem);
+  }
+  .video-episode-row {
+    min-height: clamp(82px, 5.8vw, 124px);
+    grid-template-columns:
+      clamp(116px, 8vw, 220px)
+      clamp(30px, 2vw, 42px)
+      minmax(0, 1fr)
+      auto;
+    gap: clamp(10px, 0.75vw, 16px);
+    padding: clamp(10px, 0.65vw, 15px);
+  }
+  .video-episode-number {
+    font-size: clamp(0.76rem, 0.62vw, 0.9rem);
+  }
+  .video-episode-copy {
+    gap: 6px;
+  }
+  .video-episode-copy strong {
+    overflow: visible;
+    font-size: clamp(0.85rem, 0.75vw, 1.08rem);
+    line-height: 1.25;
+    text-overflow: clip;
+    white-space: normal;
+  }
+  .video-episode-copy span {
+    font-size: clamp(0.7rem, 0.6vw, 0.88rem);
+  }
+  .video-episode-state {
+    width: clamp(24px, 1.7vw, 36px);
+    font-size: clamp(0.76rem, 0.65vw, 0.95rem);
+  }
 }
 
 @media (max-width: 1400px) {
