@@ -136,6 +136,33 @@ const VIDEO_SERIES = [
                 ]
             }
         ]
+    },
+    {
+        id: "bocchi-the-rock",
+        title: "Bocchi the Rock!",
+        year: 2026,
+        genre: "Anime",
+        posterPath: "/anime/Bocchi%20the%20Rock%21/series-thumbnail.jpg?v=426b4bbb5204",
+        backdropPath: "/anime/Bocchi%20the%20Rock%21/series-thumbnail.jpg?v=426b4bbb5204",
+        description: "Video, artwork and subtitles are served from the W41IT media origin.",
+        episodes: [
+            {
+                number: 1,
+                title: "Lonely Rolling Bocchi",
+                duration: "23:44",
+                quality: "720p",
+                thumbnailPath: "/anime/Bocchi%20the%20Rock%21/S01E01/thumbnail.jpg",
+                videoPath: "/anime/Bocchi%20the%20Rock%21/S01E01/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English ([DB+neoHEVC])",
+                        path: "/anime/Bocchi%20the%20Rock%21/S01E01/en.vtt",
+                        default: true
+                    }
+                ]
+            }
+        ]
     }
 ];
 
