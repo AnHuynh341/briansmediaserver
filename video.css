@@ -582,9 +582,9 @@
   padding-top: 16px;
 }
 .video-watch-topbar {
-  max-width: 1400px;
-  margin-left: auto;
-  margin-right: auto;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
 }
 .video-back-btn {
   min-height: 36px;
@@ -611,14 +611,22 @@
   white-space: nowrap;
 }
 .video-watch-layout {
+  --video-player-column: clamp(
+    760px,
+    min(64vw, calc(177.78vh - 533px)),
+    1920px
+  );
+  --video-episodes-column: clamp(320px, 23vw, 480px);
   width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1024px) minmax(300px, 350px);
+  grid-template-columns:
+    minmax(0, var(--video-player-column))
+    minmax(320px, var(--video-episodes-column));
   align-items: start;
-  justify-content: center;
-  gap: 14px;
+  justify-content: start;
+  gap: clamp(14px, 1vw, 22px);
 }
 .video-watch-primary {
   min-width: 0;
@@ -962,7 +970,7 @@
 
 .video-episode-panel {
   min-width: 0;
-  max-height: min(760px, calc(100vh - 95px));
+  max-height: calc(100vh - 92px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -973,14 +981,15 @@
 }
 .video-episode-panel-header {
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
+  grid-template-columns: clamp(84px, 6vw, 110px) minmax(0, 1fr);
   gap: 12px;
   padding: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.075);
 }
 .video-episode-panel-header img {
-  width: 84px;
-  height: 58px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 42 / 29;
   object-fit: cover;
   border-radius: 7px;
 }
@@ -1009,9 +1018,9 @@
 }
 .video-episode-row {
   width: 100%;
-  min-height: 68px;
+  min-height: clamp(68px, 4.5vw, 86px);
   display: grid;
-  grid-template-columns: 78px 28px minmax(0, 1fr) auto;
+  grid-template-columns: clamp(78px, 5.4vw, 104px) 30px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   padding: 7px 9px;
@@ -1030,8 +1039,9 @@
   box-shadow: inset 2px 0 0 var(--accent);
 }
 .video-episode-thumb {
-  width: 78px;
-  height: 48px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 13 / 8;
   object-fit: cover;
   border-radius: 6px;
 }
