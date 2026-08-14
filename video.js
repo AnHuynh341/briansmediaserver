@@ -30,8 +30,8 @@ const VIDEO_SERIES = [
         title: 'Smoking Behind the Supermarket with You',
         year: 2026,
         genre: 'Drama',
-        posterPath: '/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E02/thumbnail.jpg',
-        backdropPath: '/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E02/thumbnail.jpg',
+        posterPath: "/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/series-thumbnail.jpg?v=90be3b8c49ba",
+        backdropPath: "/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/series-thumbnail.jpg?v=90be3b8c49ba",
         description: 'VPS-backed video library. Video, artwork and subtitles are served from the W41IT media origin.',
         episodes: [
                         {
