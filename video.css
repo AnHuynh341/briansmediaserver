@@ -600,6 +600,12 @@
   cursor: pointer;
   backdrop-filter: blur(7px);
   box-shadow: 0 0 28px rgba(0, 229, 255, 0.14);
+  transition: opacity 0.16s ease, visibility 0.16s ease, transform 0.16s ease, color 0.16s ease;
+}
+.video-stage-play.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 .video-stage-play:hover {
   color: var(--accent);

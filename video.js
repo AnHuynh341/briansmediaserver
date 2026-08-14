@@ -430,6 +430,7 @@ function updateVideoPlaybackButtons() {
     if (stageButton) {
         stageButton.innerHTML = `<i class="${iconClass}"></i>`;
         stageButton.setAttribute('aria-label', playing ? 'Pause video' : 'Play video');
+        stageButton.classList.toggle('is-hidden', playing);
     }
 }
 
@@ -628,6 +629,10 @@ function initializeVideo() {
     if (video) {
         video.addEventListener('play', updateVideoPlaybackButtons);
         video.addEventListener('pause', updateVideoPlaybackButtons);
+        video.addEventListener('click', event => {
+            if (event.button !== 0) return;
+            void toggleVideoPlayback();
+        });
         video.addEventListener('ended', () => {
             updateVideoPlaybackButtons();
             videoNextEpisode();

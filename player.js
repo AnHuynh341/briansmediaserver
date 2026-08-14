@@ -1143,17 +1143,24 @@ function shouldIgnorePlayerShortcut(event) {
     const isTextEntryInput = target instanceof HTMLInputElement
         && textEntryInputTypes.has(String(target.type || 'text').toLowerCase());
 
-    // Player transport buttons are safe shortcut targets. A mouse click can leave
-    // one focused, but Space/N/P/S/L should still behave as global player keys.
-    const isPlayerControlButton = target instanceof HTMLButtonElement
+    // Audio and video transport buttons are safe shortcut targets. A mouse click
+    // can leave one focused, but the global media shortcuts should still work.
+    const isAudioControlButton = target instanceof HTMLButtonElement
         && target.classList.contains('ctrl-btn')
         && Boolean(target.closest('.player'));
+    const isVideoControlButton = target instanceof HTMLButtonElement
+        && (
+            target.classList.contains('video-control-btn')
+            || target.classList.contains('video-stage-play')
+        )
+        && Boolean(target.closest('#videoMainView'));
+    const isMediaControlButton = isAudioControlButton || isVideoControlButton;
 
     if (
         isTextEntryInput
         || target instanceof HTMLTextAreaElement
         || target instanceof HTMLSelectElement
-        || (target instanceof HTMLButtonElement && !isPlayerControlButton)
+        || (target instanceof HTMLButtonElement && !isMediaControlButton)
         || target?.isContentEditable
     ) {
         return true;
@@ -1175,14 +1182,46 @@ function shouldIgnorePlayerShortcut(event) {
     return false;
 }
 
+function isVideoKeyboardControlActive() {
+    const mainPage = document.getElementById('mainPage');
+    const watchView = document.getElementById('videoWatchView');
+    return Boolean(
+        mainPage?.classList.contains('video-mode')
+        && watchView
+        && !watchView.classList.contains('hidden')
+    );
+}
+
 function handlePlayerKeyboardShortcut(event) {
     if (shouldIgnorePlayerShortcut(event)) return;
 
     const key = String(event.key || '').toLowerCase();
+    const videoActive = isVideoKeyboardControlActive();
 
     if (event.code === 'Space' || key === ' ') {
         event.preventDefault(); // Space normally scrolls the page.
-        void togglePlay();
+        if (videoActive && typeof toggleVideoPlayback === 'function') {
+            void toggleVideoPlayback();
+        } else {
+            void togglePlay();
+        }
+        return;
+    }
+
+    if (videoActive) {
+        switch (key) {
+            case 'n':
+                if (typeof videoNextEpisode === 'function') videoNextEpisode();
+                break;
+            case 'p':
+                if (typeof videoPreviousEpisode === 'function') videoPreviousEpisode();
+                break;
+            case 'm':
+                if (typeof toggleVideoMute === 'function') toggleVideoMute();
+                break;
+            default:
+                break;
+        }
         return;
     }
 
@@ -1203,7 +1242,6 @@ function handlePlayerKeyboardShortcut(event) {
             break;
     }
 }
-
 document.addEventListener('keydown', handlePlayerKeyboardShortcut);
 
 // Mouse/pointer clicks normally leave a button focused. Release that focus after
@@ -1216,7 +1254,9 @@ document.addEventListener('click', event => {
     const target = event.target;
     if (!(target instanceof Element)) return;
 
-    const button = target.closest('.player .ctrl-btn, .recent-upload-card');
+    const button = target.closest(
+        '.player .ctrl-btn, .recent-upload-card, .video-control-btn, .video-stage-play'
+    );
     if (button instanceof HTMLButtonElement) {
         button.blur();
     }
