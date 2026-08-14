@@ -6,7 +6,7 @@
   <title>W41IT</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=site-monitor-link-20260813-1">
-  <link rel="stylesheet" href="video.css?v=video-range-fill-20260814-1">
+  <link rel="stylesheet" href="video.css?v=video-library-portals-clean-20260814-2">
 </head>
 <body>
 <div id="loginPage">
@@ -146,42 +146,57 @@
             <span>W41IT</span>
             <strong>Video</strong>
           </div>
-          <label class="video-search">
-            <i class="fas fa-search" aria-hidden="true"></i>
-            <input id="videoSearchInput" type="search" placeholder="Search series, genres, and more..." autocomplete="off">
-          </label>
         </header>
 
-        <section class="video-hero" aria-labelledby="videoHeroTitle">
-          <div class="video-hero-copy">
-            <span class="video-kicker">Video mode</span>
-            <h1 id="videoHeroTitle">Enter new worlds.<br><em>Unfold every frame.</em></h1>
-            <p>Series-first browsing for the VPS-backed video library. New series and episodes can be added without changing the player frame.</p>
-            <button type="button" class="video-primary-btn" onclick="scrollVideoLibraryIntoView()">
-              <i class="fas fa-play"></i> Browse all series
-            </button>
-          </div>
-          <div class="video-hero-feature">
-            <span>Featured series</span>
-            <strong>Smoking Behind the Supermarket with You</strong>
-            <button type="button" onclick="openVideoWatch('smoking-behind-supermarket', 6)"><i class="fas fa-play"></i> Watch now</button>
-          </div>
+        <section class="video-library-portals" aria-label="Choose a video library">
+          <button id="videoAnimePortal"
+                  class="video-library-portal video-anime-portal active"
+                  type="button"
+                  onclick="selectVideoLibrary('anime')"
+                  aria-pressed="true">
+            <span id="videoAnimeCollage" class="video-anime-collage" aria-hidden="true"></span>
+            <span class="video-portal-scrim" aria-hidden="true"></span>
+            <span class="video-portal-copy">
+              <span class="video-portal-kicker">Library</span>
+              <strong>Anime</strong>
+              <span id="videoAnimePortalMeta" class="video-portal-meta">Series and episodes</span>
+            </span>
+            <span class="video-portal-arrow" aria-hidden="true"><i class="fas fa-arrow-right"></i></span>
+          </button>
+
+          <button id="videoYoutubePortal"
+                  class="video-library-portal video-youtube-portal"
+                  type="button"
+                  onclick="selectVideoLibrary('youtube')"
+                  aria-pressed="false"
+                  aria-label="Open local YouTube library">
+            <span class="video-youtube-logo" aria-hidden="true">
+              <i class="fab fa-youtube"></i>
+              <span>YouTube</span>
+            </span>
+          </button>
         </section>
 
-        <section class="video-shelf" aria-labelledby="videoWhatsNewTitle">
-          <div class="video-section-heading">
-            <h2 id="videoWhatsNewTitle">What&apos;s New</h2>
-          </div>
-          <div id="videoWhatsNewGrid" class="video-poster-row"></div>
-        </section>
+        <div id="videoAnimeLibrary">
+          <section class="video-shelf" aria-labelledby="videoWhatsNewTitle">
+            <div class="video-section-heading">
+              <h2 id="videoWhatsNewTitle">What&apos;s New</h2>
+            </div>
+            <div id="videoWhatsNewGrid" class="video-poster-row"></div>
+          </section>
 
+          <section id="videoAllSeriesSection" class="video-shelf video-all-series" aria-labelledby="videoAllSeriesTitle">
+            <div class="video-section-heading">
+              <h2 id="videoAllSeriesTitle">All Series</h2>
+            </div>
+            <div id="videoSeriesGrid" class="video-series-grid"></div>
+          </section>
+        </div>
 
-        <section id="videoAllSeriesSection" class="video-shelf video-all-series" aria-labelledby="videoAllSeriesTitle">
-          <div class="video-section-heading video-all-series-heading">
-            <h2 id="videoAllSeriesTitle">All Series</h2>
-            <div id="videoGenreFilters" class="video-filter-chips" aria-label="Video genre filters"></div>
-          </div>
-          <div id="videoSeriesGrid" class="video-series-grid"></div>
+        <section id="videoYoutubeLibrary" class="video-youtube-library hidden" aria-labelledby="videoYoutubeLibraryTitle">
+          <i class="fab fa-youtube video-youtube-empty-icon" aria-hidden="true"></i>
+          <h2 id="videoYoutubeLibraryTitle">No local YouTube videos yet.</h2>
+          <p>Put videos in <code>/srv/youtube/</code>; the next step is generating a small catalog so this page can discover and play them.</p>
         </section>
       </section>
 
@@ -417,7 +432,7 @@
 <script src="player.js?v=video-keyboard-routing-20260814-1"></script>
 <script src="auth.js?v=no-temp-upload-20260804-1"></script>
 <script src="ui.js?v=whats-new-queue-20260809-1"></script>
-<script src="video.js?v=video-range-fill-20260814-1"></script>
+<script src="video.js?v=video-library-portals-clean-20260814-2"></script>
 <script src="mobile.js"></script>
 
 

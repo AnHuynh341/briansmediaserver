@@ -140,13 +140,11 @@ const VIDEO_SERIES = [
 ];
 
 const VIDEO_EPISODE_DURATIONS = ['23:41', '23:28', '23:17', '23:45', '23:36', '23:36', '23:51', '24:02', '23:44', '24:15', '23:38', '24:30'];
-const VIDEO_GENRES = ['All', ...new Set(VIDEO_SERIES.map(series => series.genre).filter(Boolean))];
 
 const videoState = {
     activeSeriesId: 'smoking-behind-supermarket',
     activeEpisode: 6,
-    activeGenre: 'All',
-    search: '',
+    activeLibrary: 'anime',
     toastTimer: null,
     fallbackPlaying: false,
     currentSeconds: 0,
@@ -306,15 +304,68 @@ function switchMediaMode(mode) {
 }
 
 function renderVideoHome() {
-    const hero = document.querySelector('.video-hero');
-    const featuredSeries = VIDEO_SERIES[0];
-    if (hero && featuredSeries) {
-        hero.style.setProperty('--video-hero-image', `url("${getVideoSeriesBackdrop(featuredSeries)}")`);
-    }
-
-    renderVideoGenreFilters();
+    renderVideoLibraryPortals();
     renderVideoWhatsNew();
     renderVideoSeriesGrid();
+    syncVideoLibrarySelection();
+}
+
+function getVideoAnimePortalImages(limit = 5) {
+    const seriesArtwork = VIDEO_SERIES.map(series => getVideoSeriesPoster(series));
+    const episodeArtwork = VIDEO_SERIES.flatMap(series =>
+        makeVideoEpisodes(series).map(episode => episode.thumbnail)
+    );
+
+    return [...new Set([...seriesArtwork, ...episodeArtwork].filter(Boolean))].slice(0, limit);
+}
+
+function renderVideoLibraryPortals() {
+    const collage = document.getElementById('videoAnimeCollage');
+    if (collage) {
+        collage.replaceChildren();
+        getVideoAnimePortalImages().forEach(src => {
+            const image = document.createElement('img');
+            image.src = src;
+            image.alt = '';
+            image.loading = 'eager';
+            image.decoding = 'async';
+            collage.appendChild(image);
+        });
+    }
+
+    const seriesCount = VIDEO_SERIES.length;
+    const episodeCount = VIDEO_SERIES.reduce(
+        (total, series) => total + makeVideoEpisodes(series).length,
+        0
+    );
+    const meta = document.getElementById('videoAnimePortalMeta');
+    if (meta) {
+        meta.textContent = seriesCount > 0
+            ? `${seriesCount} series • ${episodeCount} episode${episodeCount === 1 ? '' : 's'}`
+            : 'No anime added yet';
+    }
+}
+
+function syncVideoLibrarySelection() {
+    const showAnime = videoState.activeLibrary !== 'youtube';
+    const animePortal = document.getElementById('videoAnimePortal');
+    const youtubePortal = document.getElementById('videoYoutubePortal');
+    const animeLibrary = document.getElementById('videoAnimeLibrary');
+    const youtubeLibrary = document.getElementById('videoYoutubeLibrary');
+
+    animePortal?.classList.toggle('active', showAnime);
+    animePortal?.setAttribute('aria-pressed', showAnime ? 'true' : 'false');
+    youtubePortal?.classList.toggle('active', !showAnime);
+    youtubePortal?.setAttribute('aria-pressed', showAnime ? 'false' : 'true');
+    animeLibrary?.classList.toggle('hidden', !showAnime);
+    youtubeLibrary?.classList.toggle('hidden', showAnime);
+}
+
+function selectVideoLibrary(library) {
+    if (library !== 'anime' && library !== 'youtube') return;
+    videoState.activeLibrary = library;
+    syncVideoLibrarySelection();
+    scrollVideoLibraryIntoView();
 }
 
 function createVideoSeriesCard(series, { compact = false, isNew = false } = {}) {
@@ -322,7 +373,8 @@ function createVideoSeriesCard(series, { compact = false, isNew = false } = {}) 
     card.type = 'button';
     card.className = 'video-series-card';
     card.dataset.seriesId = series.id;
-    const firstEpisode = makeVideoEpisodes(series)[0];
+    const episodes = makeVideoEpisodes(series);
+    const firstEpisode = episodes[0];
     card.onclick = () => openVideoWatch(series.id, firstEpisode?.number);
 
     const art = document.createElement('span');
@@ -347,7 +399,7 @@ function createVideoSeriesCard(series, { compact = false, isNew = false } = {}) 
 
     const meta = document.createElement('span');
     meta.className = 'video-series-meta';
-    meta.textContent = `${series.genre} • ${series.year}`;
+    meta.textContent = `${series.year} • ${episodes.length} episode${episodes.length === 1 ? '' : 's'}`;
 
     card.append(art, title, meta);
     return card;
@@ -362,47 +414,17 @@ function renderVideoWhatsNew() {
     });
 }
 
-function renderVideoGenreFilters() {
-    const filters = document.getElementById('videoGenreFilters');
-    if (!filters) return;
-    filters.replaceChildren();
-
-    VIDEO_GENRES.forEach(genre => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `video-filter-chip${videoState.activeGenre === genre ? ' active' : ''}`;
-        button.textContent = genre;
-        button.onclick = () => {
-            videoState.activeGenre = genre;
-            renderVideoGenreFilters();
-            renderVideoSeriesGrid();
-        };
-        filters.appendChild(button);
-    });
-}
-
 function renderVideoSeriesGrid() {
     const grid = document.getElementById('videoSeriesGrid');
     if (!grid) return;
 
-    const query = videoState.search.trim().toLowerCase();
-    const activeGenre = videoState.activeGenre;
-    const filtered = VIDEO_SERIES.filter(series => {
-        const genreMatches = activeGenre === 'All' || series.genre === activeGenre;
-        const queryMatches = !query
-            || series.title.toLowerCase().includes(query)
-            || series.genre.toLowerCase().includes(query)
-            || series.description.toLowerCase().includes(query);
-        return genreMatches && queryMatches;
-    });
-
     grid.replaceChildren();
-    filtered.forEach(series => grid.appendChild(createVideoSeriesCard(series)));
+    VIDEO_SERIES.forEach(series => grid.appendChild(createVideoSeriesCard(series)));
 
-    if (filtered.length === 0) {
+    if (VIDEO_SERIES.length === 0) {
         const empty = document.createElement('div');
         empty.style.cssText = 'grid-column:1/-1;padding:28px 4px;color:#8f9bad;font-size:.82rem;';
-        empty.textContent = 'No series match this filter.';
+        empty.textContent = 'No anime series have been added yet.';
         grid.appendChild(empty);
     }
 }
@@ -474,7 +496,6 @@ function renderVideoWatchView() {
             <span>Season 1</span>
             <span>Episode ${episode.number}</span>
             <span>${episode.duration}</span>
-            <span>${escapeVideoHtml(series.genre)}</span>
             <span>${escapeVideoHtml(episode.quality || '720p')}</span>
             <span>${episode.fileUrl ? 'VPS stream' : 'No source'}</span>`;
     }
@@ -794,7 +815,12 @@ function applySelectedSubtitle() {
 }
 
 function scrollVideoLibraryIntoView() {
-    document.getElementById('videoAllSeriesSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const targetId = videoState.activeLibrary === 'youtube'
+        ? 'videoYoutubeLibrary'
+        : 'videoAnimeLibrary';
+    requestAnimationFrame(() => {
+        document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 }
 
 function showVideoToast(message) {
@@ -818,14 +844,6 @@ function escapeVideoHtml(value) {
 
 function initializeVideo() {
     renderVideoHome();
-
-    const search = document.getElementById('videoSearchInput');
-    if (search) {
-        search.addEventListener('input', event => {
-            videoState.search = event.target.value || '';
-            renderVideoSeriesGrid();
-        });
-    }
 
     const subtitleSelect = document.getElementById('videoSubtitleSelect');
     subtitleSelect?.addEventListener('change', () => {

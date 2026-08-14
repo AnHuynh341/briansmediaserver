@@ -209,128 +209,212 @@
   font-size: 1.08rem;
   letter-spacing: -0.2px;
 }
-.video-search {
-  width: min(360px, 38vw);
-  height: 38px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 13px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 10px;
-  background: rgba(11, 18, 29, 0.88);
-  color: var(--video-muted);
+/* ---------- library portals ---------- */
+.video-library-portals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
 }
-.video-search:focus-within {
-  border-color: rgba(0, 229, 255, 0.32);
-  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.04);
-}
-.video-search input {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-main);
-  font: inherit;
-  font-size: 0.82rem;
-}
-
-/* ---------- home hero ---------- */
-.video-hero {
-  min-height: clamp(220px, 27vh, 315px);
+.video-library-portal {
+  min-width: 0;
+  min-height: clamp(175px, 18vw, 230px);
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 24px;
-  margin-bottom: 20px;
-  padding: clamp(24px, 3vw, 44px);
-  border: 1px solid rgba(0, 229, 255, 0.25);
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
-  background:
-    linear-gradient(90deg, rgba(1, 7, 14, 0.96) 0%, rgba(1, 7, 14, 0.84) 35%, rgba(1, 7, 14, 0.25) 72%, rgba(1, 7, 14, 0.55) 100%),
-    var(--video-hero-image, linear-gradient(135deg, #07111c, #0d1722)) center 45% / cover no-repeat;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
+  background: #07101a;
+  color: #f4fbff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.25);
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
 }
-.video-hero::after {
+.video-library-portal::after {
   content: '';
   position: absolute;
   inset: 0;
-  z-index: -1;
-  background: linear-gradient(180deg, transparent 48%, rgba(0, 0, 0, 0.36));
+  z-index: 3;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  pointer-events: none;
 }
-.video-hero-copy {
-  max-width: 650px;
+.video-library-portal:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
 }
-.video-kicker,
-.video-hero-feature > span,
+.video-library-portal:focus-visible {
+  outline: 2px solid #e9fbff;
+  outline-offset: 3px;
+}
+.video-anime-portal:hover,
+.video-anime-portal.active {
+  border-color: rgba(0, 229, 255, 0.52);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34), 0 0 24px rgba(0, 229, 255, 0.09);
+}
+.video-anime-collage {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  background: linear-gradient(135deg, #071521, #111820);
+}
+.video-anime-collage img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  filter: saturate(0.86) brightness(0.78);
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
+}
+.video-anime-collage img:first-child {
+  grid-row: 1 / span 2;
+}
+.video-anime-portal:hover .video-anime-collage img {
+  transform: scale(1.035);
+  filter: saturate(1) brightness(0.84);
+}
+.video-portal-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(90deg, rgba(1, 6, 12, 0.93) 0%, rgba(1, 6, 12, 0.63) 48%, rgba(1, 6, 12, 0.18) 100%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.62), transparent 70%);
+}
+.video-portal-copy {
+  height: 100%;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: clamp(20px, 2.6vw, 34px);
+}
+.video-portal-kicker,
 .video-watch-series-name {
   color: var(--accent);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 900;
-  letter-spacing: 1.2px;
+  letter-spacing: 1.3px;
   text-transform: uppercase;
 }
-.video-hero h1 {
-  margin: 8px 0 9px;
-  font-size: clamp(2rem, 3.25vw, 3.35rem);
-  line-height: 0.98;
-  letter-spacing: -1.8px;
+.video-portal-copy strong {
+  margin-top: 4px;
+  font-size: clamp(2.4rem, 4.4vw, 4.4rem);
+  line-height: 0.94;
+  letter-spacing: -2.4px;
+  text-shadow: 0 5px 22px rgba(0, 0, 0, 0.65);
+}
+.video-portal-meta {
+  margin-top: 9px;
+  color: rgba(231, 242, 248, 0.72);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+.video-portal-arrow {
+  width: 38px;
+  height: 38px;
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 50%;
+  background: rgba(2, 8, 14, 0.56);
   color: #f2fbff;
+  backdrop-filter: blur(7px);
+  transition: transform 0.22s ease, background 0.22s ease;
 }
-.video-hero h1 em {
-  color: var(--accent);
-  font-style: normal;
+.video-anime-portal:hover .video-portal-arrow {
+  transform: translateX(3px);
+  background: rgba(0, 229, 255, 0.16);
 }
-.video-hero p {
-  max-width: 600px;
-  margin-bottom: 18px;
-  color: #b8c1ce;
-  font-size: 0.9rem;
-  line-height: 1.55;
+.video-youtube-portal {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 0, 51, 0.22), transparent 58%),
+    linear-gradient(135deg, #100306, #050608 58%, #0d0204);
 }
-.video-primary-btn,
-.video-hero-feature button {
-  min-height: 38px;
-  display: inline-flex;
+.video-youtube-portal::before {
+  content: '';
+  width: 62%;
+  aspect-ratio: 1;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(255, 0, 51, 0.08);
+  filter: blur(26px);
+}
+.video-youtube-portal:hover,
+.video-youtube-portal.active {
+  border-color: rgba(255, 40, 74, 0.65);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.36), 0 0 28px rgba(255, 0, 51, 0.12);
+}
+.video-youtube-logo {
+  position: relative;
+  z-index: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  border-radius: 8px;
-  cursor: pointer;
+  gap: clamp(10px, 1.5vw, 20px);
+  color: #fff;
+  font-size: clamp(2rem, 4.1vw, 4.2rem);
   font-weight: 800;
+  letter-spacing: -3px;
+  text-shadow: 0 7px 24px rgba(0, 0, 0, 0.68);
 }
-.video-primary-btn {
-  padding: 0 18px;
-  border: 0;
-  background: var(--accent);
-  color: #041017;
+.video-youtube-logo i {
+  color: #ff0033;
+  font-size: 1.25em;
+  filter: drop-shadow(0 8px 18px rgba(255, 0, 51, 0.28));
 }
-.video-primary-btn:hover {
-  background: #72f3ff;
-  box-shadow: 0 0 22px rgba(0, 229, 255, 0.18);
-}
-.video-hero-feature {
-  min-width: 190px;
+.video-youtube-library {
+  min-height: 270px;
   display: grid;
-  gap: 6px;
-  padding: 15px;
-  border: 1px solid rgba(0, 229, 255, 0.16);
-  border-radius: 10px;
-  background: rgba(3, 8, 15, 0.68);
-  backdrop-filter: blur(8px);
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 38px 24px;
+  border: 1px dashed rgba(255, 41, 75, 0.3);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255, 0, 51, 0.055), rgba(6, 10, 16, 0.76));
+  color: var(--video-muted);
+  text-align: center;
 }
-.video-hero-feature strong {
-  font-size: 0.96rem;
+.video-youtube-empty-icon {
+  margin-bottom: 5px;
+  color: #ff0033;
+  font-size: 3.25rem;
+  filter: drop-shadow(0 7px 16px rgba(255, 0, 51, 0.2));
 }
-.video-hero-feature button {
-  margin-top: 5px;
-  padding: 0 12px;
-  border: 1px solid rgba(0, 229, 255, 0.36);
-  background: rgba(0, 229, 255, 0.04);
-  color: #e9fbff;
+.video-youtube-library h2 {
+  margin: 0;
+  color: #f1f7fb;
+  font-size: 1.15rem;
+}
+.video-youtube-library p {
+  max-width: 520px;
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+.video-youtube-library code {
+  color: #ff9aae;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* ---------- shelves ---------- */
@@ -484,32 +568,6 @@
   background: var(--accent);
 }
 
-.video-all-series-heading {
-  flex-wrap: wrap;
-}
-.video-filter-chips {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  overflow-x: auto;
-}
-.video-filter-chip {
-  min-height: 28px;
-  padding: 0 11px;
-  border: 1px solid transparent;
-  border-radius: 99px;
-  background: transparent;
-  color: var(--video-muted);
-  font: inherit;
-  font-size: 0.68rem;
-  cursor: pointer;
-}
-.video-filter-chip:hover,
-.video-filter-chip.active {
-  border-color: rgba(0, 229, 255, 0.14);
-  background: rgba(0, 229, 255, 0.08);
-  color: var(--accent);
-}
 .video-series-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(125px, 1fr));
@@ -1083,25 +1141,27 @@
   #mainPage.video-mode #mobileMenuBtn { display: block !important; }
   .video-mobile-menu { display: grid; place-items: center; }
   .video-page { padding: 14px 14px 32px; }
-  .video-hero {
-    grid-template-columns: 1fr;
-    min-height: 270px;
-  }
-  .video-hero-feature { display: none; }
-  .video-search { width: min(330px, 60vw); }
+  .video-library-portals { gap: 12px; }
+  .video-library-portal { min-height: 190px; }
   .video-series-grid { grid-template-columns: repeat(3, minmax(105px, 1fr)); }
 }
 
 @media (max-width: 620px) {
-  .video-topbar-title { display: none; }
-  .video-search { width: 100%; }
-  .video-hero {
-    min-height: 245px;
-    padding: 22px 18px;
-    background-position: 62% center;
+  .video-library-portals { gap: 8px; }
+  .video-library-portal { min-height: 150px; border-radius: 11px; }
+  .video-portal-copy { padding: 16px 14px; }
+  .video-portal-copy strong {
+    font-size: clamp(1.75rem, 10vw, 2.7rem);
+    letter-spacing: -1.5px;
   }
-  .video-hero h1 { font-size: 2rem; }
-  .video-hero p { font-size: 0.78rem; }
+  .video-portal-meta { font-size: 0.62rem; }
+  .video-portal-arrow { display: none; }
+  .video-youtube-logo {
+    flex-direction: column;
+    gap: 3px;
+    font-size: clamp(1.35rem, 8vw, 2.2rem);
+    letter-spacing: -1.5px;
+  }
   .video-poster-row {
     grid-template-columns: none;
     grid-auto-columns: 70vw;
@@ -1123,6 +1183,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .video-library-portal,
+  .video-anime-collage img,
+  .video-portal-arrow,
   .video-series-card,
   .video-series-art img,
   .video-stage-play,
