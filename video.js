@@ -655,6 +655,12 @@ function renderVideoSeriesGrid() {
 }
 
 function showVideoHome() {
+    const video = document.getElementById('videoPlayer');
+    video?.pause();
+    videoState.fallbackPlaying = false;
+    updateVideoPlaybackButtons();
+    closeVideoSettings();
+
     document.getElementById('videoHomeView')?.classList.remove('hidden');
     document.getElementById('videoWatchView')?.classList.add('hidden');
     const page = document.getElementById('videoHomeView');
