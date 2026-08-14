@@ -1232,6 +1232,12 @@
   .video-volume { display: none; }
   .video-subtitle-control span { display: none; }
   .video-subtitle-control select { max-width: 98px; }
+  .video-watch-info h1 {
+    font-size: clamp(1.12rem, 5vw, 1.32rem);
+    line-height: 1.18;
+    letter-spacing: -0.35px;
+    overflow-wrap: anywhere;
+  }
   .video-episode-row {
     grid-template-columns: 68px 24px minmax(0, 1fr) auto;
   }
