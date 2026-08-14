@@ -6,7 +6,7 @@
   <title>W41IT</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=site-monitor-link-20260813-1">
-  <link rel="stylesheet" href="video.css?v=video-mock-20260814-1">
+  <link rel="stylesheet" href="video.css?v=video-real-only-20260814-1">
 </head>
 <body>
 <div id="loginPage">
@@ -135,8 +135,7 @@
       <div id="trackList"></div>
     </div>
 
-    <!-- Video mode is intentionally frontend-only for now. video-mock.js renders
-         demo series/episodes here; later it can consume an Appwrite video database. -->
+    <!-- Video mode currently renders the real VPS-backed catalog; later it can consume an Appwrite video database. -->
     <main id="videoMainView" class="video-main-view hidden" aria-label="Video library">
       <section id="videoHomeView" class="video-page video-home-view">
         <header class="video-topbar">
@@ -157,15 +156,15 @@
           <div class="video-hero-copy">
             <span class="video-kicker">Video mode</span>
             <h1 id="videoHeroTitle">Enter new worlds.<br><em>Unfold every frame.</em></h1>
-            <p>Series-first browsing for the video library. The data below is mock content until the video database is connected.</p>
+            <p>Series-first browsing for the VPS-backed video library. New series and episodes can be added without changing the player frame.</p>
             <button type="button" class="video-primary-btn" onclick="scrollVideoLibraryIntoView()">
               <i class="fas fa-play"></i> Browse all series
             </button>
           </div>
           <div class="video-hero-feature">
             <span>Featured series</span>
-            <strong>Nocturne Protocol</strong>
-            <button type="button" onclick="openVideoWatch('nocturne-protocol', 7)"><i class="fas fa-play"></i> Watch now</button>
+            <strong>Smoking Behind the Supermarket with You</strong>
+            <button type="button" onclick="openVideoWatch('smoking-behind-supermarket', 6)"><i class="fas fa-play"></i> Watch now</button>
           </div>
         </section>
 
@@ -176,12 +175,6 @@
           <div id="videoWhatsNewGrid" class="video-poster-row"></div>
         </section>
 
-        <section class="video-shelf" aria-labelledby="videoContinueTitle">
-          <div class="video-section-heading">
-            <h2 id="videoContinueTitle">Continue Watching</h2>
-          </div>
-          <div id="videoContinueGrid" class="video-continue-row"></div>
-        </section>
 
         <section id="videoAllSeriesSection" class="video-shelf video-all-series" aria-labelledby="videoAllSeriesTitle">
           <div class="video-section-heading video-all-series-heading">
@@ -257,7 +250,7 @@
         </div>
       </section>
 
-      <div id="videoMockToast" class="video-mock-toast" role="status" aria-live="polite"></div>
+      <div id="videoToast" class="video-toast" role="status" aria-live="polite"></div>
     </main>
   </div>
 
@@ -406,7 +399,7 @@
 <script src="player.js?v=session-replay-count-20260809-1"></script>
 <script src="auth.js?v=no-temp-upload-20260804-1"></script>
 <script src="ui.js?v=whats-new-queue-20260809-1"></script>
-<script src="video-mock.js?v=vps-stream-20260814-1"></script>
+<script src="video.js?v=real-only-20260814-1"></script>
 <script src="mobile.js"></script>
 </body>
 </html>

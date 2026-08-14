@@ -1,5 +1,5 @@
 /* ==========================================================
-   W41IT VIDEO MODE — FRONTEND MOCK
+   W41IT VIDEO MODE
    Frontend-only shell for a future series/episode database.
    Audio styles remain in styles.css and are intentionally left intact.
 ========================================================== */
@@ -251,7 +251,7 @@
   border-radius: 14px;
   background:
     linear-gradient(90deg, rgba(1, 7, 14, 0.96) 0%, rgba(1, 7, 14, 0.84) 35%, rgba(1, 7, 14, 0.25) 72%, rgba(1, 7, 14, 0.55) 100%),
-    url('assets/video/video-hero.jpg') center 45% / cover no-repeat;
+    var(--video-hero-image, linear-gradient(135deg, #07111c, #0d1722)) center 45% / cover no-repeat;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
 }
 .video-hero::after {
@@ -836,7 +836,7 @@
   font-size: 0.68rem;
   text-align: center;
 }
-.video-mock-toast {
+.video-toast {
   position: fixed;
   left: 50%;
   bottom: 28px;
@@ -854,7 +854,7 @@
   transition: opacity 0.18s ease, transform 0.18s ease;
   box-shadow: 0 10px 35px rgba(0, 0, 0, 0.36);
 }
-.video-mock-toast.visible {
+.video-toast.visible {
   opacity: 1;
   transform: translate(-50%, 0);
 }
@@ -955,7 +955,7 @@
   .video-series-card,
   .video-series-art img,
   .video-stage-play,
-  .video-mock-toast {
+  .video-toast {
     transition: none !important;
   }
 }
