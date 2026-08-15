@@ -339,6 +339,33 @@ const VIDEO_SERIES = [
                 ]
             }
         ]
+    },
+    {
+        id: "detective-conan-movie",
+        title: "Detective Conan Movie",
+        year: 2011,
+        genre: "Anime",
+        posterPath: "/anime/Detective%20Conan%20Movie/series-thumbnail.jpg?v=793a84255aba",
+        backdropPath: "/anime/Detective%20Conan%20Movie/series-thumbnail.jpg?v=793a84255aba",
+        description: "Video, artwork and subtitles are served from the W41IT media origin.",
+        episodes: [
+            {
+                number: 1,
+                title: "Detective Conan: Quarter of Silence",
+                duration: "1:49:26",
+                quality: "1080p",
+                thumbnailPath: "/anime/Detective%20Conan%20Movie/S01E01/thumbnail.jpg",
+                videoPath: "/anime/Detective%20Conan%20Movie/S01E01/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English (Ah-le-le)",
+                        path: "/anime/Detective%20Conan%20Movie/S01E01/en.vtt",
+                        default: true
+                    }
+                ]
+            }
+        ]
     }
 ];
 
