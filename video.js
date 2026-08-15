@@ -2,8 +2,7 @@
 // W41IT VIDEO MODE
 // ==========================================================
 // The UI is currently driven by the real VPS-backed catalog below.
-// Later, replace VIDEO_SERIES with Appwrite videoSeries/videoEpisodes
-// documents without rebuilding the player or library UI.
+// anime-add and youtube-add publish directly into the two catalog arrays below.
 
 const VIDEO_MEDIA_ORIGIN = 'https://media.anhuynh341.online';
 
@@ -369,6 +368,10 @@ const VIDEO_SERIES = [
     }
 ];
 
+// youtube-add owns this catalog. Channels are rendered as shelves and their
+// videos reuse the same player, subtitle, queue, and autoplay machinery.
+const YOUTUBE_CHANNELS = [];
+
 const VIDEO_EPISODE_DURATIONS = ['23:41', '23:28', '23:17', '23:45', '23:36', '23:36', '23:51', '24:02', '23:44', '24:15', '23:38', '24:30'];
 
 const VIDEO_AUTO_SWITCH_STORAGE_KEY = 'w41it-video-auto-switch-episode';
@@ -454,8 +457,50 @@ function makeVideoEpisodes(series) {
     }));
 }
 
+function youtubeChannelSeriesId(channelId) {
+    return `youtube:${channelId}`;
+}
+
+function makeYoutubeChannelSeries(channel) {
+    const videos = Array.isArray(channel.videos) ? channel.videos : [];
+    const firstThumbnail = videos.find(video => video.thumbnailPath || video.thumbnail);
+
+    return {
+        id: youtubeChannelSeriesId(channel.id),
+        sourceId: channel.id,
+        contentType: 'youtube',
+        title: channel.name || 'Unknown channel',
+        description: channel.description || 'Locally archived YouTube video served from the W41IT media origin.',
+        posterPath: firstThumbnail?.thumbnailPath || firstThumbnail?.thumbnail || '',
+        backdropPath: firstThumbnail?.thumbnailPath || firstThumbnail?.thumbnail || '',
+        episodes: videos.map((video, index) => ({
+            ...video,
+            number: index + 1,
+            title: video.title || `Video ${index + 1}`
+        }))
+    };
+}
+
+function getYoutubeChannelSeries() {
+    return YOUTUBE_CHANNELS.map(makeYoutubeChannelSeries);
+}
+
 function getVideoSeries(seriesId) {
-    return VIDEO_SERIES.find(series => series.id === seriesId) || VIDEO_SERIES[0];
+    const youtubeSeries = getYoutubeChannelSeries();
+    return VIDEO_SERIES.find(series => series.id === seriesId)
+        || youtubeSeries.find(series => series.id === seriesId)
+        || VIDEO_SERIES[0]
+        || youtubeSeries[0];
+}
+
+function isYoutubeSeries(series) {
+    return series?.contentType === 'youtube';
+}
+
+function videoItemWord(series, { plural = false, capital = false } = {}) {
+    let word = isYoutubeSeries(series) ? 'video' : 'episode';
+    if (plural) word += 's';
+    return capital ? word.charAt(0).toUpperCase() + word.slice(1) : word;
 }
 
 function getVideoEpisode(series, episodeNumber) {
@@ -559,6 +604,7 @@ function renderVideoHome() {
     renderVideoLibraryPortals();
     renderVideoWhatsNew();
     renderVideoSeriesGrid();
+    renderVideoYoutubeLibrary();
     syncVideoLibrarySelection();
 }
 
@@ -595,6 +641,15 @@ function renderVideoLibraryPortals() {
         meta.textContent = seriesCount > 0
             ? `${seriesCount} series • ${episodeCount} episode${episodeCount === 1 ? '' : 's'}`
             : 'No anime added yet';
+    }
+
+    const youtubeCount = YOUTUBE_CHANNELS.reduce(
+        (total, channel) => total + (Array.isArray(channel.videos) ? channel.videos.length : 0),
+        0
+    );
+    const youtubeLibraryCount = document.getElementById('videoYoutubeLibraryCount');
+    if (youtubeLibraryCount) {
+        youtubeLibraryCount.textContent = `${youtubeCount} video${youtubeCount === 1 ? '' : 's'}`;
     }
 }
 
@@ -681,6 +736,80 @@ function renderVideoSeriesGrid() {
     }
 }
 
+function createYoutubeVideoCard(series, episode) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'video-youtube-card';
+    card.onclick = () => openVideoWatch(series.id, episode.number);
+
+    const art = document.createElement('span');
+    art.className = 'video-youtube-card-art';
+
+    const image = document.createElement('img');
+    image.src = episode.thumbnail;
+    image.alt = '';
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    art.appendChild(image);
+
+    const duration = document.createElement('span');
+    duration.className = 'video-youtube-duration';
+    duration.textContent = episode.duration;
+    art.appendChild(duration);
+
+    const title = document.createElement('strong');
+    title.textContent = episode.title;
+
+    const meta = document.createElement('span');
+    meta.className = 'video-youtube-card-meta';
+    meta.textContent = `${series.title} • ${episode.quality || '1080p'}`;
+
+    card.append(art, title, meta);
+    return card;
+}
+
+function renderVideoYoutubeLibrary() {
+    const container = document.getElementById('videoYoutubeChannels');
+    const library = document.getElementById('videoYoutubeLibrary');
+    if (!container || !library) return;
+
+    container.replaceChildren();
+    const channels = getYoutubeChannelSeries();
+    library.classList.toggle('is-empty', channels.length === 0);
+
+    if (channels.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'video-youtube-empty';
+        empty.innerHTML = `
+            <i class="fab fa-youtube video-youtube-empty-icon" aria-hidden="true"></i>
+            <h3>No local YouTube videos yet.</h3>
+            <p>Run <code>youtube-add</code> on the VPS to process videos into <code>/srv/youtube/</code> and publish this catalog.</p>`;
+        container.appendChild(empty);
+        return;
+    }
+
+    channels.forEach(series => {
+        const shelf = document.createElement('section');
+        shelf.className = 'video-youtube-channel';
+
+        const heading = document.createElement('div');
+        heading.className = 'video-youtube-channel-heading';
+        const title = document.createElement('h3');
+        title.textContent = series.title;
+        const count = document.createElement('span');
+        const episodes = makeVideoEpisodes(series);
+        count.textContent = `${episodes.length} video${episodes.length === 1 ? '' : 's'}`;
+        heading.append(title, count);
+
+        const grid = document.createElement('div');
+        grid.className = 'video-youtube-grid';
+        episodes.forEach(episode => grid.appendChild(createYoutubeVideoCard(series, episode)));
+
+        shelf.append(heading, grid);
+        container.appendChild(shelf);
+    });
+}
+
 function showVideoHome() {
     const video = document.getElementById('videoPlayer');
     video?.pause();
@@ -696,6 +825,7 @@ function showVideoHome() {
 
 function openVideoWatch(seriesId, episodeNumber = 1) {
     const series = getVideoSeries(seriesId);
+    if (!series) return;
     const episodes = makeVideoEpisodes(series);
     const requestedEpisode = Number(episodeNumber);
     const selectedEpisode = episodes.find(episode => episode.number === requestedEpisode) || episodes[0];
@@ -703,6 +833,7 @@ function openVideoWatch(seriesId, episodeNumber = 1) {
 
     videoState.activeSeriesId = series.id;
     videoState.activeEpisode = selectedEpisode.number;
+    videoState.activeLibrary = isYoutubeSeries(series) ? 'youtube' : 'anime';
     videoState.currentSeconds = 0;
     videoState.fallbackPlaying = false;
 
@@ -736,26 +867,41 @@ function renderVideoWatchView() {
         }
     }
 
+    const youtube = isYoutubeSeries(series);
+    const itemWord = videoItemWord(series);
+    document.getElementById('videoWatchView')?.classList.toggle('is-youtube', youtube);
+
     const breadcrumb = document.getElementById('videoBreadcrumb');
-    if (breadcrumb) breadcrumb.textContent = `Video  /  ${series.title}  /  S1 E${episode.number}`;
+    if (breadcrumb) {
+        breadcrumb.textContent = youtube
+            ? `Video  /  YouTube  /  ${series.title}  /  ${episode.title}`
+            : `Video  /  ${series.title}  /  S1 E${episode.number}`;
+    }
 
     const seriesName = document.getElementById('videoWatchSeriesName');
     if (seriesName) seriesName.textContent = series.title;
 
     const title = document.getElementById('videoWatchEpisodeTitle');
-    if (title) title.textContent = `S1 E${episode.number} · ${episode.title}`;
+    if (title) title.textContent = youtube
+        ? episode.title
+        : `S1 E${episode.number} · ${episode.title}`;
 
     const description = document.getElementById('videoWatchDescription');
     if (description) description.textContent = series.description;
 
     const meta = document.getElementById('videoWatchMeta');
     if (meta) {
-        meta.innerHTML = `
-            <span>Season 1</span>
-            <span>Episode ${episode.number}</span>
-            <span>${episode.duration}</span>
-            <span>${escapeVideoHtml(episode.quality || '720p')}</span>
-            <span>${episode.fileUrl ? 'VPS stream' : 'No source'}</span>`;
+        meta.innerHTML = youtube
+            ? `<span>YouTube archive</span>
+               <span>${escapeVideoHtml(series.title)}</span>
+               <span>${episode.duration}</span>
+               <span>${escapeVideoHtml(episode.quality || '720p')}</span>
+               <span>${episode.fileUrl ? 'VPS stream' : 'No source'}</span>`
+            : `<span>Season 1</span>
+               <span>Episode ${episode.number}</span>
+               <span>${episode.duration}</span>
+               <span>${escapeVideoHtml(episode.quality || '720p')}</span>
+               <span>${episode.fileUrl ? 'VPS stream' : 'No source'}</span>`;
     }
 
     const qualityBadge = document.querySelector('#videoStage .video-quality-badge');
@@ -763,13 +909,20 @@ function renderVideoWatchView() {
 
     const panelTitle = document.getElementById('videoEpisodePanelTitle');
     if (panelTitle) panelTitle.textContent = series.title;
+    const panelKind = document.getElementById('videoEpisodePanelKind');
+    if (panelKind) panelKind.textContent = youtube ? 'YouTube channel' : 'Season 1';
     const poster = document.getElementById('videoEpisodeSeriesPoster');
     if (poster) {
         poster.src = getVideoSeriesPoster(series);
-        poster.alt = `${series.title} cover`;
+        poster.alt = `${series.title} ${youtube ? 'video thumbnail' : 'cover'}`;
     }
     const count = document.getElementById('videoEpisodeCount');
-    if (count) count.textContent = `${episodes.length} Episodes`;
+    if (count) count.textContent = `${episodes.length} ${videoItemWord(series, { plural: episodes.length !== 1, capital: true })}`;
+
+    const autoSwitchLabel = document.getElementById('videoAutoSwitchLabel');
+    if (autoSwitchLabel) autoSwitchLabel.textContent = `Auto-switch ${itemWord}`;
+    const loopLabel = document.getElementById('videoLoopLabel');
+    if (loopLabel) loopLabel.textContent = `Loop ${itemWord}`;
 
     renderVideoEpisodeList(series, episodes);
     resetVideoControlState(episode);
@@ -790,7 +943,8 @@ function renderVideoEpisodeList(series, episodes = makeVideoEpisodes(series)) {
     episodes.forEach(episode => {
         const row = document.createElement('button');
         row.type = 'button';
-        row.className = `video-episode-row${episode.number === videoState.activeEpisode ? ' active' : ''}`;
+        const youtube = isYoutubeSeries(series);
+        row.className = `video-episode-row${youtube ? ' is-youtube' : ''}${episode.number === videoState.activeEpisode ? ' active' : ''}`;
         row.dataset.episode = String(episode.number);
         row.onclick = () => openVideoWatch(series.id, episode.number);
 
@@ -802,7 +956,7 @@ function renderVideoEpisodeList(series, episodes = makeVideoEpisodes(series)) {
 
         row.innerHTML = `
             <img class="video-episode-thumb" src="${episode.thumbnail}" alt="">
-            <span class="video-episode-number">${episode.number}</span>
+            <span class="video-episode-number">${youtube ? '<i class="fab fa-youtube"></i>' : episode.number}</span>
             <span class="video-episode-copy">
                 <strong>${escapeVideoHtml(episode.title)}</strong>
                 <span>${episode.duration}</span>
@@ -856,7 +1010,7 @@ async function toggleVideoPlayback() {
         updateVideoPlaybackButtons();
         showVideoToast(
             videoState.fallbackPlaying
-                ? 'Frontend demo playback. Add episode.fileUrl later to stream the real VPS video.'
+                ? 'Frontend demo playback. Add a media source to stream the real VPS video.'
                 : 'Demo playback paused.'
         );
         return;
@@ -877,7 +1031,7 @@ function videoPreviousEpisode() {
     const episodes = makeVideoEpisodes(series);
     const currentIndex = episodes.findIndex(episode => episode.number === videoState.activeEpisode);
     if (currentIndex <= 0) {
-        showVideoToast('This is the first available episode.');
+        showVideoToast(`This is the first available ${videoItemWord(series)}.`);
         return;
     }
     openVideoWatch(series.id, episodes[currentIndex - 1].number);
@@ -888,7 +1042,7 @@ function videoNextEpisode({ autoplay = false } = {}) {
     const episodes = makeVideoEpisodes(series);
     const currentIndex = episodes.findIndex(episode => episode.number === videoState.activeEpisode);
     if (currentIndex < 0 || currentIndex >= episodes.length - 1) {
-        showVideoToast('This is the last available episode.');
+        showVideoToast(`This is the last available ${videoItemWord(series)}.`);
         return;
     }
 
@@ -901,8 +1055,8 @@ function videoNextEpisode({ autoplay = false } = {}) {
     if (nextEpisode.fileUrl && video) {
         const playAttempt = video.play();
         playAttempt?.catch?.(error => {
-            console.warn('Automatic next-episode playback failed:', error);
-            showVideoToast('The next episode is ready. Press play to continue.');
+            console.warn('Automatic next-video playback failed:', error);
+            showVideoToast(`The next ${videoItemWord(series)} is ready. Press play to continue.`);
         });
         return;
     }
@@ -1140,7 +1294,8 @@ function applySelectedSubtitle() {
     }
 
     if (trackElements.length === 0) {
-        showVideoToast('No subtitle tracks are available for this episode yet.');
+        const series = getVideoSeries(videoState.activeSeriesId);
+        showVideoToast(`No subtitle tracks are available for this ${videoItemWord(series)}.`);
     }
 }
 
@@ -1150,7 +1305,8 @@ function toggleVideoSubtitles() {
 
     const subtitleOptions = Array.from(select.options).filter(option => option.value !== 'off');
     if (subtitleOptions.length === 0) {
-        showVideoToast('No subtitle tracks are available for this episode yet.');
+        const series = getVideoSeries(videoState.activeSeriesId);
+        showVideoToast(`No subtitle tracks are available for this ${videoItemWord(series)}.`);
         return;
     }
 
