@@ -783,7 +783,7 @@ function renderVideoYoutubeLibrary() {
         empty.innerHTML = `
             <i class="fab fa-youtube video-youtube-empty-icon" aria-hidden="true"></i>
             <h3>No local YouTube videos yet.</h3>
-            <p>Run <code>youtube-add</code> on the VPS to process videos into <code>/srv/youtube/</code> and publish this catalog.</p>`;
+            <p>Run <code>youtube-add</code> on the VPS to process videos into <code>/srv/media/youtube/</code> and publish this catalog.</p>`;
         container.appendChild(empty);
         return;
     }
