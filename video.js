@@ -384,8 +384,20 @@ const YOUTUBE_CHANNELS = [
                 thumbnailPath: "/youtube/kurzgesagt-in-a-nutshell/why-humanity-will-never-leave-the-solar-system/thumbnail.jpg",
                 videoPath: "/youtube/kurzgesagt-in-a-nutshell/why-humanity-will-never-leave-the-solar-system/video.mp4",
                 subtitles: []
-            }
-        ]
+            },
+        {
+            id: "how-are-memories-stored-inside-your-brain",
+            title: "How Are Memories Stored Inside Your Brain？",
+            duration: "13:56",
+            quality: "720p",
+            thumbnailPath: "/youtube/kurzgesagt-in-a-nutshell/how-are-memories-stored-inside-your-brain/thumbnail.jpg",
+            videoPath: "/youtube/kurzgesagt-in-a-nutshell/how-are-memories-stored-inside-your-brain/video.mp4",
+            subtitles: [
+                { lang: "en", label: "English", path: "/youtube/kurzgesagt-in-a-nutshell/how-are-memories-stored-inside-your-brain/en.vtt", default: true },
+                { lang: "en", label: "English", path: "/youtube/kurzgesagt-in-a-nutshell/how-are-memories-stored-inside-your-brain/en-2.vtt" }
+            ]
+        }
+    ]
     }
 ];
 
