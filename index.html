@@ -6,7 +6,7 @@
   <title>W41IT</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=site-monitor-link-20260813-1">
-  <link rel="stylesheet" href="video.css?v=mobile-title-fit-20260815-1">
+  <link rel="stylesheet" href="video.css?v=youtube-library-draft-20260816-1">
 </head>
 <body>
 <div id="loginPage">
@@ -20,7 +20,7 @@
 
 <div id="mainPage" class="hidden">
   <div id="sidebarOverlay" onclick="closeSidebar()"></div>
-  
+
   <div id="app-container">
     <div class="sidebar" id="sidebar">
       <div id="userWelcome" class="user-welcome hidden" aria-live="polite">
@@ -194,9 +194,14 @@
         </div>
 
         <section id="videoYoutubeLibrary" class="video-youtube-library hidden" aria-labelledby="videoYoutubeLibraryTitle">
-          <i class="fab fa-youtube video-youtube-empty-icon" aria-hidden="true"></i>
-          <h2 id="videoYoutubeLibraryTitle">No local YouTube videos yet.</h2>
-          <p>Put videos in <code>/srv/youtube/</code>; the next step is generating a small catalog so this page can discover and play them.</p>
+          <div class="video-youtube-library-header">
+            <div>
+              <span>Local archive</span>
+              <h2 id="videoYoutubeLibraryTitle">YouTube channels</h2>
+            </div>
+            <strong id="videoYoutubeLibraryCount">0 videos</strong>
+          </div>
+          <div id="videoYoutubeChannels" class="video-youtube-channels" aria-live="polite"></div>
         </section>
       </section>
 
@@ -222,9 +227,9 @@
               <input id="videoSeekbar" class="video-seekbar" type="range" min="0" max="1000" value="0" aria-label="Video progress" aria-keyshortcuts="ArrowLeft ArrowRight" title="Left / Right Arrow: seek 5 seconds">
               <div class="video-control-row">
                 <div class="video-control-left">
-                  <button type="button" class="video-control-btn" onclick="videoPreviousEpisode()" title="Previous episode"><i class="fas fa-step-backward"></i></button>
+                  <button type="button" class="video-control-btn" onclick="videoPreviousEpisode()" title="Previous video"><i class="fas fa-step-backward"></i></button>
                   <button id="videoPlayBtn" type="button" class="video-control-btn video-control-play" onclick="toggleVideoPlayback()" title="Play / pause"><i class="fas fa-play"></i></button>
-                  <button type="button" class="video-control-btn" onclick="videoNextEpisode()" title="Next episode"><i class="fas fa-step-forward"></i></button>
+                  <button type="button" class="video-control-btn" onclick="videoNextEpisode()" title="Next video"><i class="fas fa-step-forward"></i></button>
                   <button id="videoMuteBtn" type="button" class="video-control-btn" onclick="toggleVideoMute()" title="Mute"><i class="fas fa-volume-up"></i></button>
                   <input id="videoVolume" class="video-volume" type="range" min="0" max="100" value="100" aria-label="Video volume">
                   <span id="videoTimeReadout" class="video-time-readout">0:00 / 23:51</span>
@@ -251,11 +256,11 @@
                         </div>
                       </div>
                       <div class="video-settings-row">
-                        <span>Auto-switch episode</span>
+                        <span id="videoAutoSwitchLabel">Auto-switch episode</span>
                         <button id="videoAutoSwitchToggle" type="button" class="video-settings-toggle active" onclick="toggleVideoAutoSwitch()" aria-pressed="true">On</button>
                       </div>
                       <div class="video-settings-row">
-                        <span>Loop episode</span>
+                        <span id="videoLoopLabel">Loop episode</span>
                         <button id="videoLoopToggle" type="button" class="video-settings-toggle" onclick="toggleVideoLoop()" aria-pressed="false">Off</button>
                       </div>
                     </div>
@@ -278,7 +283,7 @@
               <img id="videoEpisodeSeriesPoster" alt="">
               <div>
                 <h2 id="videoEpisodePanelTitle"></h2>
-                <span>Season 1</span>
+                <span id="videoEpisodePanelKind">Season 1</span>
                 <strong id="videoEpisodeCount"></strong>
               </div>
             </div>
@@ -436,7 +441,7 @@
 <script src="player.js?v=video-episode-controls-20260815-1"></script>
 <script src="auth.js?v=no-temp-upload-20260804-1"></script>
 <script src="ui.js?v=whats-new-queue-20260809-1"></script>
-<script src="video.js?v=library-stops-playback-20260815-1"></script>
+<script src="video.js?v=youtube-library-draft-20260816-1"></script>
 <script src="mobile.js"></script>
 
 
