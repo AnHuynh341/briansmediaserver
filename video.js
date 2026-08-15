@@ -453,6 +453,79 @@ const YOUTUBE_CHANNELS = [
             ]
         }
     ]
+    },
+    {
+        id: "king-gnu-official-youtube-channel",
+        name: "King Gnu official YouTube channel",
+        description: "Locally archived YouTube videos served from the W41IT media origin.",
+        videos: [
+            {
+                id: "king-gnu-aizo",
+                title: "King Gnu - AIZO",
+                duration: "3:58",
+                quality: "720p",
+                thumbnailPath: "/youtube/king-gnu-official-youtube-channel/king-gnu-aizo/thumbnail.jpg",
+                videoPath: "/youtube/king-gnu-official-youtube-channel/king-gnu-aizo/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/king-gnu-official-youtube-channel/king-gnu-aizo/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "king-gnu-specialz",
+                title: "King Gnu - SPECIALZ",
+                duration: "4:01",
+                quality: "720p",
+                thumbnailPath: "/youtube/king-gnu-official-youtube-channel/king-gnu-specialz/thumbnail.jpg",
+                videoPath: "/youtube/king-gnu-official-youtube-channel/king-gnu-specialz/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/king-gnu-official-youtube-channel/king-gnu-specialz/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "king-gnu",
+                title: "King Gnu - 逆夢",
+                duration: "5:19",
+                quality: "694p",
+                thumbnailPath: "/youtube/king-gnu-official-youtube-channel/king-gnu/thumbnail.jpg",
+                videoPath: "/youtube/king-gnu-official-youtube-channel/king-gnu/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/king-gnu-official-youtube-channel/king-gnu/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "king-g-ichizu",
+                title: "King Gnu - 一途",
+                duration: "3:10",
+                quality: "720p",
+                thumbnailPath: "/youtube/king-gnu-official-youtube-channel/king-g-ichizu/thumbnail.jpg",
+                videoPath: "/youtube/king-gnu-official-youtube-channel/king-g-ichizu/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/king-gnu-official-youtube-channel/king-g-ichizu/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "king-g-hakujitsu",
+                title: "King Gnu - 白日",
+                duration: "4:39",
+                quality: "720p",
+                thumbnailPath: "/youtube/king-gnu-official-youtube-channel/king-g-hakujitsu/thumbnail.jpg",
+                videoPath: "/youtube/king-gnu-official-youtube-channel/king-g-hakujitsu/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/king-gnu-official-youtube-channel/king-g-hakujitsu/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "king-hikoutei",
+                title: "King Gnu - 飛行艇",
+                duration: "4:22",
+                quality: "544p",
+                thumbnailPath: "/youtube/king-gnu-official-youtube-channel/king-hikoutei/thumbnail.jpg",
+                videoPath: "/youtube/king-gnu-official-youtube-channel/king-hikoutei/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/king-gnu-official-youtube-channel/king-hikoutei/en.vtt", default: true }
+                ]
+            }
+        ]
     }
 ];
 
