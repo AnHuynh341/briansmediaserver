@@ -370,7 +370,24 @@ const VIDEO_SERIES = [
 
 // youtube-add owns this catalog. Channels are rendered as shelves and their
 // videos reuse the same player, subtitle, queue, and autoplay machinery.
-const YOUTUBE_CHANNELS = [];
+const YOUTUBE_CHANNELS = [
+    {
+        id: "kurzgesagt-in-a-nutshell",
+        name: "Kurzgesagt – In a Nutshell",
+        description: "Locally archived YouTube videos served from the W41IT media origin.",
+        videos: [
+            {
+                id: "why-humanity-will-never-leave-the-solar-system",
+                title: "Why Humanity Will Never Leave The Solar System",
+                duration: "14:08",
+                quality: "720p",
+                thumbnailPath: "/youtube/kurzgesagt-in-a-nutshell/why-humanity-will-never-leave-the-solar-system/thumbnail.jpg",
+                videoPath: "/youtube/kurzgesagt-in-a-nutshell/why-humanity-will-never-leave-the-solar-system/video.mp4",
+                subtitles: []
+            }
+        ]
+    }
+];
 
 const VIDEO_EPISODE_DURATIONS = ['23:41', '23:28', '23:17', '23:45', '23:36', '23:36', '23:51', '24:02', '23:44', '24:15', '23:38', '24:30'];
 
