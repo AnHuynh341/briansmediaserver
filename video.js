@@ -554,6 +554,7 @@ function makeYoutubeChannelSeries(channel) {
         sourceId: channel.id,
         contentType: 'youtube',
         title: channel.name || 'Unknown channel',
+        updatedAt: channel.updatedAt || '',
         description: channel.description || 'Locally archived YouTube video served from the W41IT media origin.',
         posterPath: firstThumbnail?.thumbnailPath || firstThumbnail?.thumbnail || '',
         backdropPath: firstThumbnail?.thumbnailPath || firstThumbnail?.thumbnail || '',
@@ -565,8 +566,25 @@ function makeYoutubeChannelSeries(channel) {
     };
 }
 
+function sortVideoGroupsByLatestUpdate(groups) {
+    return groups
+        .map((group, catalogIndex) => ({
+            group,
+            catalogIndex,
+            updatedAt: Date.parse(group?.updatedAt || '') || 0
+        }))
+        .sort((left, right) =>
+            right.updatedAt - left.updatedAt || left.catalogIndex - right.catalogIndex
+        )
+        .map(entry => entry.group);
+}
+
+function getLatestVideoSeries() {
+    return sortVideoGroupsByLatestUpdate(VIDEO_SERIES);
+}
+
 function getYoutubeChannelSeries() {
-    return YOUTUBE_CHANNELS.map(makeYoutubeChannelSeries);
+    return sortVideoGroupsByLatestUpdate(YOUTUBE_CHANNELS).map(makeYoutubeChannelSeries);
 }
 
 function getVideoSeries(seriesId) {
@@ -693,8 +711,9 @@ function renderVideoHome() {
 }
 
 function getVideoAnimePortalImages(limit = 5) {
-    const seriesArtwork = VIDEO_SERIES.map(series => getVideoSeriesPoster(series));
-    const episodeArtwork = VIDEO_SERIES.flatMap(series =>
+    const latestSeries = getLatestVideoSeries();
+    const seriesArtwork = latestSeries.map(series => getVideoSeriesPoster(series));
+    const episodeArtwork = latestSeries.flatMap(series =>
         makeVideoEpisodes(series).map(episode => episode.thumbnail)
     );
 
@@ -800,7 +819,7 @@ function renderVideoWhatsNew() {
     const grid = document.getElementById('videoWhatsNewGrid');
     if (!grid) return;
     grid.replaceChildren();
-    VIDEO_SERIES.slice(0, 7).forEach(series => {
+    getLatestVideoSeries().slice(0, 7).forEach(series => {
         grid.appendChild(createVideoSeriesCard(series, { compact: true, isNew: true }));
     });
 }
@@ -810,7 +829,7 @@ function renderVideoSeriesGrid() {
     if (!grid) return;
 
     grid.replaceChildren();
-    VIDEO_SERIES.forEach(series => grid.appendChild(createVideoSeriesCard(series)));
+    getLatestVideoSeries().forEach(series => grid.appendChild(createVideoSeriesCard(series)));
 
     if (VIDEO_SERIES.length === 0) {
         const empty = document.createElement('div');
