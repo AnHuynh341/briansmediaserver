@@ -396,6 +396,61 @@ const YOUTUBE_CHANNELS = [
                 { lang: "en", label: "English", path: "/youtube/kurzgesagt-in-a-nutshell/how-are-memories-stored-inside-your-brain/en.vtt", default: true },
                 { lang: "en", label: "English", path: "/youtube/kurzgesagt-in-a-nutshell/how-are-memories-stored-inside-your-brain/en-2.vtt" }
             ]
+        },
+        {
+            id: "we-found-a-loophole-to-survive-the-end-of-the-universe",
+            title: "We Found a Loophole to Survive the End of the Universe",
+            duration: "12:42",
+            quality: "720p",
+            thumbnailPath: "/youtube/kurzgesagt-in-a-nutshell/we-found-a-loophole-to-survive-the-end-of-the-universe/thumbnail.jpg",
+            videoPath: "/youtube/kurzgesagt-in-a-nutshell/we-found-a-loophole-to-survive-the-end-of-the-universe/video.mp4",
+            subtitles: [
+                { lang: "en", label: "English", path: "/youtube/kurzgesagt-in-a-nutshell/we-found-a-loophole-to-survive-the-end-of-the-universe/en.vtt", default: true }
+            ]
+        },
+        {
+            id: "astronomy-is-in-crisis-and-it-s-incredibly-exciting",
+            title: "Astronomy Is In Crisis And It's Incredibly Exciting",
+            duration: "11:28",
+            quality: "720p",
+            thumbnailPath: "/youtube/kurzgesagt-in-a-nutshell/astronomy-is-in-crisis-and-it-s-incredibly-exciting/thumbnail.jpg",
+            videoPath: "/youtube/kurzgesagt-in-a-nutshell/astronomy-is-in-crisis-and-it-s-incredibly-exciting/video.mp4",
+            subtitles: [
+                { lang: "en", label: "English", path: "/youtube/kurzgesagt-in-a-nutshell/astronomy-is-in-crisis-and-it-s-incredibly-exciting/en.vtt", default: true }
+            ]
+        },
+        {
+            id: "this-is-the-scariest-place-in-the-universe",
+            title: "This Is the Scariest Place in The Universe",
+            duration: "9:13",
+            quality: "720p",
+            thumbnailPath: "/youtube/kurzgesagt-in-a-nutshell/this-is-the-scariest-place-in-the-universe/thumbnail.jpg",
+            videoPath: "/youtube/kurzgesagt-in-a-nutshell/this-is-the-scariest-place-in-the-universe/video.mp4",
+            subtitles: [
+                { lang: "en", label: "English", path: "/youtube/kurzgesagt-in-a-nutshell/this-is-the-scariest-place-in-the-universe/en.vtt", default: true }
+            ]
+        },
+        {
+            id: "alcohol-is-amazing",
+            title: "Alcohol is AMAZING",
+            duration: "14:12",
+            quality: "720p",
+            thumbnailPath: "/youtube/kurzgesagt-in-a-nutshell/alcohol-is-amazing/thumbnail.jpg",
+            videoPath: "/youtube/kurzgesagt-in-a-nutshell/alcohol-is-amazing/video.mp4",
+            subtitles: [
+                { lang: "en", label: "English", path: "/youtube/kurzgesagt-in-a-nutshell/alcohol-is-amazing/en.vtt", default: true }
+            ]
+        },
+        {
+            id: "our-minds-are-weirder-than-you-think",
+            title: "Our Minds Are Weirder than You Think",
+            duration: "12:22",
+            quality: "720p",
+            thumbnailPath: "/youtube/kurzgesagt-in-a-nutshell/our-minds-are-weirder-than-you-think/thumbnail.jpg",
+            videoPath: "/youtube/kurzgesagt-in-a-nutshell/our-minds-are-weirder-than-you-think/video.mp4",
+            subtitles: [
+                { lang: "en", label: "English", path: "/youtube/kurzgesagt-in-a-nutshell/our-minds-are-weirder-than-you-think/en.vtt", default: true }
+            ]
         }
     ]
     }
