@@ -6,7 +6,7 @@
   <title>W41IT</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=site-monitor-link-20260813-1">
-  <link rel="stylesheet" href="video.css?v=youtube-library-draft-20260816-1">
+  <link rel="stylesheet" href="video.css?v=youtube-channel-view-20260816-1">
 </head>
 <body>
 <div id="loginPage">
@@ -202,6 +202,27 @@
             <strong id="videoYoutubeLibraryCount">0 videos</strong>
           </div>
           <div id="videoYoutubeChannels" class="video-youtube-channels" aria-live="polite"></div>
+        </section>
+      </section>
+
+      <section id="videoYoutubeChannelView" class="video-page video-youtube-channel-view hidden" aria-labelledby="videoYoutubeChannelTitle">
+        <header class="video-watch-topbar">
+          <button type="button" class="video-back-btn" onclick="showVideoHome()">
+            <i class="fas fa-arrow-left"></i> YouTube library
+          </button>
+          <div id="videoYoutubeChannelBreadcrumb" class="video-breadcrumb">YouTube channels</div>
+        </header>
+
+        <section class="video-youtube-channel-page">
+          <div class="video-youtube-channel-page-header">
+            <div>
+              <span>Channel archive</span>
+              <h1 id="videoYoutubeChannelTitle"></h1>
+              <p id="videoYoutubeChannelDescription"></p>
+            </div>
+            <strong id="videoYoutubeChannelCount">0 videos</strong>
+          </div>
+          <div id="videoYoutubeChannelGrid" class="video-youtube-grid video-youtube-channel-grid" aria-live="polite"></div>
         </section>
       </section>
 
@@ -441,7 +462,7 @@
 <script src="player.js?v=video-episode-controls-20260815-1"></script>
 <script src="auth.js?v=no-temp-upload-20260804-1"></script>
 <script src="ui.js?v=whats-new-queue-20260809-1"></script>
-<script src="video.js?v=latest-group-sort-20260816-1"></script>
+<script src="video.js?v=youtube-channel-view-20260816-1"></script>
 <script src="mobile.js"></script>
 
 

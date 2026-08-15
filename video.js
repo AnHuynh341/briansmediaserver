@@ -530,6 +530,7 @@ const YOUTUBE_CHANNELS = [
 ];
 
 const VIDEO_EPISODE_DURATIONS = ['23:41', '23:28', '23:17', '23:45', '23:36', '23:36', '23:51', '24:02', '23:44', '24:15', '23:38', '24:30'];
+const YOUTUBE_CHANNEL_PREVIEW_LIMIT = 6;
 
 const VIDEO_AUTO_SWITCH_STORAGE_KEY = 'w41it-video-auto-switch-episode';
 
@@ -670,6 +671,10 @@ function getVideoSeries(seriesId) {
 
 function isYoutubeSeries(series) {
     return series?.contentType === 'youtube';
+}
+
+function getYoutubeEpisodesNewestFirst(series) {
+    return makeVideoEpisodes(series).slice().reverse();
 }
 
 function videoItemWord(series, { plural = false, capital = false } = {}) {
@@ -972,18 +977,68 @@ function renderVideoYoutubeLibrary() {
         heading.className = 'video-youtube-channel-heading';
         const title = document.createElement('h3');
         title.textContent = series.title;
+        const actions = document.createElement('div');
+        actions.className = 'video-youtube-channel-actions';
         const count = document.createElement('span');
-        const episodes = makeVideoEpisodes(series);
+        const episodes = getYoutubeEpisodesNewestFirst(series);
         count.textContent = `${episodes.length} video${episodes.length === 1 ? '' : 's'}`;
-        heading.append(title, count);
+
+        const viewAll = document.createElement('button');
+        viewAll.type = 'button';
+        viewAll.className = 'video-youtube-view-all';
+        viewAll.setAttribute('aria-label', `View all videos from ${series.title}`);
+        viewAll.innerHTML = 'View all <i class="fas fa-arrow-right" aria-hidden="true"></i>';
+        viewAll.onclick = () => openYoutubeChannel(series.id);
+        actions.append(count, viewAll);
+        heading.append(title, actions);
 
         const grid = document.createElement('div');
         grid.className = 'video-youtube-grid';
-        episodes.forEach(episode => grid.appendChild(createYoutubeVideoCard(series, episode)));
+        episodes
+            .slice(0, YOUTUBE_CHANNEL_PREVIEW_LIMIT)
+            .forEach(episode => grid.appendChild(createYoutubeVideoCard(series, episode)));
 
         shelf.append(heading, grid);
         container.appendChild(shelf);
     });
+}
+
+function renderVideoYoutubeChannelView(series) {
+    const title = document.getElementById('videoYoutubeChannelTitle');
+    const description = document.getElementById('videoYoutubeChannelDescription');
+    const count = document.getElementById('videoYoutubeChannelCount');
+    const breadcrumb = document.getElementById('videoYoutubeChannelBreadcrumb');
+    const grid = document.getElementById('videoYoutubeChannelGrid');
+    if (!grid) return;
+
+    const episodes = getYoutubeEpisodesNewestFirst(series);
+    if (title) title.textContent = series.title;
+    if (description) description.textContent = series.description;
+    if (count) count.textContent = `${episodes.length} video${episodes.length === 1 ? '' : 's'}`;
+    if (breadcrumb) breadcrumb.textContent = series.title;
+
+    grid.replaceChildren();
+    episodes.forEach(episode => grid.appendChild(createYoutubeVideoCard(series, episode)));
+}
+
+function openYoutubeChannel(seriesId) {
+    const series = getVideoSeries(seriesId);
+    if (!isYoutubeSeries(series)) return;
+
+    const video = document.getElementById('videoPlayer');
+    video?.pause();
+    videoState.fallbackPlaying = false;
+    videoState.activeLibrary = 'youtube';
+    updateVideoPlaybackButtons();
+    closeVideoSettings();
+    renderVideoYoutubeChannelView(series);
+
+    document.getElementById('videoHomeView')?.classList.add('hidden');
+    document.getElementById('videoWatchView')?.classList.add('hidden');
+    document.getElementById('videoYoutubeChannelView')?.classList.remove('hidden');
+
+    const page = document.getElementById('videoYoutubeChannelView');
+    if (page) page.scrollTop = 0;
 }
 
 function showVideoHome() {
@@ -994,7 +1049,9 @@ function showVideoHome() {
     closeVideoSettings();
 
     document.getElementById('videoHomeView')?.classList.remove('hidden');
+    document.getElementById('videoYoutubeChannelView')?.classList.add('hidden');
     document.getElementById('videoWatchView')?.classList.add('hidden');
+    syncVideoLibrarySelection();
     const page = document.getElementById('videoHomeView');
     if (page) page.scrollTop = 0;
 }
@@ -1014,6 +1071,7 @@ function openVideoWatch(seriesId, episodeNumber = 1) {
     videoState.fallbackPlaying = false;
 
     document.getElementById('videoHomeView')?.classList.add('hidden');
+    document.getElementById('videoYoutubeChannelView')?.classList.add('hidden');
     document.getElementById('videoWatchView')?.classList.remove('hidden');
     renderVideoWatchView();
 
