@@ -526,6 +526,207 @@ const YOUTUBE_CHANNELS = [
                 ]
             }
         ]
+    },
+    {
+        id: "kane-pixels",
+        name: "Kane Pixels",
+        updatedAt: "2026-08-16T04:25:55Z",
+        description: "Locally archived YouTube videos served from the W41IT media origin.",
+        videos: [
+            {
+                id: "the-backrooms-found-footage",
+                title: "The Backrooms (Found Footage)",
+                duration: "9:14",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/the-backrooms-found-footage/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/the-backrooms-found-footage/video.mp4",
+                subtitles: []
+            },
+            {
+                id: "backrooms-the-third-test",
+                title: "Backrooms - The Third Test",
+                duration: "1:47",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-the-third-test/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-the-third-test/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/kane-pixels/backrooms-the-third-test/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "backrooms-first-contact",
+                title: "Backrooms - First Contact",
+                duration: "1:57",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-first-contact/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-first-contact/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/kane-pixels/backrooms-first-contact/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "backrooms-missing-persons",
+                title: "Backrooms - Missing Persons",
+                duration: "2:36",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-missing-persons/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-missing-persons/video.mp4",
+                subtitles: []
+            },
+            {
+                id: "backrooms-informational-video",
+                title: "Backrooms - Informational Video",
+                duration: "8:01",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-informational-video/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-informational-video/video.mp4",
+                subtitles: []
+            },
+            {
+                id: "backrooms-autopsy-report",
+                title: "Backrooms - Autopsy Report",
+                duration: "2:36",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-autopsy-report/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-autopsy-report/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/kane-pixels/backrooms-autopsy-report/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "backrooms-motion-detected",
+                title: "Backrooms - Motion Detected",
+                duration: "4:07",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-motion-detected/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-motion-detected/video.mp4",
+                subtitles: []
+            },
+            {
+                id: "backrooms-prototype",
+                title: "Backrooms - Prototype",
+                duration: "1:32",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-prototype/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-prototype/video.mp4",
+                subtitles: []
+            },
+            {
+                id: "backrooms-pitfalls",
+                title: "Backrooms - Pitfalls",
+                duration: "14:04",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-pitfalls/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-pitfalls/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/kane-pixels/backrooms-pitfalls/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "backrooms-report",
+                title: "Backrooms - Report",
+                duration: "4:46",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-report/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-report/video.mp4",
+                subtitles: []
+            },
+            {
+                id: "backrooms-presentation",
+                title: "Backrooms - Presentation",
+                duration: "8:26",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-presentation/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-presentation/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/kane-pixels/backrooms-presentation/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "backrooms-found-footage-2",
+                title: "Backrooms - Found Footage #2",
+                duration: "13:22",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-found-footage-2/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-found-footage-2/video.mp4",
+                subtitles: []
+            },
+            {
+                id: "i-remember",
+                title: "I Remember",
+                duration: "1:29",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/i-remember/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/i-remember/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/kane-pixels/i-remember/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "backrooms-reunion",
+                title: "Backrooms - Reunion",
+                duration: "13:11",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-reunion/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-reunion/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/kane-pixels/backrooms-reunion/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "backrooms-overflow",
+                title: "Backrooms - Overflow",
+                duration: "1:38",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-overflow/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-overflow/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/kane-pixels/backrooms-overflow/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "backrooms-damage-control",
+                title: "Backrooms - Damage Control",
+                duration: "14:03",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-damage-control/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-damage-control/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/kane-pixels/backrooms-damage-control/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "backrooms-found-footage-3",
+                title: "Backrooms - Found Footage #3",
+                duration: "45:01",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-found-footage-3/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-found-footage-3/video.mp4",
+                subtitles: []
+            },
+            {
+                id: "backrooms-lighting-and-tile-survey",
+                title: "Backrooms - Lighting and Tile Survey",
+                duration: "8:43",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-lighting-and-tile-survey/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-lighting-and-tile-survey/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/kane-pixels/backrooms-lighting-and-tile-survey/en.vtt", default: true }
+                ]
+            },
+            {
+                id: "backrooms-static-dead-end",
+                title: "Backrooms - Static Dead End",
+                duration: "4:02",
+                quality: "720p",
+                thumbnailPath: "/youtube/kane-pixels/backrooms-static-dead-end/thumbnail.jpg",
+                videoPath: "/youtube/kane-pixels/backrooms-static-dead-end/video.mp4",
+                subtitles: [
+                    { lang: "en", label: "English", path: "/youtube/kane-pixels/backrooms-static-dead-end/en.vtt", default: true }
+                ]
+            }
+        ]
     }
 ];
 
