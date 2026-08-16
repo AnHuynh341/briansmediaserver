@@ -727,6 +727,23 @@ const YOUTUBE_CHANNELS = [
                 ]
             }
         ]
+    },
+    {
+        id: "hoidongcuu",
+        name: "Hội Đồng Cừu",
+        updatedAt: "2026-08-16T10:40:27Z",
+        description: "Locally archived YouTube videos served from the W41IT media origin.",
+        videos: [
+            {
+                id: "m-t-v-i-tranh-bi-n-kh-c-v-b-c-l-t",
+                title: "MỘT VÀI TRANH BIỆN KHÁC VỀ BÓC LỘT",
+                duration: "18:44",
+                quality: "720p",
+                thumbnailPath: "/youtube/hoidongcuu/m-t-v-i-tranh-bi-n-kh-c-v-b-c-l-t/thumbnail.jpg",
+                videoPath: "/youtube/hoidongcuu/m-t-v-i-tranh-bi-n-kh-c-v-b-c-l-t/video.mp4",
+                subtitles: []
+            }
+        ]
     }
 ];
 
