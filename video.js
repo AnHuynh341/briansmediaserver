@@ -4,7 +4,7 @@
 // The UI is currently driven by the real VPS-backed catalog below.
 // anime-add and youtube-add publish directly into the two catalog arrays below.
 
-const VIDEO_MEDIA_ORIGIN = 'https://media.anhuynh341.online';
+const VIDEO_MEDIA_ORIGIN = 'https://cdn.anhuynh341.online';
 
 function resolveVideoMediaUrl(path) {
     if (!path) return '';
