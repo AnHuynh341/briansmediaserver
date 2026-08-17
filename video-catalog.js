@@ -1,148 +1,47 @@
 // ==========================================================
-// W41IT VIDEO CATALOG — Appwrite-backed live metadata
+// W41IT VIDEO CATALOG — live Appwrite metadata
 // ==========================================================
-// video.js still contains the last Git-backed catalog as a safety fallback.
-// Once these collections are available, this file replaces the in-memory
-// VIDEO_SERIES / YOUTUBE_CHANNELS arrays without a GitHub Pages deployment.
+// video.js keeps the last embedded catalog as a safety fallback. Once the
+// Appwrite document exists, this file replaces those in-memory arrays live.
 
-const VIDEO_GROUPS_COLLECTION_ID = 'video_groups';
-const VIDEO_ITEMS_COLLECTION_ID = 'video_items';
-const VIDEO_CATALOG_PAGE_SIZE = 100;
+const VIDEO_CATALOG_COLLECTION_ID = 'video_catalog';
+const VIDEO_CATALOG_DOCUMENT_ID = 'current';
 
 let videoCatalogLoadedFromAppwrite = false;
-let videoCatalogGroupDocuments = [];
-let videoCatalogItemDocuments = [];
+let liveVideoCatalog = null;
 
-async function listAllVideoCatalogDocuments(collectionId) {
-    const documents = [];
-    let offset = 0;
+function normalizeLiveVideoCatalog(raw) {
+    const catalog = raw && typeof raw === 'object' ? raw : {};
+    const anime = Array.isArray(catalog.VIDEO_SERIES) ? catalog.VIDEO_SERIES : [];
+    const youtube = Array.isArray(catalog.YOUTUBE_CHANNELS) ? catalog.YOUTUBE_CHANNELS : [];
 
-    while (true) {
-        const response = await databases.listDocuments(
-            DATABASE_ID,
-            collectionId,
-            [Query.limit(VIDEO_CATALOG_PAGE_SIZE), Query.offset(offset)]
-        );
-
-        const batch = Array.isArray(response?.documents) ? response.documents : [];
-        documents.push(...batch);
-        if (batch.length < VIDEO_CATALOG_PAGE_SIZE) break;
-        offset += batch.length;
-    }
-
-    return documents;
+    return {
+        VIDEO_SERIES: anime.map(series => ({
+            ...series,
+            sourceTitle: series.sourceTitle || series.title || series.id || '',
+            title: series.displayTitle || series.title || series.sourceTitle || series.id || '',
+            episodes: Array.isArray(series.episodes) ? series.episodes : []
+        })),
+        YOUTUBE_CHANNELS: youtube.map(channel => ({
+            ...channel,
+            sourceName: channel.sourceName || channel.name || channel.id || '',
+            name: channel.displayName || channel.name || channel.sourceName || channel.id || '',
+            videos: Array.isArray(channel.videos) ? channel.videos : []
+        }))
+    };
 }
 
-function parseVideoCatalogSubtitles(value) {
-    if (Array.isArray(value)) return value;
-    if (!value) return [];
-
-    try {
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-        console.warn('Ignoring invalid subtitlesJson in Appwrite catalog:', error);
-        return [];
-    }
-}
-
-function sortVideoCatalogDocuments(documents) {
-    return documents.slice().sort((left, right) => {
-        const leftOrder = Number(left?.sortOrder ?? 0);
-        const rightOrder = Number(right?.sortOrder ?? 0);
-        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-
-        const leftNumber = Number(left?.number ?? 0);
-        const rightNumber = Number(right?.number ?? 0);
-        if (leftNumber !== rightNumber) return leftNumber - rightNumber;
-
-        return String(left?.title || '').localeCompare(String(right?.title || ''));
-    });
-}
-
-function buildVideoCatalogFromAppwrite(groups, items) {
-    const visibleGroups = sortVideoCatalogDocuments(
-        groups.filter(group => group?.published !== false)
-    );
-    const visibleItems = items.filter(item => item?.published !== false);
-
-    const itemsByGroup = new Map();
-    visibleItems.forEach(item => {
-        const key = `${item.kind}:${item.groupSlug}`;
-        if (!itemsByGroup.has(key)) itemsByGroup.set(key, []);
-        itemsByGroup.get(key).push(item);
-    });
-
-    const anime = [];
-    const youtube = [];
-
-    visibleGroups.forEach(group => {
-        const key = `${group.kind}:${group.slug}`;
-        const groupItems = sortVideoCatalogDocuments(itemsByGroup.get(key) || []);
-        const displayTitle = group.title || group.sourceTitle || group.slug;
-
-        if (group.kind === 'anime') {
-            anime.push({
-                id: group.slug,
-                title: displayTitle,
-                sourceTitle: group.sourceTitle || displayTitle,
-                year: Number(group.year || 0),
-                genre: group.genre || 'Anime',
-                posterPath: group.posterPath || '',
-                backdropPath: group.backdropPath || group.posterPath || '',
-                description: group.description || 'Video, artwork and subtitles are served through the W41IT Cloudflare Worker.',
-                updatedAt: group.updatedAt || group.$updatedAt || '',
-                episodes: groupItems.map((item, index) => ({
-                    id: item.itemId || `${group.slug}-e${item.number || index + 1}`,
-                    number: Number(item.number || index + 1),
-                    title: item.title || `Episode ${item.number || index + 1}`,
-                    duration: item.duration || '',
-                    quality: item.quality || '',
-                    thumbnailPath: item.thumbnailPath || '',
-                    videoPath: item.videoPath || '',
-                    subtitles: parseVideoCatalogSubtitles(item.subtitlesJson)
-                }))
-            });
-            return;
-        }
-
-        if (group.kind === 'youtube') {
-            youtube.push({
-                id: group.slug,
-                name: displayTitle,
-                sourceName: group.sourceTitle || displayTitle,
-                description: group.description || 'Locally archived YouTube videos served through the W41IT Cloudflare Worker.',
-                updatedAt: group.updatedAt || group.$updatedAt || '',
-                videos: groupItems.map((item, index) => ({
-                    id: item.itemId || `${group.slug}-video-${index + 1}`,
-                    title: item.title || `Video ${index + 1}`,
-                    duration: item.duration || '',
-                    quality: item.quality || '',
-                    thumbnailPath: item.thumbnailPath || '',
-                    videoPath: item.videoPath || '',
-                    subtitles: parseVideoCatalogSubtitles(item.subtitlesJson)
-                }))
-            });
-        }
-    });
-
-    return { anime, youtube };
-}
-
-function applyAppwriteVideoCatalog(groups, items) {
-    const { anime, youtube } = buildVideoCatalogFromAppwrite(groups, items);
-
-    VIDEO_SERIES.splice(0, VIDEO_SERIES.length, ...anime);
-    YOUTUBE_CHANNELS.splice(0, YOUTUBE_CHANNELS.length, ...youtube);
-
-    videoCatalogGroupDocuments = groups;
-    videoCatalogItemDocuments = items;
+function applyLiveVideoCatalog(raw) {
+    const normalized = normalizeLiveVideoCatalog(raw);
+    VIDEO_SERIES.splice(0, VIDEO_SERIES.length, ...normalized.VIDEO_SERIES);
+    YOUTUBE_CHANNELS.splice(0, YOUTUBE_CHANNELS.length, ...normalized.YOUTUBE_CHANNELS);
+    liveVideoCatalog = raw;
     videoCatalogLoadedFromAppwrite = true;
 
-    const currentSeries = typeof getVideoSeries === 'function'
+    const active = typeof getVideoSeries === 'function'
         ? getVideoSeries(videoState?.activeSeriesId)
         : null;
-    if (!currentSeries && VIDEO_SERIES.length > 0 && typeof videoState !== 'undefined') {
+    if (!active && VIDEO_SERIES.length > 0 && typeof videoState !== 'undefined') {
         videoState.activeSeriesId = VIDEO_SERIES[0].id;
         videoState.activeEpisode = makeVideoEpisodes(VIDEO_SERIES[0])[0]?.number || 1;
     }
@@ -153,28 +52,30 @@ function applyAppwriteVideoCatalog(groups, items) {
 
 async function loadVideoCatalogFromAppwrite({ quiet = false } = {}) {
     try {
-        const [groups, items] = await Promise.all([
-            listAllVideoCatalogDocuments(VIDEO_GROUPS_COLLECTION_ID),
-            listAllVideoCatalogDocuments(VIDEO_ITEMS_COLLECTION_ID)
-        ]);
-
-        if (groups.length === 0) {
-            throw new Error('Appwrite video catalog is empty. Run video-add --init-appwrite on the VPS first.');
+        const document = await databases.getDocument(
+            DATABASE_ID,
+            VIDEO_CATALOG_COLLECTION_ID,
+            VIDEO_CATALOG_DOCUMENT_ID
+        );
+        const parsed = JSON.parse(document.payload || '{}');
+        if (!Array.isArray(parsed.VIDEO_SERIES) || !Array.isArray(parsed.YOUTUBE_CHANNELS)) {
+            throw new Error('Catalog payload is missing VIDEO_SERIES/YOUTUBE_CHANNELS arrays.');
         }
-
-        applyAppwriteVideoCatalog(groups, items);
-        if (!quiet) setVideoCatalogAdminStatus(`Live Appwrite catalog loaded: ${groups.length} groups, ${items.length} items.`, false);
+        applyLiveVideoCatalog(parsed);
+        if (!quiet) setVideoCatalogAdminStatus(
+            `Live Appwrite catalog loaded: ${parsed.VIDEO_SERIES.length} anime groups, ${parsed.YOUTUBE_CHANNELS.length} YouTube channels.`,
+            false
+        );
         return true;
     } catch (error) {
         videoCatalogLoadedFromAppwrite = false;
         console.warn('Appwrite video catalog unavailable; using embedded video.js fallback.', error);
-        if (!quiet) setVideoCatalogAdminStatus(`Appwrite catalog unavailable — using video.js fallback. ${error.message || error}`, true);
+        if (!quiet) setVideoCatalogAdminStatus(
+            `Appwrite catalog unavailable — using video.js fallback. ${error.message || error}`,
+            true
+        );
         return false;
     }
-}
-
-function videoCatalogAdminContainer() {
-    return document.getElementById('videoCatalogAdmin');
 }
 
 function setVideoCatalogAdminStatus(message, isError = false) {
@@ -186,7 +87,7 @@ function setVideoCatalogAdminStatus(message, isError = false) {
 
 function installVideoCatalogAdminUi() {
     const modalContent = document.querySelector('#adminModal .modal-content');
-    if (!modalContent || videoCatalogAdminContainer()) return;
+    if (!modalContent || document.getElementById('videoCatalogAdmin')) return;
 
     const actions = modalContent.querySelector('.modal-actions');
     const section = document.createElement('section');
@@ -196,102 +97,111 @@ function installVideoCatalogAdminUi() {
         <div class="video-catalog-admin-heading">
             <div>
                 <strong><i class="fas fa-film"></i> Video Catalog</strong>
-                <span>Live metadata from Appwrite. Edits do not require a Git push.</span>
+                <span>Live metadata from Appwrite. No Git push is needed.</span>
             </div>
             <button id="videoCatalogRefreshBtn" type="button">Refresh</button>
         </div>
         <div id="videoCatalogAdminStatus" class="video-catalog-admin-status" aria-live="polite"></div>
         <div id="videoCatalogAdminList" class="video-catalog-admin-list"></div>
         <p class="video-catalog-admin-note">
-            Remove listing deletes only Appwrite metadata. The R2/VPS media is deliberately kept as a recovery copy.
+            Remove listing only removes the catalog entry; R2 and VPS media are kept as a recovery copy.
         </p>`;
-
     if (actions) modalContent.insertBefore(section, actions);
     else modalContent.appendChild(section);
 
     const style = document.createElement('style');
     style.textContent = `
-        .video-catalog-admin{margin:18px 0;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(0,0,0,.18)}
-        .video-catalog-admin-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
-        .video-catalog-admin-heading>div{display:grid;gap:3px}.video-catalog-admin-heading strong{color:#f3f4f6}.video-catalog-admin-heading span,.video-catalog-admin-note{font-size:.72rem;color:var(--text-sub)}
-        .video-catalog-admin-heading button,.video-catalog-admin-row button{border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(255,255,255,.05);color:#e5e7eb;padding:6px 9px;cursor:pointer}
-        .video-catalog-admin-heading button:hover,.video-catalog-admin-row button:hover{background:rgba(255,255,255,.1)}
-        .video-catalog-admin-status{min-height:18px;margin:6px 0 10px;font-size:.72rem;font-family:monospace}
-        .video-catalog-admin-list{display:grid;gap:8px;max-height:330px;overflow:auto;padding-right:3px}
-        .video-catalog-admin-group{border:1px solid rgba(255,255,255,.07);border-radius:8px;overflow:hidden}
-        .video-catalog-admin-group-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;background:rgba(255,255,255,.035)}
-        .video-catalog-admin-group-title span{display:grid;gap:2px;min-width:0}.video-catalog-admin-group-title small{color:var(--text-sub)}
-        .video-catalog-admin-items{display:grid}.video-catalog-admin-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px 10px;border-top:1px solid rgba(255,255,255,.055)}
-        .video-catalog-admin-row-copy{min-width:0;display:grid;gap:2px}.video-catalog-admin-row-copy strong,.video-catalog-admin-row-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.video-catalog-admin-row-copy span{font-size:.66rem;color:var(--text-sub)}
-        .video-catalog-admin-row-actions{display:flex;gap:5px}.video-catalog-admin-row .danger{color:#fca5a5;border-color:rgba(248,113,113,.25)}
-        .video-catalog-admin-note{margin:10px 0 0;line-height:1.45}
-    `;
+      .video-catalog-admin{margin:18px 0;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(0,0,0,.18)}
+      .video-catalog-admin-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+      .video-catalog-admin-heading>div{display:grid;gap:3px}.video-catalog-admin-heading strong{color:#f3f4f6}.video-catalog-admin-heading span,.video-catalog-admin-note{font-size:.72rem;color:var(--text-sub)}
+      .video-catalog-admin-heading button,.video-catalog-admin-row button,.video-catalog-admin-group-title button{border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(255,255,255,.05);color:#e5e7eb;padding:6px 9px;cursor:pointer}
+      .video-catalog-admin-status{min-height:18px;margin:6px 0 10px;font-size:.72rem;font-family:monospace}.video-catalog-admin-list{display:grid;gap:8px;max-height:340px;overflow:auto;padding-right:3px}
+      .video-catalog-admin-group{border:1px solid rgba(255,255,255,.07);border-radius:8px;overflow:hidden}.video-catalog-admin-group-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;background:rgba(255,255,255,.035)}
+      .video-catalog-admin-group-title span{display:grid;gap:2px;min-width:0}.video-catalog-admin-group-title small{color:var(--text-sub)}.video-catalog-admin-items{display:grid}
+      .video-catalog-admin-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px 10px;border-top:1px solid rgba(255,255,255,.055)}
+      .video-catalog-admin-row-copy{min-width:0;display:grid;gap:2px}.video-catalog-admin-row-copy strong,.video-catalog-admin-row-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.video-catalog-admin-row-copy span{font-size:.66rem;color:var(--text-sub)}
+      .video-catalog-admin-row-actions{display:flex;gap:5px}.video-catalog-admin-row .danger{color:#fca5a5;border-color:rgba(248,113,113,.25)}.video-catalog-admin-note{margin:10px 0 0;line-height:1.45}`;
     document.head.appendChild(style);
 
-    document.getElementById('videoCatalogRefreshBtn')?.addEventListener('click', async () => {
+    document.getElementById('videoCatalogRefreshBtn')?.addEventListener('click', () => {
         setVideoCatalogAdminStatus('Refreshing catalog…', false);
-        await loadVideoCatalogFromAppwrite();
+        void loadVideoCatalogFromAppwrite();
     });
 }
 
-async function editVideoCatalogGroup(documentId) {
-    if (currentUserRole !== 'admin') return;
-    const group = videoCatalogGroupDocuments.find(document => document.$id === documentId);
+async function saveLiveVideoCatalog(message = 'Saving catalog…') {
+    if (!liveVideoCatalog) throw new Error('Live Appwrite catalog is not loaded.');
+    setVideoCatalogAdminStatus(message, false);
+    await databases.updateDocument(
+        DATABASE_ID,
+        VIDEO_CATALOG_COLLECTION_ID,
+        VIDEO_CATALOG_DOCUMENT_ID,
+        { payload: JSON.stringify(liveVideoCatalog) }
+    );
+    await loadVideoCatalogFromAppwrite();
+}
+
+async function editVideoCatalogGroup(kind, groupId) {
+    if (currentUserRole !== 'admin' || !liveVideoCatalog) return;
+    const list = kind === 'youtube' ? liveVideoCatalog.YOUTUBE_CHANNELS : liveVideoCatalog.VIDEO_SERIES;
+    const group = list.find(item => item.id === groupId);
     if (!group) return;
 
-    const title = window.prompt('Display name', group.title || group.sourceTitle || '');
-    if (title === null) return;
+    const currentName = kind === 'youtube'
+        ? (group.displayName || group.name || group.sourceName || '')
+        : (group.displayTitle || group.title || group.sourceTitle || '');
+    const name = window.prompt('Display name', currentName);
+    if (name === null) return;
     const description = window.prompt('Description', group.description || '');
     if (description === null) return;
 
+    if (kind === 'youtube') group.displayName = name.trim() || currentName;
+    else group.displayTitle = name.trim() || currentName;
+    group.description = description;
+
     try {
-        setVideoCatalogAdminStatus('Saving group metadata…', false);
-        await databases.updateDocument(
-            DATABASE_ID,
-            VIDEO_GROUPS_COLLECTION_ID,
-            group.$id,
-            { title: title.trim() || group.sourceTitle, description }
-        );
-        await loadVideoCatalogFromAppwrite();
+        await saveLiveVideoCatalog('Saving group metadata…');
     } catch (error) {
         console.error('Video catalog group update failed:', error);
         setVideoCatalogAdminStatus(`Edit denied by Appwrite permissions: ${error.message || error}`, true);
     }
 }
 
-async function editVideoCatalogItem(documentId) {
-    if (currentUserRole !== 'admin') return;
-    const item = videoCatalogItemDocuments.find(document => document.$id === documentId);
+async function editVideoCatalogItem(kind, groupId, itemId) {
+    if (currentUserRole !== 'admin' || !liveVideoCatalog) return;
+    const groups = kind === 'youtube' ? liveVideoCatalog.YOUTUBE_CHANNELS : liveVideoCatalog.VIDEO_SERIES;
+    const group = groups.find(item => item.id === groupId);
+    const items = kind === 'youtube' ? group?.videos : group?.episodes;
+    const item = items?.find(entry => String(entry.id || entry.number) === String(itemId));
     if (!item) return;
 
     const title = window.prompt('Video / episode title', item.title || '');
     if (title === null) return;
+    item.title = title.trim() || item.title;
 
     try {
-        setVideoCatalogAdminStatus('Saving item metadata…', false);
-        await databases.updateDocument(
-            DATABASE_ID,
-            VIDEO_ITEMS_COLLECTION_ID,
-            item.$id,
-            { title: title.trim() || item.title }
-        );
-        await loadVideoCatalogFromAppwrite();
+        await saveLiveVideoCatalog('Saving item metadata…');
     } catch (error) {
         console.error('Video catalog item update failed:', error);
         setVideoCatalogAdminStatus(`Edit denied by Appwrite permissions: ${error.message || error}`, true);
     }
 }
 
-async function removeVideoCatalogItem(documentId) {
-    if (currentUserRole !== 'admin') return;
-    const item = videoCatalogItemDocuments.find(document => document.$id === documentId);
-    if (!item) return;
-    if (!window.confirm(`Remove “${item.title}” from the W41IT catalog?\n\nThe R2 and VPS media files will be kept.`)) return;
+async function removeVideoCatalogItem(kind, groupId, itemId) {
+    if (currentUserRole !== 'admin' || !liveVideoCatalog) return;
+    const groups = kind === 'youtube' ? liveVideoCatalog.YOUTUBE_CHANNELS : liveVideoCatalog.VIDEO_SERIES;
+    const group = groups.find(item => item.id === groupId);
+    const key = kind === 'youtube' ? 'videos' : 'episodes';
+    const items = group?.[key];
+    if (!Array.isArray(items)) return;
+    const index = items.findIndex(entry => String(entry.id || entry.number) === String(itemId));
+    if (index < 0) return;
+    const item = items[index];
+    if (!window.confirm(`Remove “${item.title || itemId}” from W41IT?\n\nR2/VPS media will be kept.`)) return;
 
+    items.splice(index, 1);
     try {
-        setVideoCatalogAdminStatus('Removing catalog item…', false);
-        await databases.deleteDocument(DATABASE_ID, VIDEO_ITEMS_COLLECTION_ID, item.$id);
-        await loadVideoCatalogFromAppwrite();
+        await saveLiveVideoCatalog('Removing catalog item…');
     } catch (error) {
         console.error('Video catalog item removal failed:', error);
         setVideoCatalogAdminStatus(`Delete denied by Appwrite permissions: ${error.message || error}`, true);
@@ -302,14 +212,9 @@ function renderVideoCatalogAdmin() {
     installVideoCatalogAdminUi();
     const list = document.getElementById('videoCatalogAdminList');
     if (!list) return;
-
-    if (currentUserRole !== 'admin') {
-        list.replaceChildren();
-        return;
-    }
-
     list.replaceChildren();
-    if (!videoCatalogLoadedFromAppwrite) {
+    if (currentUserRole !== 'admin') return;
+    if (!videoCatalogLoadedFromAppwrite || !liveVideoCatalog) {
         const empty = document.createElement('div');
         empty.className = 'video-catalog-admin-row-copy';
         empty.textContent = 'Appwrite catalog is not active yet.';
@@ -317,68 +222,60 @@ function renderVideoCatalogAdmin() {
         return;
     }
 
-    sortVideoCatalogDocuments(videoCatalogGroupDocuments).forEach(group => {
+    const groups = [
+        ...liveVideoCatalog.VIDEO_SERIES.map(group => ({ kind: 'anime', group })),
+        ...liveVideoCatalog.YOUTUBE_CHANNELS.map(group => ({ kind: 'youtube', group }))
+    ];
+
+    groups.forEach(({ kind, group }) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'video-catalog-admin-group';
-
         const heading = document.createElement('div');
         heading.className = 'video-catalog-admin-group-title';
-        const headingCopy = document.createElement('span');
-        const headingTitle = document.createElement('strong');
-        headingTitle.textContent = group.title || group.sourceTitle || group.slug;
-        const headingMeta = document.createElement('small');
-        headingMeta.textContent = `${group.kind === 'youtube' ? 'YouTube' : 'Anime'} · ${group.slug}`;
-        headingCopy.append(headingTitle, headingMeta);
+        const copy = document.createElement('span');
+        const strong = document.createElement('strong');
+        strong.textContent = kind === 'youtube'
+            ? (group.displayName || group.name || group.id)
+            : (group.displayTitle || group.title || group.id);
+        const small = document.createElement('small');
+        small.textContent = `${kind === 'youtube' ? 'YouTube' : 'Anime'} · ${group.id}`;
+        copy.append(strong, small);
         const editGroup = document.createElement('button');
-        editGroup.type = 'button';
-        editGroup.textContent = 'Edit';
-        editGroup.onclick = () => editVideoCatalogGroup(group.$id);
-        heading.append(headingCopy, editGroup);
+        editGroup.type = 'button'; editGroup.textContent = 'Edit';
+        editGroup.onclick = () => editVideoCatalogGroup(kind, group.id);
+        heading.append(copy, editGroup);
 
-        const items = document.createElement('div');
-        items.className = 'video-catalog-admin-items';
-        const matchingItems = sortVideoCatalogDocuments(
-            videoCatalogItemDocuments.filter(item => item.kind === group.kind && item.groupSlug === group.slug)
-        );
-        matchingItems.forEach(item => {
+        const itemsWrap = document.createElement('div');
+        itemsWrap.className = 'video-catalog-admin-items';
+        const items = kind === 'youtube' ? (group.videos || []) : (group.episodes || []);
+        items.forEach((item, index) => {
+            const itemId = String(item.id || item.number || index + 1);
             const row = document.createElement('div');
             row.className = 'video-catalog-admin-row';
-            const copy = document.createElement('div');
-            copy.className = 'video-catalog-admin-row-copy';
-            const title = document.createElement('strong');
-            title.textContent = item.title || item.itemId;
+            const itemCopy = document.createElement('div');
+            itemCopy.className = 'video-catalog-admin-row-copy';
+            const title = document.createElement('strong'); title.textContent = item.title || itemId;
             const meta = document.createElement('span');
-            meta.textContent = group.kind === 'anime'
-                ? `Episode ${item.number || '?'} · ${item.quality || 'unknown quality'}`
+            meta.textContent = kind === 'anime'
+                ? `Episode ${item.number || index + 1} · ${item.quality || 'unknown quality'}`
                 : `${item.duration || 'unknown duration'} · ${item.quality || 'unknown quality'}`;
-            copy.append(title, meta);
-
-            const buttons = document.createElement('div');
-            buttons.className = 'video-catalog-admin-row-actions';
-            const edit = document.createElement('button');
-            edit.type = 'button';
-            edit.textContent = 'Edit';
-            edit.onclick = () => editVideoCatalogItem(item.$id);
-            const remove = document.createElement('button');
-            remove.type = 'button';
-            remove.className = 'danger';
-            remove.textContent = 'Remove';
-            remove.onclick = () => removeVideoCatalogItem(item.$id);
-            buttons.append(edit, remove);
-            row.append(copy, buttons);
-            items.appendChild(row);
+            itemCopy.append(title, meta);
+            const buttons = document.createElement('div'); buttons.className = 'video-catalog-admin-row-actions';
+            const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Edit';
+            edit.onclick = () => editVideoCatalogItem(kind, group.id, itemId);
+            const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Remove'; remove.className = 'danger';
+            remove.onclick = () => removeVideoCatalogItem(kind, group.id, itemId);
+            buttons.append(edit, remove); row.append(itemCopy, buttons); itemsWrap.appendChild(row);
         });
-
-        wrapper.append(heading, items);
-        list.appendChild(wrapper);
+        wrapper.append(heading, itemsWrap); list.appendChild(wrapper);
     });
 }
 
 function hookVideoCatalogAdminModal() {
     if (typeof openAdminModal !== 'function' || openAdminModal.__videoCatalogHooked) return;
-    const originalOpenAdminModal = openAdminModal;
+    const original = openAdminModal;
     const hooked = function (...args) {
-        const result = originalOpenAdminModal.apply(this, args);
+        const result = original.apply(this, args);
         installVideoCatalogAdminUi();
         renderVideoCatalogAdmin();
         if (!videoCatalogLoadedFromAppwrite) void loadVideoCatalogFromAppwrite();
