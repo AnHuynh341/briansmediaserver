@@ -1,11 +1,11 @@
 // ==========================================================
-// W41IT VIDEO CATALOG — live Appwrite metadata
+// W41IT VIDEO CATALOG — live Appwrite TablesDB metadata
 // ==========================================================
 // video.js keeps the last embedded catalog as a safety fallback. Once the
-// Appwrite document exists, this file replaces those in-memory arrays live.
+// Appwrite row exists, this file replaces those in-memory arrays live.
 
-const VIDEO_CATALOG_COLLECTION_ID = 'video_catalog';
-const VIDEO_CATALOG_DOCUMENT_ID = 'current';
+const VIDEO_CATALOG_TABLE_ID = 'video_catalog';
+const VIDEO_CATALOG_ROW_ID = 'current';
 
 let videoCatalogLoadedFromAppwrite = false;
 let liveVideoCatalog = null;
@@ -52,28 +52,36 @@ function applyLiveVideoCatalog(raw) {
 
 async function loadVideoCatalogFromAppwrite({ quiet = false } = {}) {
     try {
-        const document = await databases.getDocument(
-            DATABASE_ID,
-            VIDEO_CATALOG_COLLECTION_ID,
-            VIDEO_CATALOG_DOCUMENT_ID
-        );
-        const parsed = JSON.parse(document.payload || '{}');
+        if (!videoTablesDB) throw new Error('Appwrite TablesDB client is not ready.');
+
+        const row = await videoTablesDB.getRow({
+            databaseId: DATABASE_ID,
+            tableId: VIDEO_CATALOG_TABLE_ID,
+            rowId: VIDEO_CATALOG_ROW_ID
+        });
+
+        const parsed = JSON.parse(row.payload || '{}');
         if (!Array.isArray(parsed.VIDEO_SERIES) || !Array.isArray(parsed.YOUTUBE_CHANNELS)) {
             throw new Error('Catalog payload is missing VIDEO_SERIES/YOUTUBE_CHANNELS arrays.');
         }
+
         applyLiveVideoCatalog(parsed);
-        if (!quiet) setVideoCatalogAdminStatus(
-            `Live Appwrite catalog loaded: ${parsed.VIDEO_SERIES.length} anime groups, ${parsed.YOUTUBE_CHANNELS.length} YouTube channels.`,
-            false
-        );
+        if (!quiet) {
+            setVideoCatalogAdminStatus(
+                `Live TablesDB catalog loaded: ${parsed.VIDEO_SERIES.length} anime groups, ${parsed.YOUTUBE_CHANNELS.length} YouTube channels.`,
+                false
+            );
+        }
         return true;
     } catch (error) {
         videoCatalogLoadedFromAppwrite = false;
-        console.warn('Appwrite video catalog unavailable; using embedded video.js fallback.', error);
-        if (!quiet) setVideoCatalogAdminStatus(
-            `Appwrite catalog unavailable — using video.js fallback. ${error.message || error}`,
-            true
-        );
+        console.warn('Appwrite TablesDB catalog unavailable; using embedded video.js fallback.', error);
+        if (!quiet) {
+            setVideoCatalogAdminStatus(
+                `TablesDB catalog unavailable — using video.js fallback. ${error.message || error}`,
+                true
+            );
+        }
         return false;
     }
 }
@@ -97,7 +105,7 @@ function installVideoCatalogAdminUi() {
         <div class="video-catalog-admin-heading">
             <div>
                 <strong><i class="fas fa-film"></i> Video Catalog</strong>
-                <span>Live metadata from Appwrite. No Git push is needed.</span>
+                <span>Live metadata from Appwrite TablesDB. No Git push is needed.</span>
             </div>
             <div class="video-catalog-admin-heading-actions">
                 <button id="videoCatalogUnlockBtn" type="button">Unlock editing</button>
@@ -147,6 +155,11 @@ function installVideoCatalogAdminUi() {
 
 async function unlockVideoCatalogEditing() {
     if (currentUserRole !== 'admin') return;
+    if (!videoTablesAccount) {
+        setVideoCatalogAdminStatus('Appwrite TablesDB account client is not ready.', true);
+        return;
+    }
+
     const emailInput = document.getElementById('videoCatalogAdminEmail');
     const passwordInput = document.getElementById('videoCatalogAdminPassword');
     const email = emailInput?.value.trim() || '';
@@ -158,9 +171,9 @@ async function unlockVideoCatalogEditing() {
 
     try {
         setVideoCatalogAdminStatus('Signing in to Appwrite admin writer…', false);
-        try { await account.deleteSession('current'); } catch (_error) { /* guest/no session */ }
-        await account.createEmailPasswordSession(email, password);
-        const authUser = await account.get();
+        try { await videoTablesAccount.deleteSession({ sessionId: 'current' }); } catch (_error) { /* guest/no session */ }
+        await videoTablesAccount.createEmailPasswordSession({ email, password });
+        const authUser = await videoTablesAccount.get();
         if (passwordInput) passwordInput.value = '';
         document.getElementById('videoCatalogUnlockRow')?.classList.add('hidden');
         setVideoCatalogAdminStatus(`Catalog editing unlocked as ${authUser.email || authUser.$id}.`, false);
@@ -172,13 +185,15 @@ async function unlockVideoCatalogEditing() {
 
 async function saveLiveVideoCatalog(message = 'Saving catalog…') {
     if (!liveVideoCatalog) throw new Error('Live Appwrite catalog is not loaded.');
+    if (!videoTablesDB) throw new Error('Appwrite TablesDB client is not ready.');
+
     setVideoCatalogAdminStatus(message, false);
-    await databases.updateDocument(
-        DATABASE_ID,
-        VIDEO_CATALOG_COLLECTION_ID,
-        VIDEO_CATALOG_DOCUMENT_ID,
-        { payload: JSON.stringify(liveVideoCatalog) }
-    );
+    await videoTablesDB.updateRow({
+        databaseId: DATABASE_ID,
+        tableId: VIDEO_CATALOG_TABLE_ID,
+        rowId: VIDEO_CATALOG_ROW_ID,
+        data: { payload: JSON.stringify(liveVideoCatalog) }
+    });
     await loadVideoCatalogFromAppwrite();
 }
 
@@ -259,7 +274,7 @@ function renderVideoCatalogAdmin() {
     if (!videoCatalogLoadedFromAppwrite || !liveVideoCatalog) {
         const empty = document.createElement('div');
         empty.className = 'video-catalog-admin-row-copy';
-        empty.textContent = 'Appwrite catalog is not active yet.';
+        empty.textContent = 'Appwrite TablesDB catalog is not active yet.';
         list.appendChild(empty);
         return;
     }
@@ -283,7 +298,8 @@ function renderVideoCatalogAdmin() {
         small.textContent = `${kind === 'youtube' ? 'YouTube' : 'Anime'} · ${group.id}`;
         copy.append(strong, small);
         const editGroup = document.createElement('button');
-        editGroup.type = 'button'; editGroup.textContent = 'Edit';
+        editGroup.type = 'button';
+        editGroup.textContent = 'Edit';
         editGroup.onclick = () => editVideoCatalogGroup(kind, group.id);
         heading.append(copy, editGroup);
 
@@ -296,20 +312,32 @@ function renderVideoCatalogAdmin() {
             row.className = 'video-catalog-admin-row';
             const itemCopy = document.createElement('div');
             itemCopy.className = 'video-catalog-admin-row-copy';
-            const title = document.createElement('strong'); title.textContent = item.title || itemId;
+            const title = document.createElement('strong');
+            title.textContent = item.title || itemId;
             const meta = document.createElement('span');
             meta.textContent = kind === 'anime'
                 ? `Episode ${item.number || index + 1} · ${item.quality || 'unknown quality'}`
                 : `${item.duration || 'unknown duration'} · ${item.quality || 'unknown quality'}`;
             itemCopy.append(title, meta);
-            const buttons = document.createElement('div'); buttons.className = 'video-catalog-admin-row-actions';
-            const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Edit';
+
+            const buttons = document.createElement('div');
+            buttons.className = 'video-catalog-admin-row-actions';
+            const edit = document.createElement('button');
+            edit.type = 'button';
+            edit.textContent = 'Edit';
             edit.onclick = () => editVideoCatalogItem(kind, group.id, itemId);
-            const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Remove'; remove.className = 'danger';
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.textContent = 'Remove';
+            remove.className = 'danger';
             remove.onclick = () => removeVideoCatalogItem(kind, group.id, itemId);
-            buttons.append(edit, remove); row.append(itemCopy, buttons); itemsWrap.appendChild(row);
+            buttons.append(edit, remove);
+            row.append(itemCopy, buttons);
+            itemsWrap.appendChild(row);
         });
-        wrapper.append(heading, itemsWrap); list.appendChild(wrapper);
+
+        wrapper.append(heading, itemsWrap);
+        list.appendChild(wrapper);
     });
 }
 
