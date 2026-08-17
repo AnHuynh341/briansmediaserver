@@ -137,6 +137,118 @@ const VIDEO_SERIES = [
         ]
     },
     {
+        id: "smoking-behind-supermarket-r2",
+        title: "Smoking Behind the Supermarket with You - R2",
+        year: 2026,
+        genre: "Drama",
+        posterPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/series-thumbnail.jpg",
+        backdropPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/series-thumbnail.jpg",
+        description: "R2 / Cloudflare Worker streaming test.",
+        episodes: [
+            {
+                number: 1,
+                title: "Smoking Behind the Supermarket with You",
+                duration: "23:53",
+                quality: "720p",
+                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E01/thumbnail.jpg",
+                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E01/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English (CR)",
+                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E01/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 2,
+                title: "Cheering Up Behind the Supermarket with You",
+                duration: "23:50",
+                quality: "720p",
+                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E02/thumbnail.jpg",
+                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E02/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English (CR)",
+                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E02/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 3,
+                title: "Smoking Behind the Supermarket with You and More",
+                duration: "23:50",
+                quality: "720p",
+                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E03/thumbnail.jpg",
+                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E03/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English (CR)",
+                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E03/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 4,
+                title: "Learning Behind the Supermarket with You",
+                duration: "23:50",
+                quality: "720p",
+                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E04/thumbnail.jpg",
+                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E04/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English (CR)",
+                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E04/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 5,
+                title: "Hanging Behind the Supermarket with You",
+                duration: "23:50",
+                quality: "720p",
+                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E05/thumbnail.jpg",
+                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E05/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English (CR)",
+                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E05/en.vtt",
+                        default: true
+                    }
+                ]
+            },
+            {
+                number: 6,
+                title: "Lingering Scent Behind the Supermarket with You",
+                duration: "23:50",
+                quality: "1080p",
+                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/thumbnail.jpg",
+                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/video.mp4",
+                subtitles: [
+                    {
+                        lang: "en",
+                        label: "English",
+                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/en.vtt",
+                        default: true
+                    },
+                    {
+                        lang: "vi",
+                        label: "Vietnamese",
+                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/vi.vtt"
+                    }
+                ]
+            }
+        ]
+    },
+    {
         id: "bocchi-the-rock",
         title: "Bocchi the Rock!",
         year: 2026,
