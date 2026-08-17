@@ -1,262 +1,572 @@
 #!/usr/bin/env python3
-"""Unified W41IT video ingest: Anime/YouTube -> /srv/media -> R2 -> Appwrite."""
+"""Unified W41IT video ingest: Anime/YouTube -> /srv/media -> R2 -> Appwrite TablesDB."""
 from __future__ import annotations
 
-import argparse, copy, hashlib, json, os, re, shutil, subprocess, sys, tempfile, time
-import urllib.error, urllib.request
+import argparse
+import copy
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 
-def load_env():
-    p = Path(os.environ.get("VIDEO_ADD_ENV_FILE", Path.home()/".config/w41it/video-add.env")).expanduser()
-    if not p.is_file(): return
-    for raw in p.read_text(encoding="utf-8").splitlines():
-        line=raw.strip()
-        if not line or line.startswith("#") or "=" not in line: continue
-        k,v=line.split("=",1); os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+def load_env() -> None:
+    path = Path(
+        os.environ.get(
+            "VIDEO_ADD_ENV_FILE",
+            Path.home() / ".config/w41it/video-add.env",
+        )
+    ).expanduser()
+    if not path.is_file():
+        return
+
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key_name, value = line.split("=", 1)
+        os.environ.setdefault(
+            key_name.strip(), value.strip().strip('"').strip("'")
+        )
+
+
 load_env()
 
-ENDPOINT=os.environ.get("APPWRITE_ENDPOINT","https://sgp.cloud.appwrite.io/v1").rstrip("/")
-PROJECT=os.environ.get("APPWRITE_PROJECT_ID","6a0878e40013d0103042")
-DATABASE=os.environ.get("APPWRITE_DATABASE_ID","6a087bfc0014b3277171")
-COLLECTION=os.environ.get("VIDEO_CATALOG_COLLECTION_ID","video_catalog")
-DOCUMENT=os.environ.get("VIDEO_CATALOG_DOCUMENT_ID","current")
-ADMIN_USER_ID=os.environ.get("VIDEO_ADMIN_USER_ID","").strip()
-R2=os.environ.get("VIDEO_R2_REMOTE","r2:w41it-video")
-MEDIA=Path(os.environ.get("VIDEO_MEDIA_ROOT","/srv/media"))
-REPO=Path(os.environ.get("VIDEO_FRONTEND_REPO","/home/fedora/repos/briansmediaserver"))
-LEGACY=REPO/"video.js"
-TEMP_NAME=".video-add-catalog.js"
-VIDEO_SUFFIXES={".mkv",".mp4",".m4v",".mov",".webm",".avi"}
+ENDPOINT = os.environ.get(
+    "APPWRITE_ENDPOINT", "https://sgp.cloud.appwrite.io/v1"
+).rstrip("/")
+PROJECT = os.environ.get("APPWRITE_PROJECT_ID", "6a0878e40013d0103042")
+DATABASE = os.environ.get("APPWRITE_DATABASE_ID", "6a087bfc0014b3277171")
+TABLE = os.environ.get("VIDEO_CATALOG_TABLE_ID", "video_catalog")
+ROW = os.environ.get("VIDEO_CATALOG_ROW_ID", "current")
+ADMIN_USER_ID = os.environ.get("VIDEO_ADMIN_USER_ID", "").strip()
+R2 = os.environ.get("VIDEO_R2_REMOTE", "r2:w41it-video")
+MEDIA = Path(os.environ.get("VIDEO_MEDIA_ROOT", "/srv/media"))
+REPO = Path(
+    os.environ.get(
+        "VIDEO_FRONTEND_REPO", "/home/fedora/repos/briansmediaserver"
+    )
+)
+LEGACY = REPO / "video.js"
+TEMP_NAME = ".video-add-catalog.js"
+VIDEO_SUFFIXES = {".mkv", ".mp4", ".m4v", ".mov", ".webm", ".avi"}
 
 
-def die(msg, code=1): print(f"\nERROR: {msg}",file=sys.stderr); raise SystemExit(code)
-def info(msg): print(f"\n==> {msg}")
-def need(cmd):
-    path=shutil.which(cmd)
-    if not path: die(f"Missing required command: {cmd}")
+def die(message: str, code: int = 1) -> None:
+    print(f"\nERROR: {message}", file=sys.stderr)
+    raise SystemExit(code)
+
+
+def info(message: str) -> None:
+    print(f"\n==> {message}")
+
+
+def need(command: str) -> Path:
+    path = shutil.which(command)
+    if not path:
+        die(f"Missing required command: {command}")
     return Path(path)
-def key():
-    value=os.environ.get("APPWRITE_API_KEY","").strip()
-    if not value: die("APPWRITE_API_KEY is missing. Put APPWRITE_API_KEY=... in ~/.config/w41it/video-add.env (chmod 600).")
+
+
+def api_key() -> str:
+    value = os.environ.get("APPWRITE_API_KEY", "").strip()
+    if not value:
+        die(
+            "APPWRITE_API_KEY is missing. Put APPWRITE_API_KEY=... in "
+            "~/.config/w41it/video-add.env (chmod 600)."
+        )
     return value
 
 
-def api(method,path,data=None,allow=()):
-    body=None if data is None else json.dumps(data,ensure_ascii=False).encode()
-    req=urllib.request.Request(ENDPOINT+path,data=body,method=method,headers={
-        "Content-Type":"application/json","X-Appwrite-Project":PROJECT,"X-Appwrite-Key":key()})
+def api(method: str, path: str, data=None, allow=()):
+    body = None if data is None else json.dumps(data, ensure_ascii=False).encode()
+    request = urllib.request.Request(
+        ENDPOINT + path,
+        data=body,
+        method=method,
+        headers={
+            "Content-Type": "application/json",
+            "X-Appwrite-Project": PROJECT,
+            "X-Appwrite-Key": api_key(),
+        },
+    )
     try:
-        with urllib.request.urlopen(req,timeout=45) as r:
-            raw=r.read(); return r.status, json.loads(raw) if raw else None
-    except urllib.error.HTTPError as e:
-        raw=e.read().decode(errors="replace")
-        if e.code in allow:
-            try: return e.code, json.loads(raw) if raw else None
-            except Exception: return e.code, None
-        try: msg=json.loads(raw).get("message",raw)
-        except Exception: msg=raw
-        die(f"Appwrite HTTP {e.code}: {msg}")
+        with urllib.request.urlopen(request, timeout=45) as response:
+            raw = response.read()
+            return response.status, json.loads(raw) if raw else None
+    except urllib.error.HTTPError as error:
+        raw = error.read().decode(errors="replace")
+        if error.code in allow:
+            try:
+                return error.code, json.loads(raw) if raw else None
+            except Exception:
+                return error.code, None
+        try:
+            message = json.loads(raw).get("message", raw)
+        except Exception:
+            message = raw
+        die(f"Appwrite HTTP {error.code}: {message}")
 
 
-def create_schema():
-    info("Preparing Appwrite video catalog")
-    status,_=api("GET",f"/databases/{DATABASE}/collections/{COLLECTION}",allow=(404,))
-    if status==404:
-        api("POST",f"/databases/{DATABASE}/collections",{
-            "collectionId":COLLECTION,"name":"Video Catalog","permissions":["read(\"any\")"],
-            "documentSecurity":True,"enabled":True})
-        print(f"  created collection: {COLLECTION}")
+def create_schema() -> None:
+    """Create/update the TablesDB table and its two columns."""
+    info("Preparing Appwrite TablesDB video catalog")
+
+    status, _ = api(
+        "GET",
+        f"/tablesdb/{DATABASE}/tables/{TABLE}",
+        allow=(404,),
+    )
+
+    table_data = {
+        "name": "Video Catalog",
+        "permissions": ['read("any")'],
+        "rowSecurity": True,
+        "enabled": True,
+    }
+
+    if status == 404:
+        api(
+            "POST",
+            f"/tablesdb/{DATABASE}/tables",
+            {"tableId": TABLE, **table_data},
+        )
+        print(f"  created table: {TABLE}")
     else:
-        api("PUT",f"/databases/{DATABASE}/collections/{COLLECTION}",{
-            "name":"Video Catalog","permissions":["read(\"any\")"],
-            "documentSecurity":True,"enabled":True})
-        print(f"  exists: {COLLECTION} (document security enabled)")
-    for kind,attr,payload in [
-        ("longtext","payload",{"key":"payload","required":True,"array":False,"encrypt":False}),
-        ("string","updatedAt",{"key":"updatedAt","size":64,"required":False,"default":"","array":False,"encrypt":False}),
-    ]:
-        st,_=api("POST",f"/databases/{DATABASE}/collections/{COLLECTION}/attributes/{kind}",payload,allow=(409,))
-        print(f"  {'exists' if st==409 else 'created'} attribute: {attr}")
-    deadline=time.time()+90
-    while time.time()<deadline:
-        _,data=api("GET",f"/databases/{DATABASE}/collections/{COLLECTION}/attributes")
-        attrs=(data or {}).get("attributes",[])
-        if any(a.get("status")=="failed" for a in attrs): die("Appwrite catalog attribute creation failed")
-        if attrs and all(a.get("status") in (None,"available") for a in attrs): return
+        api(
+            "PUT",
+            f"/tablesdb/{DATABASE}/tables/{TABLE}",
+            {**table_data, "purge": True},
+        )
+        print(f"  exists: {TABLE} (row security enabled)")
+
+    columns = [
+        (
+            "longtext",
+            "payload",
+            {
+                "key": "payload",
+                "required": True,
+                "array": False,
+                "encrypt": False,
+            },
+        ),
+        (
+            "string",
+            "updatedAt",
+            {
+                "key": "updatedAt",
+                "size": 64,
+                "required": False,
+                "default": "",
+                "array": False,
+                "encrypt": False,
+            },
+        ),
+    ]
+
+    for column_type, column_name, payload in columns:
+        status, _ = api(
+            "POST",
+            f"/tablesdb/{DATABASE}/tables/{TABLE}/columns/{column_type}",
+            payload,
+            allow=(409,),
+        )
+        print(
+            f"  {'exists' if status == 409 else 'created'} column: {column_name}"
+        )
+
+    deadline = time.time() + 90
+    while time.time() < deadline:
+        _, data = api(
+            "GET", f"/tablesdb/{DATABASE}/tables/{TABLE}/columns"
+        )
+        columns = (data or {}).get("columns", [])
+        wanted = [column for column in columns if column.get("key") in {"payload", "updatedAt"}]
+        if any(column.get("status") == "failed" for column in wanted):
+            die("Appwrite catalog column creation failed")
+        if len(wanted) == 2 and all(
+            column.get("status") in (None, "available") for column in wanted
+        ):
+            return
         time.sleep(1)
-    die("Timed out waiting for Appwrite catalog attributes")
+
+    die("Timed out waiting for Appwrite catalog columns")
 
 
 def get_catalog():
-    st,doc=api("GET",f"/databases/{DATABASE}/collections/{COLLECTION}/documents/{DOCUMENT}",allow=(404,))
-    if st==404: die("Appwrite video catalog is not initialized. Run: video-add --init-appwrite")
-    try: return json.loads(doc["payload"])
-    except Exception as e: die(f"Invalid Appwrite video catalog JSON: {e}")
+    status, row = api(
+        "GET",
+        f"/tablesdb/{DATABASE}/tables/{TABLE}/rows/{ROW}",
+        allow=(404,),
+    )
+    if status == 404:
+        die("Appwrite video catalog is not initialized. Run: video-add --init-appwrite")
+    try:
+        return json.loads(row["payload"])
+    except Exception as error:
+        die(f"Invalid Appwrite video catalog JSON: {error}")
 
 
-def catalog_permissions():
-    permissions=["read(\"any\")"]
+def catalog_permissions() -> list[str]:
+    permissions = ['read("any")']
     if ADMIN_USER_ID:
-        permissions += [f'update("user:{ADMIN_USER_ID}")', f'delete("user:{ADMIN_USER_ID}")']
+        permissions += [
+            f'update("user:{ADMIN_USER_ID}")',
+            f'delete("user:{ADMIN_USER_ID}")',
+        ]
     return permissions
 
 
-def save_catalog(catalog):
-    payload=json.dumps(catalog,ensure_ascii=False,separators=(",",":"))
-    api("PUT",f"/databases/{DATABASE}/collections/{COLLECTION}/documents/{DOCUMENT}",{
-        "data":{"payload":payload,"updatedAt":datetime.now(timezone.utc).isoformat()},
-        "permissions":catalog_permissions()})
+def save_catalog(catalog) -> None:
+    payload = json.dumps(catalog, ensure_ascii=False, separators=(",", ":"))
+    api(
+        "PUT",
+        f"/tablesdb/{DATABASE}/tables/{TABLE}/rows/{ROW}",
+        {
+            "data": {
+                "payload": payload,
+                "updatedAt": datetime.now(timezone.utc).isoformat(),
+            },
+            "permissions": catalog_permissions(),
+        },
+    )
 
 
-def blocks(text):
-    a=text.find("const VIDEO_SERIES"), text.find("const YOUTUBE_CHANNELS"), text.find("const VIDEO_EPISODE_DURATIONS")
-    if min(a)<0: die("Could not find VIDEO_SERIES/YOUTUBE_CHANNELS in catalog JS")
-    return text[a[0]:a[1]]+"\n"+text[a[1]:a[2]]
+def catalog_blocks(text: str) -> str:
+    positions = (
+        text.find("const VIDEO_SERIES"),
+        text.find("const YOUTUBE_CHANNELS"),
+        text.find("const VIDEO_EPISODE_DURATIONS"),
+    )
+    if min(positions) < 0:
+        die("Could not find VIDEO_SERIES/YOUTUBE_CHANNELS in catalog JS")
+    return (
+        text[positions[0] : positions[1]]
+        + "\n"
+        + text[positions[1] : positions[2]]
+    )
 
 
-def parse_js(path):
+def parse_js(path: Path):
     need("node")
-    src=blocks(path.read_text(encoding="utf-8"))+"\nconsole.log(JSON.stringify({VIDEO_SERIES,YOUTUBE_CHANNELS}));\n"
-    with tempfile.NamedTemporaryFile("w",suffix=".js",encoding="utf-8",delete=False) as f: f.write(src); name=f.name
+    source = (
+        catalog_blocks(path.read_text(encoding="utf-8"))
+        + "\nconsole.log(JSON.stringify({VIDEO_SERIES,YOUTUBE_CHANNELS}));\n"
+    )
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".js", encoding="utf-8", delete=False
+    ) as handle:
+        handle.write(source)
+        name = handle.name
     try:
-        r=subprocess.run(["node",name],text=True,capture_output=True)
-        if r.returncode: die("Catalog parser failed:\n"+r.stderr)
-        return json.loads(r.stdout)
-    finally: Path(name).unlink(missing_ok=True)
+        result = subprocess.run(["node", name], text=True, capture_output=True)
+        if result.returncode:
+            die("Catalog parser failed:\n" + result.stderr)
+        return json.loads(result.stdout)
+    finally:
+        Path(name).unlink(missing_ok=True)
 
 
-def js(v,indent=0):
-    pad=" "*indent; child=" "*(indent+4)
-    if isinstance(v,dict):
-        if not v:return "{}"
-        rows=[]
-        for k,val in v.items():
-            keyname=k if re.fullmatch(r"[A-Za-z_$][\w$]*",str(k)) else json.dumps(str(k),ensure_ascii=False)
-            rows.append(f"{child}{keyname}: {js(val,indent+4)}")
-        return "{\n"+",\n".join(rows)+"\n"+pad+"}"
-    if isinstance(v,list):
-        if not v:return "[]"
-        return "[\n"+",\n".join(child+js(x,indent+4) for x in v)+"\n"+pad+"]"
-    if v is True:return "true"
-    if v is False:return "false"
-    if v is None:return "null"
-    if isinstance(v,(int,float)):return str(v)
-    return json.dumps(str(v),ensure_ascii=False)
+def javascript(value, indent: int = 0) -> str:
+    pad = " " * indent
+    child = " " * (indent + 4)
+    if isinstance(value, dict):
+        if not value:
+            return "{}"
+        rows = []
+        for key_name, item in value.items():
+            rendered_key = (
+                key_name
+                if re.fullmatch(r"[A-Za-z_$][\w$]*", str(key_name))
+                else json.dumps(str(key_name), ensure_ascii=False)
+            )
+            rows.append(
+                f"{child}{rendered_key}: {javascript(item, indent + 4)}"
+            )
+        return "{\n" + ",\n".join(rows) + "\n" + pad + "}"
+    if isinstance(value, list):
+        if not value:
+            return "[]"
+        return (
+            "[\n"
+            + ",\n".join(child + javascript(item, indent + 4) for item in value)
+            + "\n"
+            + pad
+            + "]"
+        )
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if value is None:
+        return "null"
+    if isinstance(value, (int, float)):
+        return str(value)
+    return json.dumps(str(value), ensure_ascii=False)
 
 
 def engine_catalog(live):
-    cat=copy.deepcopy(live)
-    for s in cat.get("VIDEO_SERIES",[]): s["title"]=s.get("sourceTitle") or s.get("title") or s.get("id","")
-    for c in cat.get("YOUTUBE_CHANNELS",[]): c["name"]=c.get("sourceName") or c.get("name") or c.get("id","")
-    return cat
+    catalog = copy.deepcopy(live)
+    for series in catalog.get("VIDEO_SERIES", []):
+        series["title"] = (
+            series.get("sourceTitle") or series.get("title") or series.get("id", "")
+        )
+    for channel in catalog.get("YOUTUBE_CHANNELS", []):
+        channel["name"] = (
+            channel.get("sourceName") or channel.get("name") or channel.get("id", "")
+        )
+    return catalog
 
 
-def render_js(cat):
-    return f"const VIDEO_SERIES = {js(cat.get('VIDEO_SERIES',[]))};\n\nconst YOUTUBE_CHANNELS = {js(cat.get('YOUTUBE_CHANNELS',[]))};\n\nconst VIDEO_EPISODE_DURATIONS = [];\n"
+def render_js(catalog) -> str:
+    return (
+        f"const VIDEO_SERIES = {javascript(catalog.get('VIDEO_SERIES', []))};\n\n"
+        f"const YOUTUBE_CHANNELS = {javascript(catalog.get('YOUTUBE_CHANNELS', []))};\n\n"
+        "const VIDEO_EPISODE_DURATIONS = [];\n"
+    )
 
 
-def merge_display(old,new):
-    old_s={x.get("id"):x for x in old.get("VIDEO_SERIES",[])}
-    for s in new.get("VIDEO_SERIES",[]):
-        prev=old_s.get(s.get("id"),{})
-        source=s.get("title") or s.get("sourceTitle") or s.get("id","")
-        s["sourceTitle"]=source; s["displayTitle"]=prev.get("displayTitle") or prev.get("title") or source
-    old_c={x.get("id"):x for x in old.get("YOUTUBE_CHANNELS",[])}
-    for c in new.get("YOUTUBE_CHANNELS",[]):
-        prev=old_c.get(c.get("id"),{})
-        source=c.get("name") or c.get("sourceName") or c.get("id","")
-        c["sourceName"]=source; c["displayName"]=prev.get("displayName") or prev.get("name") or source
+def merge_display(old, new):
+    old_series = {item.get("id"): item for item in old.get("VIDEO_SERIES", [])}
+    for series in new.get("VIDEO_SERIES", []):
+        previous = old_series.get(series.get("id"), {})
+        source = (
+            series.get("title")
+            or series.get("sourceTitle")
+            or series.get("id", "")
+        )
+        series["sourceTitle"] = source
+        series["displayTitle"] = (
+            previous.get("displayTitle") or previous.get("title") or source
+        )
+
+    old_channels = {
+        item.get("id"): item for item in old.get("YOUTUBE_CHANNELS", [])
+    }
+    for channel in new.get("YOUTUBE_CHANNELS", []):
+        previous = old_channels.get(channel.get("id"), {})
+        source = (
+            channel.get("name")
+            or channel.get("sourceName")
+            or channel.get("id", "")
+        )
+        channel["sourceName"] = source
+        channel["displayName"] = (
+            previous.get("displayName") or previous.get("name") or source
+        )
     return new
 
 
 def seed_legacy():
-    if not LEGACY.is_file(): die(f"Missing legacy catalog: {LEGACY}")
-    cat=parse_js(LEGACY)
-    return merge_display({"VIDEO_SERIES":[],"YOUTUBE_CHANNELS":[]},cat)
+    if not LEGACY.is_file():
+        die(f"Missing legacy catalog: {LEGACY}")
+    catalog = parse_js(LEGACY)
+    return merge_display(
+        {"VIDEO_SERIES": [], "YOUTUBE_CHANNELS": []}, catalog
+    )
 
 
-def patch_engine(text):
-    old='''        if not keep_source and not no_push:\n            for job in jobs:\n                remove_processed_source(job.source)\n        elif not keep_source and no_push:\n            warn("Source files were kept because --no-push was used")'''
-    new='''        if not keep_source:\n            manifest = os.environ.get("VIDEO_ADD_SOURCE_MANIFEST")\n            if manifest:\n                with open(manifest, "a", encoding="utf-8") as handle:\n                    for job in jobs:\n                        handle.write(str(job.source) + "\\n")'''
-    if old not in text: die("Installed anime-add/youtube-add is a newer incompatible version; update video-add")
-    return text.replace(old,new,1)
+def patch_engine(text: str) -> str:
+    old = '''        if not keep_source and not no_push:\n            for job in jobs:\n                remove_processed_source(job.source)\n        elif not keep_source and no_push:\n            warn("Source files were kept because --no-push was used")'''
+    new = '''        if not keep_source:\n            manifest = os.environ.get("VIDEO_ADD_SOURCE_MANIFEST")\n            if manifest:\n                with open(manifest, "a", encoding="utf-8") as handle:\n                    for job in jobs:\n                        handle.write(str(job.source) + "\\n")'''
+    if old not in text:
+        die(
+            "Installed anime-add/youtube-add is a newer incompatible version; "
+            "update video-add"
+        )
+    return text.replace(old, new, 1)
 
 
-def cleanup(kind,manifest):
-    if not manifest.is_file():return
-    roots={"anime":Path(os.environ.get("ANIME_DOWNLOAD_DIR","/srv/torrents/anime")),"youtube":Path(os.environ.get("YOUTUBE_DOWNLOAD_DIR","/srv/youtube-source"))}
-    root=roots[kind].resolve(); info("Removing processed source downloads")
+def cleanup(kind: str, manifest: Path) -> None:
+    if not manifest.is_file():
+        return
+
+    roots = {
+        "anime": Path(os.environ.get("ANIME_DOWNLOAD_DIR", "/srv/torrents/anime")),
+        "youtube": Path(os.environ.get("YOUTUBE_DOWNLOAD_DIR", "/srv/youtube-source")),
+    }
+    root = roots[kind].resolve()
+    info("Removing processed source downloads")
+
     for line in dict.fromkeys(manifest.read_text().splitlines()):
-        if not line.strip():continue
-        src=Path(line.strip())
-        try: resolved=src.resolve(); resolved.relative_to(root)
-        except Exception: print(f"  kept source outside download root: {src}"); continue
-        parent=resolved.parent
-        if kind=="anime" and parent!=root:
-            others=[p for p in parent.rglob("*") if p.is_file() and p.resolve()!=resolved and p.suffix.lower() in VIDEO_SUFFIXES]
+        if not line.strip():
+            continue
+        source = Path(line.strip())
+        try:
+            resolved = source.resolve()
+            resolved.relative_to(root)
+        except Exception:
+            print(f"  kept source outside download root: {source}")
+            continue
+
+        parent = resolved.parent
+        if kind == "anime" and parent != root:
+            others = [
+                path
+                for path in parent.rglob("*")
+                if path.is_file()
+                and path.resolve() != resolved
+                and path.suffix.lower() in VIDEO_SUFFIXES
+            ]
             if others:
-                resolved.unlink(missing_ok=True); print(f"  removed source: {resolved}; folder kept ({len(others)} video(s) remain)"); continue
+                resolved.unlink(missing_ok=True)
+                print(
+                    f"  removed source: {resolved}; folder kept "
+                    f"({len(others)} video(s) remain)"
+                )
+                continue
+
         resolved.unlink(missing_ok=True)
-        if parent!=root and parent.exists():
-            others=[p for p in parent.rglob("*") if p.is_file() and p.suffix.lower() in VIDEO_SUFFIXES]
-            if not others: shutil.rmtree(parent,ignore_errors=True); print(f"  removed source folder: {parent}")
-        else: print(f"  removed source: {resolved}")
+        if parent != root and parent.exists():
+            others = [
+                path
+                for path in parent.rglob("*")
+                if path.is_file() and path.suffix.lower() in VIDEO_SUFFIXES
+            ]
+            if not others:
+                shutil.rmtree(parent, ignore_errors=True)
+                print(f"  removed source folder: {parent}")
+        else:
+            print(f"  removed source: {resolved}")
 
 
-def publish_media():
-    need("rclone"); info("Uploading finalized /srv/media to R2")
-    subprocess.run(["rclone","copy",str(MEDIA)+"/",R2.rstrip("/")+"/","--fast-list","-P"],check=True)
+def publish_media() -> None:
+    need("rclone")
+    info("Uploading finalized /srv/media to R2")
+    subprocess.run(
+        [
+            "rclone",
+            "copy",
+            str(MEDIA) + "/",
+            R2.rstrip("/") + "/",
+            "--fast-list",
+            "-P",
+        ],
+        check=True,
+    )
+
     info("Verifying R2")
-    subprocess.run(["rclone","check",str(MEDIA)+"/",R2.rstrip("/")+"/","--size-only","--one-way"],check=True)
+    subprocess.run(
+        [
+            "rclone",
+            "check",
+            str(MEDIA) + "/",
+            R2.rstrip("/") + "/",
+            "--size-only",
+            "--one-way",
+        ],
+        check=True,
+    )
 
 
 def choose():
     print("\nW41IT VIDEO ADD\n  1. Anime\n  2. YouTube")
     while True:
-        v=input("Select video type [1-2]: ").strip().lower()
-        if v in ("1","a","anime"):return "anime","anime-add"
-        if v in ("2","y","yt","youtube"):return "youtube","youtube-add"
+        value = input("Select video type [1-2]: ").strip().lower()
+        if value in ("1", "a", "anime"):
+            return "anime", "anime-add"
+        if value in ("2", "y", "yt", "youtube"):
+            return "youtube", "youtube-add"
 
 
-def init():
-    key(); create_schema(); cat=seed_legacy(); info("Migrating current video.js catalog to Appwrite"); save_catalog(cat)
+def initialize_appwrite() -> None:
+    api_key()
+    create_schema()
+    catalog = seed_legacy()
+    info("Migrating current video.js catalog to Appwrite TablesDB")
+    save_catalog(catalog)
     print("\nAppwrite catalog ready. Git pushes are no longer needed for video metadata.")
     if ADMIN_USER_ID:
         print(f"  Admin writer: user:{ADMIN_USER_ID}")
     else:
-        print("  Admin writer: not configured (set VIDEO_ADMIN_USER_ID, then rerun --init-appwrite)")
+        print(
+            "  Admin writer: not configured "
+            "(set VIDEO_ADMIN_USER_ID, then rerun --init-appwrite)"
+        )
 
 
-def run(forwarded):
-    kind,engine=choose(); engine_path=need(engine); need("node"); need("rclone"); key()
-    live=get_catalog(); temp=REPO/TEMP_NAME
-    with tempfile.TemporaryDirectory(prefix="video-add-") as td:
-        td=Path(td); manifest=td/"sources.txt"; patched=td/f"{kind}-workflow.py"
-        patched.write_text(patch_engine(engine_path.read_text(encoding="utf-8")),encoding="utf-8")
-        temp.write_text(render_js(engine_catalog(live)),encoding="utf-8")
-        env=os.environ.copy(); env["VIDEO_ADD_SOURCE_MANIFEST"]=str(manifest)
-        if kind=="anime": env["ANIME_FRONTEND_REPO"]=str(REPO); env["ANIME_CATALOG_FILE"]=TEMP_NAME
-        else: env["YOUTUBE_FRONTEND_REPO"]=str(REPO); env["YOUTUBE_CATALOG_FILE"]=TEMP_NAME
-        cmd=[sys.executable,str(patched),*forwarded]
-        if "--no-push" not in forwarded:cmd.append("--no-push")
+def run(forwarded: list[str]) -> int:
+    kind, engine = choose()
+    engine_path = need(engine)
+    need("node")
+    need("rclone")
+    api_key()
+
+    live = get_catalog()
+    temporary_catalog = REPO / TEMP_NAME
+
+    with tempfile.TemporaryDirectory(prefix="video-add-") as temp_directory:
+        temp_directory = Path(temp_directory)
+        manifest = temp_directory / "sources.txt"
+        patched_engine = temp_directory / f"{kind}-workflow.py"
+        patched_engine.write_text(
+            patch_engine(engine_path.read_text(encoding="utf-8")),
+            encoding="utf-8",
+        )
+        temporary_catalog.write_text(
+            render_js(engine_catalog(live)), encoding="utf-8"
+        )
+
+        env = os.environ.copy()
+        env["VIDEO_ADD_SOURCE_MANIFEST"] = str(manifest)
+        if kind == "anime":
+            env["ANIME_FRONTEND_REPO"] = str(REPO)
+            env["ANIME_CATALOG_FILE"] = TEMP_NAME
+        else:
+            env["YOUTUBE_FRONTEND_REPO"] = str(REPO)
+            env["YOUTUBE_CATALOG_FILE"] = TEMP_NAME
+
+        command = [sys.executable, str(patched_engine), *forwarded]
+        if "--no-push" not in forwarded:
+            command.append("--no-push")
+
         try:
-            rc=subprocess.run(cmd,env=env).returncode
-            if rc:return rc
-            updated=merge_display(live,parse_js(temp))
-            publish_media(); info("Publishing catalog to Appwrite"); save_catalog(updated); cleanup(kind,manifest)
-            print("\nSUCCESS\n  Media: /srv/media -> R2\n  Catalog: Appwrite\n  Git push: not required")
+            return_code = subprocess.run(command, env=env).returncode
+            if return_code:
+                return return_code
+
+            updated = merge_display(live, parse_js(temporary_catalog))
+
+            # Publishing order is deliberate: finalized local files -> R2 -> metadata.
+            # If R2 upload/check fails, the new catalog entry never becomes visible.
+            publish_media()
+            info("Publishing catalog to Appwrite TablesDB")
+            save_catalog(updated)
+            cleanup(kind, manifest)
+
+            print(
+                "\nSUCCESS\n"
+                "  Media: /srv/media -> R2\n"
+                "  Catalog: Appwrite TablesDB\n"
+                "  Git push: not required"
+            )
             return 0
-        finally:temp.unlink(missing_ok=True)
+        finally:
+            temporary_catalog.unlink(missing_ok=True)
 
 
-def main():
-    p=argparse.ArgumentParser(description=__doc__); p.add_argument("--init-appwrite",action="store_true")
-    known,rest=p.parse_known_args()
-    if known.init_appwrite:init();return 0
-    return run(rest)
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--init-appwrite", action="store_true")
+    known, forwarded = parser.parse_known_args()
+    if known.init_appwrite:
+        initialize_appwrite()
+        return 0
+    return run(forwarded)
 
-if __name__=="__main__":
-    try:raise SystemExit(main())
-    except KeyboardInterrupt:print("\nCancelled.",file=sys.stderr);raise SystemExit(130)
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except KeyboardInterrupt:
+        print("\nCancelled.", file=sys.stderr)
+        raise SystemExit(130)
