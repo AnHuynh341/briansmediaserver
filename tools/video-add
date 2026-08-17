@@ -2,7 +2,7 @@
 """Unified W41IT video ingest: Anime/YouTube -> /srv/media -> R2 -> Appwrite."""
 from __future__ import annotations
 
-import argparse, copy, json, os, re, shutil, subprocess, sys, tempfile, time
+import argparse, copy, hashlib, json, os, re, shutil, subprocess, sys, tempfile, time
 import urllib.error, urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +22,7 @@ PROJECT=os.environ.get("APPWRITE_PROJECT_ID","6a0878e40013d0103042")
 DATABASE=os.environ.get("APPWRITE_DATABASE_ID","6a087bfc0014b3277171")
 COLLECTION=os.environ.get("VIDEO_CATALOG_COLLECTION_ID","video_catalog")
 DOCUMENT=os.environ.get("VIDEO_CATALOG_DOCUMENT_ID","current")
+ADMIN_USER_ID=os.environ.get("VIDEO_ADMIN_USER_ID","").strip()
 R2=os.environ.get("VIDEO_R2_REMOTE","r2:w41it-video")
 MEDIA=Path(os.environ.get("VIDEO_MEDIA_ROOT","/srv/media"))
 REPO=Path(os.environ.get("VIDEO_FRONTEND_REPO","/home/fedora/repos/briansmediaserver"))
@@ -65,9 +66,13 @@ def create_schema():
     if status==404:
         api("POST",f"/databases/{DATABASE}/collections",{
             "collectionId":COLLECTION,"name":"Video Catalog","permissions":["read(\"any\")"],
-            "documentSecurity":False,"enabled":True})
+            "documentSecurity":True,"enabled":True})
         print(f"  created collection: {COLLECTION}")
-    else: print(f"  exists: {COLLECTION}")
+    else:
+        api("PUT",f"/databases/{DATABASE}/collections/{COLLECTION}",{
+            "name":"Video Catalog","permissions":["read(\"any\")"],
+            "documentSecurity":True,"enabled":True})
+        print(f"  exists: {COLLECTION} (document security enabled)")
     for kind,attr,payload in [
         ("longtext","payload",{"key":"payload","required":True,"array":False,"encrypt":False}),
         ("string","updatedAt",{"key":"updatedAt","size":64,"required":False,"default":"","array":False,"encrypt":False}),
@@ -91,11 +96,18 @@ def get_catalog():
     except Exception as e: die(f"Invalid Appwrite video catalog JSON: {e}")
 
 
+def catalog_permissions():
+    permissions=["read(\"any\")"]
+    if ADMIN_USER_ID:
+        permissions += [f'update("user:{ADMIN_USER_ID}")', f'delete("user:{ADMIN_USER_ID}")']
+    return permissions
+
+
 def save_catalog(catalog):
     payload=json.dumps(catalog,ensure_ascii=False,separators=(",",":"))
     api("PUT",f"/databases/{DATABASE}/collections/{COLLECTION}/documents/{DOCUMENT}",{
         "data":{"payload":payload,"updatedAt":datetime.now(timezone.utc).isoformat()},
-        "permissions":["read(\"any\")"]})
+        "permissions":catalog_permissions()})
 
 
 def blocks(text):
@@ -161,7 +173,8 @@ def merge_display(old,new):
 
 def seed_legacy():
     if not LEGACY.is_file(): die(f"Missing legacy catalog: {LEGACY}")
-    return merge_display({"VIDEO_SERIES":[],"YOUTUBE_CHANNELS":[]},parse_js(LEGACY))
+    cat=parse_js(LEGACY)
+    return merge_display({"VIDEO_SERIES":[],"YOUTUBE_CHANNELS":[]},cat)
 
 
 def patch_engine(text):
@@ -210,6 +223,10 @@ def choose():
 def init():
     key(); create_schema(); cat=seed_legacy(); info("Migrating current video.js catalog to Appwrite"); save_catalog(cat)
     print("\nAppwrite catalog ready. Git pushes are no longer needed for video metadata.")
+    if ADMIN_USER_ID:
+        print(f"  Admin writer: user:{ADMIN_USER_ID}")
+    else:
+        print("  Admin writer: not configured (set VIDEO_ADMIN_USER_ID, then rerun --init-appwrite)")
 
 
 def run(forwarded):
