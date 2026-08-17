@@ -99,7 +99,15 @@ function installVideoCatalogAdminUi() {
                 <strong><i class="fas fa-film"></i> Video Catalog</strong>
                 <span>Live metadata from Appwrite. No Git push is needed.</span>
             </div>
-            <button id="videoCatalogRefreshBtn" type="button">Refresh</button>
+            <div class="video-catalog-admin-heading-actions">
+                <button id="videoCatalogUnlockBtn" type="button">Unlock editing</button>
+                <button id="videoCatalogRefreshBtn" type="button">Refresh</button>
+            </div>
+        </div>
+        <div id="videoCatalogUnlockRow" class="video-catalog-unlock-row hidden">
+            <input id="videoCatalogAdminEmail" type="email" autocomplete="username" placeholder="Appwrite admin email">
+            <input id="videoCatalogAdminPassword" type="password" autocomplete="current-password" placeholder="Appwrite password">
+            <button id="videoCatalogUnlockSubmit" type="button">Sign in</button>
         </div>
         <div id="videoCatalogAdminStatus" class="video-catalog-admin-status" aria-live="polite"></div>
         <div id="videoCatalogAdminList" class="video-catalog-admin-list"></div>
@@ -112,21 +120,54 @@ function installVideoCatalogAdminUi() {
     const style = document.createElement('style');
     style.textContent = `
       .video-catalog-admin{margin:18px 0;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(0,0,0,.18)}
-      .video-catalog-admin-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
-      .video-catalog-admin-heading>div{display:grid;gap:3px}.video-catalog-admin-heading strong{color:#f3f4f6}.video-catalog-admin-heading span,.video-catalog-admin-note{font-size:.72rem;color:var(--text-sub)}
-      .video-catalog-admin-heading button,.video-catalog-admin-row button,.video-catalog-admin-group-title button{border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(255,255,255,.05);color:#e5e7eb;padding:6px 9px;cursor:pointer}
+      .video-catalog-admin-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.video-catalog-admin-heading-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+      .video-catalog-admin-heading>div:first-child{display:grid;gap:3px}.video-catalog-admin-heading strong{color:#f3f4f6}.video-catalog-admin-heading span,.video-catalog-admin-note{font-size:.72rem;color:var(--text-sub)}
+      .video-catalog-admin-heading button,.video-catalog-admin-row button,.video-catalog-admin-group-title button,.video-catalog-unlock-row button{border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(255,255,255,.05);color:#e5e7eb;padding:6px 9px;cursor:pointer}
+      .video-catalog-unlock-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:7px;margin:8px 0 10px}.video-catalog-unlock-row.hidden{display:none}.video-catalog-unlock-row input{min-width:0;border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(0,0,0,.28);color:#f3f4f6;padding:7px 9px;font:inherit}
       .video-catalog-admin-status{min-height:18px;margin:6px 0 10px;font-size:.72rem;font-family:monospace}.video-catalog-admin-list{display:grid;gap:8px;max-height:340px;overflow:auto;padding-right:3px}
       .video-catalog-admin-group{border:1px solid rgba(255,255,255,.07);border-radius:8px;overflow:hidden}.video-catalog-admin-group-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;background:rgba(255,255,255,.035)}
       .video-catalog-admin-group-title span{display:grid;gap:2px;min-width:0}.video-catalog-admin-group-title small{color:var(--text-sub)}.video-catalog-admin-items{display:grid}
       .video-catalog-admin-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px 10px;border-top:1px solid rgba(255,255,255,.055)}
       .video-catalog-admin-row-copy{min-width:0;display:grid;gap:2px}.video-catalog-admin-row-copy strong,.video-catalog-admin-row-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.video-catalog-admin-row-copy span{font-size:.66rem;color:var(--text-sub)}
-      .video-catalog-admin-row-actions{display:flex;gap:5px}.video-catalog-admin-row .danger{color:#fca5a5;border-color:rgba(248,113,113,.25)}.video-catalog-admin-note{margin:10px 0 0;line-height:1.45}`;
+      .video-catalog-admin-row-actions{display:flex;gap:5px}.video-catalog-admin-row .danger{color:#fca5a5;border-color:rgba(248,113,113,.25)}.video-catalog-admin-note{margin:10px 0 0;line-height:1.45}
+      @media(max-width:640px){.video-catalog-unlock-row{grid-template-columns:1fr}.video-catalog-admin-heading{align-items:flex-start;flex-direction:column}.video-catalog-admin-heading-actions{justify-content:flex-start}}`;
     document.head.appendChild(style);
 
     document.getElementById('videoCatalogRefreshBtn')?.addEventListener('click', () => {
         setVideoCatalogAdminStatus('Refreshing catalog…', false);
         void loadVideoCatalogFromAppwrite();
     });
+    document.getElementById('videoCatalogUnlockBtn')?.addEventListener('click', () => {
+        document.getElementById('videoCatalogUnlockRow')?.classList.toggle('hidden');
+    });
+    document.getElementById('videoCatalogUnlockSubmit')?.addEventListener('click', () => {
+        void unlockVideoCatalogEditing();
+    });
+}
+
+async function unlockVideoCatalogEditing() {
+    if (currentUserRole !== 'admin') return;
+    const emailInput = document.getElementById('videoCatalogAdminEmail');
+    const passwordInput = document.getElementById('videoCatalogAdminPassword');
+    const email = emailInput?.value.trim() || '';
+    const password = passwordInput?.value || '';
+    if (!email || !password) {
+        setVideoCatalogAdminStatus('Enter the Appwrite admin email and password first.', true);
+        return;
+    }
+
+    try {
+        setVideoCatalogAdminStatus('Signing in to Appwrite admin writer…', false);
+        try { await account.deleteSession('current'); } catch (_error) { /* guest/no session */ }
+        await account.createEmailPasswordSession(email, password);
+        const authUser = await account.get();
+        if (passwordInput) passwordInput.value = '';
+        document.getElementById('videoCatalogUnlockRow')?.classList.add('hidden');
+        setVideoCatalogAdminStatus(`Catalog editing unlocked as ${authUser.email || authUser.$id}.`, false);
+    } catch (error) {
+        console.error('Video catalog admin login failed:', error);
+        setVideoCatalogAdminStatus(`Admin unlock failed: ${error.message || error}`, true);
+    }
 }
 
 async function saveLiveVideoCatalog(message = 'Saving catalog…') {
@@ -163,7 +204,7 @@ async function editVideoCatalogGroup(kind, groupId) {
         await saveLiveVideoCatalog('Saving group metadata…');
     } catch (error) {
         console.error('Video catalog group update failed:', error);
-        setVideoCatalogAdminStatus(`Edit denied by Appwrite permissions: ${error.message || error}`, true);
+        setVideoCatalogAdminStatus(`Edit denied. Click “Unlock editing” and sign in with the Appwrite admin account. ${error.message || error}`, true);
     }
 }
 
@@ -183,7 +224,7 @@ async function editVideoCatalogItem(kind, groupId, itemId) {
         await saveLiveVideoCatalog('Saving item metadata…');
     } catch (error) {
         console.error('Video catalog item update failed:', error);
-        setVideoCatalogAdminStatus(`Edit denied by Appwrite permissions: ${error.message || error}`, true);
+        setVideoCatalogAdminStatus(`Edit denied. Click “Unlock editing” and sign in with the Appwrite admin account. ${error.message || error}`, true);
     }
 }
 
@@ -199,12 +240,13 @@ async function removeVideoCatalogItem(kind, groupId, itemId) {
     const item = items[index];
     if (!window.confirm(`Remove “${item.title || itemId}” from W41IT?\n\nR2/VPS media will be kept.`)) return;
 
-    items.splice(index, 1);
+    const removed = items.splice(index, 1)[0];
     try {
         await saveLiveVideoCatalog('Removing catalog item…');
     } catch (error) {
+        items.splice(index, 0, removed);
         console.error('Video catalog item removal failed:', error);
-        setVideoCatalogAdminStatus(`Delete denied by Appwrite permissions: ${error.message || error}`, true);
+        setVideoCatalogAdminStatus(`Delete denied. Click “Unlock editing” and sign in with the Appwrite admin account. ${error.message || error}`, true);
     }
 }
 
