@@ -1,5 +1,4 @@
 const { Client, Databases, Storage, Account, ID, Query } = Appwrite;
-const legacyAppwriteNamespace = window.Appwrite;
 
 const client = new Client();
 client
@@ -16,38 +15,40 @@ const PLAYLIST_COLLECTION_ID = 'playlists';
 const USERS_COLLECTION_ID = 'users';
 const account = new Account(client);
 
-// The existing audio/login code stays on the legacy Appwrite SDK loaded by
-// index.html. Video metadata uses the current TablesDB API through an isolated
-// Appwrite 17 client loaded below, so the old code doesn't need a risky SDK
-// migration at the same time.
-let videoTablesClient = null;
+// The existing audio/login code stays on the Appwrite SDK already used by the
+// site. Video metadata talks to the current TablesDB API through a tiny REST
+// adapter, avoiding a second Appwrite SDK fighting over window.Appwrite.
 let videoTablesDB = null;
 let videoTablesAccount = null;
 
 async function loadVideoTablesSdk() {
     if (videoTablesDB && videoTablesAccount) return;
 
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/appwrite@17.0.0';
-    script.async = true;
+    const existing = document.querySelector('script[data-w41it-video-tables-adapter]');
+    if (existing) {
+        await new Promise((resolve, reject) => {
+            if (videoTablesDB && videoTablesAccount) {
+                resolve();
+                return;
+            }
+            existing.addEventListener('load', resolve, { once: true });
+            existing.addEventListener('error', () => reject(new Error('Could not load TablesDB REST adapter')), { once: true });
+        });
+    } else {
+        const script = document.createElement('script');
+        script.src = 'video-tables-adapter.js?v=tables-rest-20260817-1';
+        script.dataset.w41itVideoTablesAdapter = 'true';
+        script.async = false;
 
-    await new Promise((resolve, reject) => {
-        script.addEventListener('load', resolve, { once: true });
-        script.addEventListener('error', () => reject(new Error('Could not load Appwrite TablesDB SDK')), { once: true });
-        document.head.appendChild(script);
-    });
+        await new Promise((resolve, reject) => {
+            script.addEventListener('load', resolve, { once: true });
+            script.addEventListener('error', () => reject(new Error('Could not load TablesDB REST adapter')), { once: true });
+            document.body.appendChild(script);
+        });
+    }
 
-    const tablesNamespace = window.Appwrite;
-    try {
-        videoTablesClient = new tablesNamespace.Client()
-            .setEndpoint('https://sgp.cloud.appwrite.io/v1')
-            .setProject('6a0878e40013d0103042');
-        videoTablesDB = new tablesNamespace.TablesDB(videoTablesClient);
-        videoTablesAccount = new tablesNamespace.Account(videoTablesClient);
-    } finally {
-        // auth.js still constructs Appwrite.Account(client) at login time, so
-        // restore the SDK namespace it was written against.
-        window.Appwrite = legacyAppwriteNamespace;
+    if (!videoTablesDB || !videoTablesAccount) {
+        throw new Error('TablesDB REST adapter loaded but did not initialize.');
     }
 }
 
@@ -89,12 +90,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         await loadVideoTablesSdk();
     } catch (error) {
-        console.warn('TablesDB SDK unavailable; keeping embedded video catalog.', error);
+        console.warn('TablesDB adapter unavailable; keeping embedded video catalog.', error);
         return;
     }
 
     const script = document.createElement('script');
-    script.src = 'video-catalog.js?v=tablesdb-catalog-20260817-1';
+    script.src = 'video-catalog.js?v=tables-rest-catalog-20260817-2';
     script.dataset.w41itVideoCatalog = 'true';
     script.async = false;
     document.body.appendChild(script);
