@@ -43,3 +43,16 @@ if (savedVolume) {
     audio.volume = savedVolume;
     if (volumebar) volumebar.value = savedVolume * 100;
 }
+
+// Load the live Appwrite video catalog only after the regular video player code
+// has created its fallback arrays/functions. If Appwrite is unavailable, the
+// embedded video.js catalog stays in place and the site keeps working.
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.querySelector('script[data-w41it-video-catalog]')) return;
+
+    const script = document.createElement('script');
+    script.src = 'video-catalog.js?v=appwrite-catalog-20260817-1';
+    script.dataset.w41itVideoCatalog = 'true';
+    script.async = false;
+    document.body.appendChild(script);
+});
