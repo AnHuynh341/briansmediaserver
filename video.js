@@ -1,10 +1,10 @@
 // ==========================================================
 // W41IT VIDEO MODE
 // ==========================================================
-// The UI is currently driven by the real VPS-backed catalog below.
+// The UI is currently driven by the R2-backed catalog below.
 // anime-add and youtube-add publish directly into the two catalog arrays below.
 
-const VIDEO_MEDIA_ORIGIN = 'https://cdn.anhuynh341.online';
+const VIDEO_MEDIA_ORIGIN = 'https://w41it-video-r2.meochon341.workers.dev';
 
 function resolveVideoMediaUrl(path) {
     if (!path) return '';
@@ -31,7 +31,7 @@ const VIDEO_SERIES = [
         genre: 'Drama',
         posterPath: "/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/series-thumbnail.jpg?v=90be3b8c49ba",
         backdropPath: "/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/series-thumbnail.jpg?v=90be3b8c49ba",
-        description: 'VPS-backed video library. Video, artwork and subtitles are served from the W41IT media origin.',
+        description: 'R2-backed video library. Video, artwork and subtitles are served through the W41IT Cloudflare Worker.',
         episodes: [
                         {
                 number: 1,
@@ -137,125 +137,13 @@ const VIDEO_SERIES = [
         ]
     },
     {
-        id: "smoking-behind-supermarket-r2",
-        title: "Smoking Behind the Supermarket with You - R2",
-        year: 2026,
-        genre: "Drama",
-        posterPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/series-thumbnail.jpg",
-        backdropPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/series-thumbnail.jpg",
-        description: "R2 / Cloudflare Worker streaming test.",
-        episodes: [
-            {
-                number: 1,
-                title: "Smoking Behind the Supermarket with You",
-                duration: "23:53",
-                quality: "720p",
-                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E01/thumbnail.jpg",
-                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E01/video.mp4",
-                subtitles: [
-                    {
-                        lang: "en",
-                        label: "English (CR)",
-                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E01/en.vtt",
-                        default: true
-                    }
-                ]
-            },
-            {
-                number: 2,
-                title: "Cheering Up Behind the Supermarket with You",
-                duration: "23:50",
-                quality: "720p",
-                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E02/thumbnail.jpg",
-                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E02/video.mp4",
-                subtitles: [
-                    {
-                        lang: "en",
-                        label: "English (CR)",
-                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E02/en.vtt",
-                        default: true
-                    }
-                ]
-            },
-            {
-                number: 3,
-                title: "Smoking Behind the Supermarket with You and More",
-                duration: "23:50",
-                quality: "720p",
-                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E03/thumbnail.jpg",
-                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E03/video.mp4",
-                subtitles: [
-                    {
-                        lang: "en",
-                        label: "English (CR)",
-                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E03/en.vtt",
-                        default: true
-                    }
-                ]
-            },
-            {
-                number: 4,
-                title: "Learning Behind the Supermarket with You",
-                duration: "23:50",
-                quality: "720p",
-                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E04/thumbnail.jpg",
-                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E04/video.mp4",
-                subtitles: [
-                    {
-                        lang: "en",
-                        label: "English (CR)",
-                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E04/en.vtt",
-                        default: true
-                    }
-                ]
-            },
-            {
-                number: 5,
-                title: "Hanging Behind the Supermarket with You",
-                duration: "23:50",
-                quality: "720p",
-                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E05/thumbnail.jpg",
-                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E05/video.mp4",
-                subtitles: [
-                    {
-                        lang: "en",
-                        label: "English (CR)",
-                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E05/en.vtt",
-                        default: true
-                    }
-                ]
-            },
-            {
-                number: 6,
-                title: "Lingering Scent Behind the Supermarket with You",
-                duration: "23:50",
-                quality: "1080p",
-                thumbnailPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/thumbnail.jpg",
-                videoPath: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/video.mp4",
-                subtitles: [
-                    {
-                        lang: "en",
-                        label: "English",
-                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/en.vtt",
-                        default: true
-                    },
-                    {
-                        lang: "vi",
-                        label: "Vietnamese",
-                        path: "https://w41it-video-r2.meochon341.workers.dev/anime/Smoking%20Behind%20the%20Supermarket%20with%20You/S01E06/vi.vtt"
-                    }
-                ]
-            }
-        ]
-    },
-    {
         id: "bocchi-the-rock",
         title: "Bocchi the Rock!",
         year: 2026,
         genre: "Anime",
         posterPath: "/anime/Bocchi%20the%20Rock%21/series-thumbnail.jpg?v=426b4bbb5204",
         backdropPath: "/anime/Bocchi%20the%20Rock%21/series-thumbnail.jpg?v=426b4bbb5204",
-        description: "Video, artwork and subtitles are served from the W41IT media origin.",
+        description: "Video, artwork and subtitles are served through the W41IT Cloudflare Worker.",
         episodes: [
             {
                 number: 1,
@@ -458,7 +346,7 @@ const VIDEO_SERIES = [
         genre: "Anime",
         posterPath: "/anime/Detective%20Conan%20Movie/series-thumbnail.jpg?v=793a84255aba",
         backdropPath: "/anime/Detective%20Conan%20Movie/series-thumbnail.jpg?v=793a84255aba",
-        description: "Video, artwork and subtitles are served from the W41IT media origin.",
+        description: "Video, artwork and subtitles are served through the W41IT Cloudflare Worker.",
         episodes: [
             {
                 number: 1,
@@ -959,7 +847,7 @@ function makeYoutubeChannelSeries(channel) {
         contentType: 'youtube',
         title: channel.name || 'Unknown channel',
         updatedAt: channel.updatedAt || '',
-        description: channel.description || 'Locally archived YouTube video served from the W41IT media origin.',
+        description: channel.description || 'Locally archived YouTube video served through the W41IT Cloudflare Worker.',
         posterPath: firstThumbnail?.thumbnailPath || firstThumbnail?.thumbnail || '',
         backdropPath: firstThumbnail?.thumbnailPath || firstThumbnail?.thumbnail || '',
         episodes: videos.map((video, index) => ({
