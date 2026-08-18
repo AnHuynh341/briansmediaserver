@@ -15,9 +15,16 @@ const PLAYLIST_COLLECTION_ID = 'playlists';
 const USERS_COLLECTION_ID = 'users';
 const account = new Account(client);
 
-// The existing audio/login code stays on the Appwrite SDK already used by the
-// site. Video metadata talks to the current TablesDB API through a tiny REST
-// adapter, avoiding a second Appwrite SDK fighting over window.Appwrite.
+const APPWRITE_ADMIN_USER_ID = '6a74abd00005cc027457';
+
+function isVerifiedAdminAccount(user) {
+    return Boolean(
+        user
+        && user.$id === APPWRITE_ADMIN_USER_ID
+        && user.emailVerification === true
+    );
+}
+
 let videoTablesDB = null;
 let videoTablesAccount = null;
 
@@ -36,7 +43,7 @@ async function loadVideoTablesSdk() {
         });
     } else {
         const script = document.createElement('script');
-        script.src = 'video-tables-adapter.js?v=tables-rest-20260817-1';
+        script.src = 'video-tables-adapter.js?v=verified-admin-20260818-1';
         script.dataset.w41itVideoTablesAdapter = 'true';
         script.async = false;
 
@@ -58,7 +65,7 @@ let currentPlaylistTracks = [];
 let currentTrackIndex = 0;
 let currentViewPlaylistIndex = -1;
 let isShuffle = false;
-let repeatMode = 0; // 0: Off, 1: Repeat All, 2: Repeat One
+let repeatMode = 0;
 let userPlaylists = [];
 let isSeeking = false;
 
@@ -66,6 +73,9 @@ let isSeeking = false;
 let currentUser = null;
 let currentUserRole = null;
 let currentUserId = null;
+let currentUserAuthId = null;
+let currentAuthMode = 'none';
+let currentUserVerified = false;
 
 // ---- DOM References ----
 const audio = document.getElementById('audio');
@@ -81,9 +91,6 @@ if (savedVolume) {
     if (volumebar) volumebar.value = savedVolume * 100;
 }
 
-// Load the live Appwrite video catalog only after the regular video player code
-// has created its fallback arrays/functions. If TablesDB is unavailable, the
-// embedded video.js catalog stays in place and the site keeps working.
 document.addEventListener('DOMContentLoaded', async () => {
     if (document.querySelector('script[data-w41it-video-catalog]')) return;
 
@@ -97,6 +104,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const script = document.createElement('script');
     script.src = 'video-catalog.js?v=tables-rest-catalog-20260817-2';
     script.dataset.w41itVideoCatalog = 'true';
+    script.async = false;
+    document.body.appendChild(script);
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.querySelector('script[data-w41it-inline-admin]')) return;
+
+    const script = document.createElement('script');
+    script.src = 'admin-inline.js?v=verified-admin-20260818-1';
+    script.dataset.w41itInlineAdmin = 'true';
     script.async = false;
     document.body.appendChild(script);
 });
