@@ -115,5 +115,16 @@ document.addEventListener('DOMContentLoaded', () => {
     script.src = 'admin-inline.js?v=verified-admin-20260818-1';
     script.dataset.w41itInlineAdmin = 'true';
     script.async = false;
+
+    script.addEventListener('load', () => {
+        if (document.querySelector('script[data-w41it-admin-polish]')) return;
+
+        const polish = document.createElement('script');
+        polish.src = 'admin-polish.js?v=admin-polish-20260818-1';
+        polish.dataset.w41itAdminPolish = 'true';
+        polish.async = false;
+        document.body.appendChild(polish);
+    }, { once: true });
+
     document.body.appendChild(script);
 });
