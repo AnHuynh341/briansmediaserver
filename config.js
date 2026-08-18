@@ -123,6 +123,17 @@ document.addEventListener('DOMContentLoaded', () => {
         polish.src = 'admin-polish.js?v=admin-polish-20260818-1';
         polish.dataset.w41itAdminPolish = 'true';
         polish.async = false;
+
+        polish.addEventListener('load', () => {
+            if (document.querySelector('script[data-w41it-admin-mobile-fix]')) return;
+
+            const mobileFix = document.createElement('script');
+            mobileFix.src = 'admin-mobile-fix.js?v=admin-mobile-fix-20260818-1';
+            mobileFix.dataset.w41itAdminMobileFix = 'true';
+            mobileFix.async = false;
+            document.body.appendChild(mobileFix);
+        }, { once: true });
+
         document.body.appendChild(polish);
     }, { once: true });
 
