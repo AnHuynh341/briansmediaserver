@@ -26,6 +26,7 @@ async function videoTablesRequest(path, { method = 'GET', data = null, jwt = '' 
 
     const text = await response.text();
     let payload = null;
+
     if (text) {
         try {
             payload = JSON.parse(text);
@@ -44,6 +45,48 @@ async function videoTablesRequest(path, { method = 'GET', data = null, jwt = '' 
     return payload;
 }
 
+videoTablesAccount = {
+    async useCurrentSession() {
+        const authUser = await account.get();
+
+        if (!isVerifiedAdminAccount(authUser)) {
+            videoCatalogAdminJwt = '';
+            throw new Error('A verified W41IT administrator session is required.');
+        }
+
+        const token = await account.createJWT();
+        videoCatalogAdminJwt = token?.jwt || '';
+
+        if (!videoCatalogAdminJwt) {
+            throw new Error('Appwrite admin session is active but no JWT was returned.');
+        }
+
+        return authUser;
+    },
+
+    async deleteSession({ sessionId }) {
+        videoCatalogAdminJwt = '';
+        return account.deleteSession(sessionId);
+    },
+
+    // Backward compatibility for an older cached video-catalog.js.
+    async createEmailPasswordSession({ email, password }) {
+        try {
+            await account.deleteSession('current');
+        } catch (_error) {
+            // No current session.
+        }
+
+        const session = await account.createEmailPasswordSession(email, password);
+        await this.useCurrentSession();
+        return session;
+    },
+
+    async get() {
+        return account.get();
+    }
+};
+
 videoTablesDB = {
     async getRow({ databaseId, tableId, rowId }) {
         return videoTablesRequest(
@@ -52,9 +95,9 @@ videoTablesDB = {
     },
 
     async updateRow({ databaseId, tableId, rowId, data }) {
-        if (!videoCatalogAdminJwt) {
-            throw new Error('Video catalog editing is locked. Click “Unlock editing” first.');
-        }
+        // Appwrite JWTs are short lived. Refresh from the active verified admin
+        // session before each write so there is no separate unlock step.
+        await videoTablesAccount.useCurrentSession();
 
         return videoTablesRequest(
             `/tablesdb/${encodeURIComponent(databaseId)}/tables/${encodeURIComponent(tableId)}/rows/${encodeURIComponent(rowId)}`,
@@ -64,26 +107,5 @@ videoTablesDB = {
                 jwt: videoCatalogAdminJwt
             }
         );
-    }
-};
-
-videoTablesAccount = {
-    async deleteSession({ sessionId }) {
-        videoCatalogAdminJwt = '';
-        return account.deleteSession(sessionId);
-    },
-
-    async createEmailPasswordSession({ email, password }) {
-        const session = await account.createEmailPasswordSession(email, password);
-        const token = await account.createJWT();
-        videoCatalogAdminJwt = token?.jwt || '';
-        if (!videoCatalogAdminJwt) {
-            throw new Error('Appwrite login succeeded but no JWT was returned.');
-        }
-        return session;
-    },
-
-    async get() {
-        return account.get();
     }
 };
