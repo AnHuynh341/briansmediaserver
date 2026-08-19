@@ -149,3 +149,13 @@ document.addEventListener('DOMContentLoaded', () => {
     script.async = false;
     document.body.appendChild(script);
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.querySelector('script[data-w41it-playlist-modal-polish]')) return;
+
+    const script = document.createElement('script');
+    script.src = 'playlist-modal-polish.js?v=playlist-modal-polish-20260819-1';
+    script.dataset.w41itPlaylistModalPolish = 'true';
+    script.async = false;
+    document.body.appendChild(script);
+});
