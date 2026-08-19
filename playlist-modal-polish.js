@@ -1,13 +1,14 @@
 // ==========================================================
 // W41IT playlist editor polish
 // ==========================================================
-// Makes the add/edit playlist dialog roomier, adds live title/artist search,
-// and keeps the hero action label concise.
+// Makes the add/edit playlist dialog mirror the playlist sorter: one clean
+// table with Select / Track / Artist columns, while keeping live search.
 
 (() => {
     const SEARCH_INPUT_ID = 'playlistTrackSearch';
     const SEARCH_META_ID = 'playlistTrackSearchMeta';
     const SEARCH_EMPTY_ID = 'playlistTrackSearchEmpty';
+    const HEADER_ID = 'playlistTrackSelectionHeader';
 
     function normalizeSearchText(value) {
         return String(value || '')
@@ -26,6 +27,8 @@
         const list = document.getElementById('modalTrackSelection');
         if (!list) return;
 
+        list.classList.add('sort-playlist-list', 'playlist-select-list');
+
         list.querySelectorAll('.track-checkbox-item').forEach(label => {
             const checkbox = label.querySelector('.playlist-checkbox');
             if (!checkbox) return;
@@ -37,30 +40,25 @@
                 `${getDisplayTrackName(track.name)} ${track.artist || ''}`
             );
 
-            if (label.querySelector('.playlist-track-copy')) return;
+            // Rebuild the original compact checkbox row into the exact same
+            // three-column structure used by the sort modal.
+            label.classList.add('sort-track-row', 'playlist-select-row');
 
-            const children = Array.from(label.children);
-            const originalTitle = children.find(element =>
-                element !== checkbox && !element.classList.contains('track-genre')
-            );
-            const genre = label.querySelector('.track-genre');
+            const selectCell = document.createElement('span');
+            selectCell.className = 'sort-track-position playlist-select-check';
+            selectCell.appendChild(checkbox);
 
-            const copy = document.createElement('span');
-            copy.className = 'playlist-track-copy';
+            const titleCell = document.createElement('span');
+            titleCell.className = 'sort-track-title playlist-select-title';
+            const titleText = document.createElement('span');
+            titleText.textContent = getDisplayTrackName(track.name);
+            titleCell.appendChild(titleText);
 
-            const title = document.createElement('strong');
-            title.className = 'playlist-track-title';
-            title.textContent = getDisplayTrackName(track.name);
+            const artistCell = document.createElement('span');
+            artistCell.className = 'sort-track-artist playlist-select-artist';
+            artistCell.textContent = track.artist || 'Unknown Artist';
 
-            const artist = document.createElement('small');
-            artist.className = 'playlist-track-artist';
-            artist.textContent = track.artist || 'Unknown Artist';
-
-            copy.append(title, artist);
-
-            if (originalTitle) originalTitle.replaceWith(copy);
-            else if (genre) label.insertBefore(copy, genre);
-            else label.appendChild(copy);
+            label.replaceChildren(selectCell, titleCell, artistCell);
         });
     }
 
@@ -107,7 +105,9 @@
         const list = document.getElementById('modalTrackSelection');
         if (!modal || !content || !nameInput || !list) return;
 
-        content.classList.add('playlist-edit-modal');
+        // Reuse the sort modal's sizing and visual language instead of keeping
+        // a second, unrelated playlist-editor layout.
+        content.classList.add('playlist-edit-modal', 'sort-playlist-modal');
 
         if (!document.getElementById(SEARCH_INPUT_ID)) {
             const search = document.createElement('div');
@@ -122,14 +122,23 @@
                 <span id="${SEARCH_META_ID}" class="playlist-track-search-meta"></span>
             `;
             nameInput.insertAdjacentElement('afterend', search);
+            search.querySelector('input')?.addEventListener('input', applyPlaylistTrackSearch);
+        }
 
+        if (!document.getElementById(HEADER_ID)) {
+            const header = document.createElement('div');
+            header.id = HEADER_ID;
+            header.className = 'sort-list-header playlist-select-header';
+            header.innerHTML = '<span>SELECT</span><span>TRACK</span><span>ARTIST</span>';
+            list.insertAdjacentElement('beforebegin', header);
+        }
+
+        if (!document.getElementById(SEARCH_EMPTY_ID)) {
             const empty = document.createElement('div');
             empty.id = SEARCH_EMPTY_ID;
             empty.className = 'playlist-track-search-empty hidden';
             empty.innerHTML = '<i class="fas fa-search"></i><span>No matching tracks.</span>';
             list.insertAdjacentElement('afterend', empty);
-
-            search.querySelector('input')?.addEventListener('input', applyPlaylistTrackSearch);
         }
 
         decoratePlaylistTrackRows();
@@ -143,59 +152,150 @@
         style.id = 'w41it-playlist-modal-polish-style';
         style.textContent = `
           #playlistModal .playlist-edit-modal{
-            width:min(760px,calc(100vw - 32px));
-            max-height:min(88vh,820px);
-            padding:26px;
             overflow:hidden;
           }
-          #playlistModal .playlist-edit-modal>h3{margin-bottom:18px}
-          #playlistModal #newPlaylistName{flex:0 0 auto;margin-bottom:12px}
+          #playlistModal .playlist-edit-modal>h3{
+            margin-bottom:12px;
+          }
+          #playlistModal #newPlaylistName{
+            flex:0 0 auto;
+            margin-bottom:12px;
+          }
+
           .playlist-track-search{
-            position:relative;display:flex;align-items:center;gap:9px;flex:0 0 auto;
-            margin-bottom:12px;border:1px solid rgba(255,255,255,.09);border-radius:9px;
-            background:rgba(2,5,12,.52);transition:border-color .16s ease,box-shadow .16s ease
+            position:relative;
+            display:flex;
+            align-items:center;
+            gap:9px;
+            flex:0 0 auto;
+            margin-bottom:12px;
+            border:1px solid rgba(255,255,255,.09);
+            border-radius:8px;
+            background:rgba(0,0,0,.12);
+            transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
           }
           .playlist-track-search:focus-within{
-            border-color:rgba(0,229,255,.42);box-shadow:0 0 0 3px rgba(0,229,255,.07)
+            border-color:rgba(0,229,255,.36);
+            box-shadow:0 0 0 3px rgba(0,229,255,.06);
+            background:rgba(0,229,255,.025);
           }
-          .playlist-track-search>i{position:absolute;left:13px;color:var(--text-sub);font-size:.8rem;pointer-events:none}
+          .playlist-track-search>i{
+            position:absolute;
+            left:13px;
+            color:var(--text-sub);
+            font-size:.8rem;
+            pointer-events:none;
+          }
           #playlistModal .playlist-track-search input[type="search"]{
-            min-width:0;flex:1;margin:0;padding:11px 8px 11px 38px;border:0;outline:0;
-            background:transparent;color:var(--text-main);font:inherit;font-size:.86rem
+            min-width:0;
+            flex:1;
+            margin:0;
+            padding:11px 8px 11px 38px;
+            border:0;
+            outline:0;
+            background:transparent;
+            color:var(--text-main);
+            font:inherit;
+            font-size:.86rem;
           }
-          #playlistModal .playlist-track-search input[type="search"]::-webkit-search-cancel-button{cursor:pointer}
           .playlist-track-search-meta{
-            flex:0 0 auto;padding-right:12px;color:var(--text-sub);font-size:.68rem;white-space:nowrap
+            flex:0 0 auto;
+            padding-right:12px;
+            color:var(--text-sub);
+            font-size:.68rem;
+            white-space:nowrap;
           }
-          #playlistModal .track-selection-area{
-            min-height:280px;max-height:none;flex:1 1 430px;margin-bottom:12px;padding:8px 9px;
-            overscroll-behavior:contain
+
+          #playlistModal .playlist-select-header{
+            margin:0;
           }
-          #playlistModal .track-checkbox-item{
-            min-height:48px;padding:8px 10px;box-sizing:border-box
+          #playlistModal .playlist-select-list{
+            flex:1;
+            min-height:0;
+            max-height:none;
+            margin:0 0 12px;
+            padding:0;
+            border:0;
+            border-radius:0;
+            background:rgba(0,0,0,.12);
           }
-          #playlistModal .track-checkbox-item.playlist-track-filtered-out{display:none}
-          .playlist-track-copy{min-width:0;flex:1;display:grid;gap:3px}
-          .playlist-track-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-main);font-size:.82rem;font-weight:650}
-          .playlist-track-artist{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-sub);font-size:.69rem}
-          #playlistModal .track-genre{flex:0 0 auto;margin-left:auto}
+          #playlistModal .playlist-select-row{
+            min-height:44px;
+            margin:0;
+            padding:11px 12px;
+            border-radius:0;
+            cursor:pointer;
+            user-select:none;
+            color:var(--text-main);
+          }
+          #playlistModal .playlist-select-row:active{
+            cursor:pointer;
+          }
+          #playlistModal .playlist-select-row.playlist-track-filtered-out{
+            display:none;
+          }
+          #playlistModal .playlist-select-check{
+            display:flex;
+            align-items:center;
+            justify-content:flex-start;
+          }
+          #playlistModal .playlist-select-check input[type="checkbox"]{
+            width:16px;
+            height:16px;
+            margin:0;
+            accent-color:var(--accent);
+            cursor:pointer;
+          }
+          #playlistModal .playlist-select-title{
+            gap:0;
+            font-size:.86rem;
+            font-weight:500;
+          }
+          #playlistModal .playlist-select-artist{
+            font-size:.86rem;
+          }
           .playlist-track-search-empty{
-            flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;
-            min-height:44px;margin:-4px 0 8px;color:var(--text-sub);font-size:.76rem
+            flex:0 0 auto;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            gap:8px;
+            min-height:44px;
+            margin:-4px 0 8px;
+            color:var(--text-sub);
+            font-size:.76rem;
           }
           .playlist-track-search-empty.hidden{display:none}
           #playlistModal .modal-actions{
-            padding-top:12px;margin-top:0;border-top:1px solid rgba(255,255,255,.06)
+            padding-top:12px;
+            margin-top:0;
+            border-top:1px solid rgba(255,255,255,.06);
           }
-          @media(max-width:640px){
-            #playlistModal{padding:10px;align-items:flex-end}
+
+          @media(max-width:600px){
             #playlistModal .playlist-edit-modal{
-              width:100%;max-height:90vh;padding:18px 15px max(15px,env(safe-area-inset-bottom));
-              border-radius:15px 15px 8px 8px
+              width:100%;
+              height:90vh;
+              max-height:90vh;
             }
-            #playlistModal .track-selection-area{min-height:220px;flex-basis:48vh}
+            #playlistModal .playlist-select-header,
+            #playlistModal .playlist-select-row{
+              grid-template-columns:48px minmax(0,1.35fr) minmax(0,1fr);
+              column-gap:8px;
+            }
+            #playlistModal .playlist-select-header{
+              padding:7px 6px;
+              font-size:.62rem;
+            }
+            #playlistModal .playlist-select-row{
+              padding:11px 6px;
+              font-size:.78rem;
+            }
+            #playlistModal .playlist-select-title,
+            #playlistModal .playlist-select-artist{
+              font-size:.78rem;
+            }
             .playlist-track-search-meta{display:none}
-            #playlistModal .track-genre{display:none}
             #playlistModal .modal-actions button{flex:1}
           }
         `;
