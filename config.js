@@ -139,3 +139,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.body.appendChild(script);
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.querySelector('script[data-w41it-playlist-drag-scroll]')) return;
+
+    const script = document.createElement('script');
+    script.src = 'playlist-drag-scroll.js?v=playlist-drag-scroll-20260819-1';
+    script.dataset.w41itPlaylistDragScroll = 'true';
+    script.async = false;
+    document.body.appendChild(script);
+});
