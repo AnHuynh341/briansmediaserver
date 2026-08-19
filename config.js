@@ -159,3 +159,13 @@ document.addEventListener('DOMContentLoaded', () => {
     script.async = false;
     document.body.appendChild(script);
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.querySelector('script[data-w41it-video-playback-guard]')) return;
+
+    const script = document.createElement('script');
+    script.src = 'video-playback-guard.js?v=video-playback-guard-20260819-1';
+    script.dataset.w41itVideoPlaybackGuard = 'true';
+    script.async = false;
+    document.body.appendChild(script);
+});
