@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.querySelector('script[data-w41it-playlist-modal-polish]')) return;
 
     const script = document.createElement('script');
-    script.src = 'playlist-modal-polish.js?v=playlist-modal-polish-20260819-2';
+    script.src = 'playlist-modal-polish.js?v=playlist-modal-polish-20260819-3';
     script.dataset.w41itPlaylistModalPolish = 'true';
     script.async = false;
     document.body.appendChild(script);
