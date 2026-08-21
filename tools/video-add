@@ -60,6 +60,224 @@ TEMP_NAME = ".video-add-catalog.js"
 VIDEO_SUFFIXES = {".mkv", ".mp4", ".m4v", ".mov", ".webm", ".avi"}
 
 
+ANIME_IMAGE_PICKER = r'''def validate_image_source(path: Path) -> Path:
+    source = path.expanduser().resolve()
+    if not source.is_file():
+        die(f"Image file not found: {source}")
+    if source.suffix.lower() not in IMAGE_SUFFIXES:
+        supported = ", ".join(sorted(IMAGE_SUFFIXES))
+        die(
+            f"Unsupported image type {source.suffix or '(none)'}; "
+            f"use one of: {supported}"
+        )
+    return source
+
+
+def try_image_source(path: Path) -> Path | None:
+    try:
+        return validate_image_source(path)
+    except AnimeAddError as error:
+        print(f"\nERROR: {error}", file=sys.stderr)
+        print(
+            "Try again; the episode queue and everything entered so far "
+            "are still intact."
+        )
+        return None
+
+
+def yazi_image_source() -> Path | None:
+    start = Path.home()
+    if not start.is_dir():
+        start = DOWNLOAD_DIR if DOWNLOAD_DIR.is_dir() else Path.cwd()
+
+    with tempfile.TemporaryDirectory(prefix="anime-add-yazi-") as directory:
+        chooser_file = Path(directory) / "selected-image"
+        result = subprocess.run(
+            [
+                shutil.which("yazi") or "yazi",
+                str(start),
+                f"--chooser-file={chooser_file}",
+            ]
+        )
+        if result.returncode not in (0, 130):
+            print(f"Yazi closed with status {result.returncode}; choose again.")
+            return None
+        if not chooser_file.is_file():
+            print("No image was selected; choose again or go back.")
+            return None
+        selected = next(
+            (line.strip() for line in chooser_file.read_text().splitlines() if line.strip()),
+            "",
+        )
+        if not selected:
+            print("No image was selected; choose again or go back.")
+            return None
+        return Path(selected)
+
+
+def discover_images_for_fzf() -> list[Path]:
+    roots: list[Path] = []
+    for candidate in (Path.home(), DOWNLOAD_DIR, Path.cwd()):
+        try:
+            candidate = candidate.expanduser().resolve()
+        except OSError:
+            continue
+        if candidate.is_dir() and candidate not in roots:
+            roots.append(candidate)
+
+    ignored_directories = {
+        ".cache",
+        ".git",
+        ".local",
+        ".npm",
+        ".rustup",
+        ".cargo",
+        "node_modules",
+        "Trash",
+    }
+    images: dict[Path, None] = {}
+    for root in roots:
+        for current, directories, filenames in os.walk(root, onerror=lambda _error: None):
+            directories[:] = [
+                name for name in directories if name not in ignored_directories
+            ]
+            current_path = Path(current)
+            for filename in filenames:
+                path = current_path / filename
+                if path.suffix.lower() in IMAGE_SUFFIXES:
+                    try:
+                        images[path.resolve()] = None
+                    except OSError:
+                        continue
+    return sorted(
+        images,
+        key=lambda path: path.stat().st_mtime if path.exists() else 0,
+        reverse=True,
+    )
+
+
+def fzf_image_source() -> Path | None:
+    images = discover_images_for_fzf()
+    if not images:
+        print("No supported images were found beneath your home/download folders.")
+        return None
+    result = subprocess.run(
+        [
+            shutil.which("fzf") or "fzf",
+            "--height=80%",
+            "--layout=reverse",
+            "--border",
+            "--prompt=Series thumbnail > ",
+        ],
+        input="\n".join(str(path) for path in images) + "\n",
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        print("No image was selected; choose again or go back.")
+        return None
+    return Path(result.stdout.splitlines()[0].strip())
+
+
+def choose_image_source(argument: str | None = None) -> Path:
+    if argument:
+        selected = try_image_source(Path(argument))
+        if selected is not None:
+            return selected
+        print("Opening the image picker instead.")
+
+    while True:
+        methods: list[tuple[str, str]] = []
+        if shutil.which("yazi"):
+            methods.append(("Browse files with Yazi", "yazi"))
+        if shutil.which("fzf"):
+            methods.append(("Search image files with fzf", "fzf"))
+        methods.append(("Enter an image path", "manual"))
+
+        selected_method = methods[
+            choose(
+                "Choose a series-thumbnail image",
+                [label for label, _method in methods],
+                allow_back=True,
+            )
+        ][1]
+        if selected_method == "yazi":
+            candidate = yazi_image_source()
+        elif selected_method == "fzf":
+            candidate = fzf_image_source()
+        else:
+            candidate = Path(ask("Image path", allow_back=True))
+
+        if candidate is None:
+            continue
+        selected = try_image_source(candidate)
+        if selected is not None:
+            return selected
+'''
+
+
+ANIME_ARTWORK_SELECTOR = r'''def select_series_artwork(
+    text: str,
+    series_title: str,
+    *,
+    series: SeriesInfo | None = None,
+    extra: EpisodeArtwork | None = None,
+    extras: list[EpisodeArtwork] | None = None,
+    image_argument: str | None = None,
+) -> SeriesArtworkSelection:
+    pending = list(extras or [])
+    if extra is not None:
+        pending.append(extra)
+    episode_label = "A queued episode thumbnail" if series is None else "An episode thumbnail"
+    pending_argument = image_argument
+
+    while True:
+        if pending_argument is not None:
+            try:
+                image_source = choose_image_source(pending_argument)
+            except BackRequested:
+                pending_argument = None
+                continue
+            return SeriesArtworkSelection(
+                label=f"Image file — {image_source.name}",
+                image_source=image_source,
+            )
+
+        source_kind = choose(
+            f"Choose the series thumbnail source for {series_title}",
+            [episode_label, "An image file"],
+        )
+        if source_kind == 0:
+            if series is None:
+                if not pending:
+                    die("No episode thumbnail is available")
+                selected = choose(
+                    f"Select the series thumbnail for {series_title}",
+                    [f"Episode {item.number}: {item.title}" for item in pending],
+                )
+                episode_artwork = pending[selected]
+            else:
+                episode_artwork = select_episode_artwork(
+                    text,
+                    series,
+                    extras=pending,
+                )
+            return SeriesArtworkSelection(
+                label=f"Episode {episode_artwork.number} — {episode_artwork.title}",
+                thumbnail_path=episode_artwork.thumbnail_path,
+            )
+
+        try:
+            image_source = choose_image_source()
+        except BackRequested:
+            continue
+        return SeriesArtworkSelection(
+            label=f"Image file — {image_source.name}",
+            image_source=image_source,
+        )
+'''
+
+
 def die(message: str, code: int = 1) -> None:
     print(f"\nERROR: {message}", file=sys.stderr)
     raise SystemExit(code)
@@ -67,6 +285,10 @@ def die(message: str, code: int = 1) -> None:
 
 def info(message: str) -> None:
     print(f"\n==> {message}")
+
+
+def warn(message: str) -> None:
+    print(f"WARNING: {message}", file=sys.stderr)
 
 
 def need(command: str) -> Path:
@@ -375,18 +597,52 @@ def seed_legacy():
     )
 
 
-def patch_engine(text: str) -> str:
+def replace_python_function_block(
+    text: str,
+    start_marker: str,
+    end_marker: str,
+    replacement: str,
+) -> str:
+    start = text.find(start_marker)
+    end = text.find(end_marker, start + len(start_marker))
+    if start < 0 or end < 0:
+        die(
+            "Installed anime-add has a newer incompatible thumbnail workflow; "
+            "update video-add/anime-add together"
+        )
+    return text[:start] + replacement.rstrip() + "\n\n\n" + text[end:]
+
+
+def patch_anime_thumbnail_picker(text: str) -> str:
+    text = replace_python_function_block(
+        text,
+        "def validate_image_source(",
+        "def probe(",
+        ANIME_IMAGE_PICKER,
+    )
+    return replace_python_function_block(
+        text,
+        "def select_series_artwork(",
+        "def change_series_thumbnail(",
+        ANIME_ARTWORK_SELECTOR,
+    )
+
+
+def patch_engine(text: str, kind: str) -> str:
     old = '''        if not keep_source and not no_push:\n            for job in jobs:\n                remove_processed_source(job.source)\n        elif not keep_source and no_push:\n            warn("Source files were kept because --no-push was used")'''
-    new = '''        if not keep_source:\n            manifest = os.environ.get("VIDEO_ADD_SOURCE_MANIFEST")\n            if manifest:\n                with open(manifest, "a", encoding="utf-8") as handle:\n                    for job in jobs:\n                        handle.write(str(job.source) + "\\n")'''
+    new = '''        media_manifest = os.environ.get("VIDEO_ADD_MEDIA_MANIFEST")\n        if media_manifest:\n            with open(media_manifest, "a", encoding="utf-8") as handle:\n                for job in jobs:\n                    handle.write(str(job.final_dir) + "\\n")\n\n        if not keep_source:\n            source_manifest = os.environ.get("VIDEO_ADD_SOURCE_MANIFEST")\n            if source_manifest:\n                with open(source_manifest, "a", encoding="utf-8") as handle:\n                    for job in jobs:\n                        handle.write(str(job.source) + "\\n")'''
     if old not in text:
         die(
             "Installed anime-add/youtube-add is a newer incompatible version; "
             "update video-add"
         )
-    return text.replace(old, new, 1)
+    patched = text.replace(old, new, 1)
+    if kind == "anime":
+        patched = patch_anime_thumbnail_picker(patched)
+    return patched
 
 
-def cleanup(kind: str, manifest: Path) -> None:
+def cleanup_sources(kind: str, manifest: Path) -> None:
     if not manifest.is_file():
         return
 
@@ -439,9 +695,56 @@ def cleanup(kind: str, manifest: Path) -> None:
             print(f"  removed source: {resolved}")
 
 
+def remove_empty_media_parents(path: Path, root: Path) -> None:
+    parent = path.parent
+    while parent != root:
+        try:
+            parent.rmdir()
+        except OSError:
+            return
+        parent = parent.parent
+
+
+def cleanup_published_media(kind: str, manifest: Path) -> None:
+    if not manifest.is_file():
+        return
+
+    root = (MEDIA / kind).resolve()
+    info("Removing R2-verified local media")
+
+    for line in dict.fromkeys(manifest.read_text().splitlines()):
+        if not line.strip():
+            continue
+        media_path = Path(line.strip())
+        try:
+            resolved = media_path.resolve()
+            resolved.relative_to(root)
+        except Exception:
+            warn(f"Kept media outside the guarded cleanup root {root}: {media_path}")
+            continue
+
+        if resolved == root:
+            warn(f"Refusing to remove the media root itself: {root}")
+            continue
+
+        try:
+            if resolved.is_dir():
+                shutil.rmtree(resolved)
+                print(f"  removed local media folder: {resolved}")
+            elif resolved.exists():
+                resolved.unlink()
+                print(f"  removed local media file: {resolved}")
+            else:
+                print(f"  local media was already absent: {resolved}")
+        except OSError as error:
+            warn(f"Could not remove verified local media {resolved}: {error}")
+            continue
+        remove_empty_media_parents(resolved, root)
+
+
 def publish_media() -> None:
     need("rclone")
-    info("Uploading finalized /srv/media to R2")
+    info(f"Uploading finalized {MEDIA} to R2")
     subprocess.run(
         [
             "rclone",
@@ -494,7 +797,7 @@ def initialize_appwrite() -> None:
         )
 
 
-def run(forwarded: list[str]) -> int:
+def run(forwarded: list[str], *, keep_media: bool) -> int:
     kind, engine = choose()
     engine_path = need(engine)
     need("node")
@@ -506,10 +809,11 @@ def run(forwarded: list[str]) -> int:
 
     with tempfile.TemporaryDirectory(prefix="video-add-") as temp_directory:
         temp_directory = Path(temp_directory)
-        manifest = temp_directory / "sources.txt"
+        source_manifest = temp_directory / "sources.txt"
+        media_manifest = temp_directory / "media.txt"
         patched_engine = temp_directory / f"{kind}-workflow.py"
         patched_engine.write_text(
-            patch_engine(engine_path.read_text(encoding="utf-8")),
+            patch_engine(engine_path.read_text(encoding="utf-8"), kind),
             encoding="utf-8",
         )
         temporary_catalog.write_text(
@@ -517,13 +821,16 @@ def run(forwarded: list[str]) -> int:
         )
 
         env = os.environ.copy()
-        env["VIDEO_ADD_SOURCE_MANIFEST"] = str(manifest)
+        env["VIDEO_ADD_SOURCE_MANIFEST"] = str(source_manifest)
+        env["VIDEO_ADD_MEDIA_MANIFEST"] = str(media_manifest)
         if kind == "anime":
             env["ANIME_FRONTEND_REPO"] = str(REPO)
             env["ANIME_CATALOG_FILE"] = TEMP_NAME
+            env["ANIME_MEDIA_ROOT"] = str(MEDIA / "anime")
         else:
             env["YOUTUBE_FRONTEND_REPO"] = str(REPO)
             env["YOUTUBE_CATALOG_FILE"] = TEMP_NAME
+            env["YOUTUBE_MEDIA_ROOT"] = str(MEDIA / "youtube")
 
         command = [sys.executable, str(patched_engine), *forwarded]
         if "--no-push" not in forwarded:
@@ -541,12 +848,17 @@ def run(forwarded: list[str]) -> int:
             publish_media()
             info("Publishing catalog to Appwrite TablesDB")
             save_catalog(updated)
-            cleanup(kind, manifest)
+            cleanup_sources(kind, source_manifest)
+            if keep_media:
+                print("\nLocal processed media kept because --keep-media was used.")
+            else:
+                cleanup_published_media(kind, media_manifest)
 
             print(
                 "\nSUCCESS\n"
-                "  Media: /srv/media -> R2\n"
+                f"  Media: {MEDIA} -> R2\n"
                 "  Catalog: Appwrite TablesDB\n"
+                f"  Local media: {'kept' if keep_media else 'removed after verification'}\n"
                 "  Git push: not required"
             )
             return 0
@@ -557,11 +869,16 @@ def run(forwarded: list[str]) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--init-appwrite", action="store_true")
+    parser.add_argument(
+        "--keep-media",
+        action="store_true",
+        help="keep finalized /srv/media files after successful R2 verification",
+    )
     known, forwarded = parser.parse_known_args()
     if known.init_appwrite:
         initialize_appwrite()
         return 0
-    return run(forwarded)
+    return run(forwarded, keep_media=known.keep_media)
 
 
 if __name__ == "__main__":
