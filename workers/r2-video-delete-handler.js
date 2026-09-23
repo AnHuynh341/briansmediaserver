@@ -13,7 +13,7 @@
  *   }
  *
  * Required R2 binding:
- *   VIDEO_BUCKET -> R2 bucket "w41it-video"
+ *   CDN -> the R2 bucket used by the existing video Worker
  *
  * Optional variable:
  *   W41IT_ALLOWED_ORIGINS -> comma-separated browser origins allowed to call DELETE.
@@ -169,10 +169,11 @@ export async function handleVideoR2Delete(request, env) {
         return jsonResponse({ error: 'Invalid R2 video object path.' }, 400, request, env);
     }
 
-    const bucket = env.VIDEO_BUCKET || env.W41IT_VIDEO || env.R2_BUCKET || env.MY_BUCKET;
+    // Use the same explicit R2 binding as the existing video Worker.
+    const bucket = env.CDN;
     if (!bucket) {
         return jsonResponse(
-            { error: 'R2 video bucket binding is not configured.' },
+            { error: 'R2 binding "CDN" is not configured.' },
             500,
             request,
             env
