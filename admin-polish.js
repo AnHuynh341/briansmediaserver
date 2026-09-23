@@ -475,38 +475,13 @@ async function editVideoItemInlinePolished(kind, groupId, itemId) {
 
 async function removeVideoItemInlinePolished(kind, groupId, itemId) {
     if (!await ensureVideoAdminReady()) return;
-    if (typeof liveVideoCatalog === 'undefined' || !liveVideoCatalog) return;
-
-    const groups = kind === 'youtube'
-        ? liveVideoCatalog.YOUTUBE_CHANNELS
-        : liveVideoCatalog.VIDEO_SERIES;
-    const group = groups.find(item => item.id === groupId);
-    const key = kind === 'youtube' ? 'videos' : 'episodes';
-    const items = group?.[key];
-    if (!Array.isArray(items)) return;
-
-    const index = items.findIndex(entry => String(entry.id || entry.number) === String(itemId));
-    if (index < 0) return;
-
-    const item = items[index];
-    const accepted = await openAdminConfirm({
-        title: `Remove ${kind === 'youtube' ? 'video' : 'episode'}?`,
-        message: `“${item.title || itemId}” will disappear from W41IT. The R2/VPS media is kept as a recovery copy.`
-    });
-    if (!accepted) return;
-
-    const removed = items.splice(index, 1)[0];
-
-    try {
-        await saveLiveVideoCatalog('Removing catalog item…');
-        showAdminToast('Catalog item removed.');
-    } catch (error) {
-        items.splice(index, 0, removed);
-        console.error('Video catalog item removal failed:', error);
-        showAdminToast(`Could not remove item: ${error.message}`, 'error');
+    if (typeof removeVideoCatalogItem !== 'function') {
+        showAdminToast('Video delete handler is still loading. Try again in a moment.', 'error');
+        return;
     }
-}
 
+    await removeVideoCatalogItem(kind, groupId, itemId);
+}
 async function removeVideoGroupInlinePolished(kind, groupId) {
     if (!await ensureVideoAdminReady()) return;
     if (typeof liveVideoCatalog === 'undefined' || !liveVideoCatalog) return;
