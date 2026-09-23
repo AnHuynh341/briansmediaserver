@@ -9,14 +9,12 @@ const VIDEO_APPWRITE_ENDPOINT = 'https://sgp.cloud.appwrite.io/v1';
 const VIDEO_APPWRITE_PROJECT_ID = '6a0878e40013d0103042';
 let videoCatalogAdminJwt = '';
 
-async function videoTablesRequest(path, { method = 'GET', data = null, jwt = '' } = {}) {
+async function videoTablesRequest(path, { method = 'GET', data = null } = {}) {
     const headers = {
         'X-Appwrite-Project': VIDEO_APPWRITE_PROJECT_ID
     };
 
     if (data !== null) headers['Content-Type'] = 'application/json';
-    if (jwt) headers['X-Appwrite-JWT'] = jwt;
-
     const response = await fetch(`${VIDEO_APPWRITE_ENDPOINT}${path}`, {
         method,
         headers,
@@ -106,9 +104,10 @@ videoTablesDB = {
             {
                 // PATCH updates the existing row. Do not use PUT/upsert here.
                 method: 'PATCH',
-                // TablesDB row fields are wrapped in the request's data object.
-                data: { data },
-                jwt: videoCatalogAdminJwt
+                // Use the browser's normal Appwrite session cookie for this
+                // client-side write. X-Appwrite-JWT is intended for backend
+                // requests acting on behalf of a user.
+                data: { data }
             }
         );
     }
