@@ -169,9 +169,14 @@ export async function handleVideoR2Delete(request, env) {
         return jsonResponse({ error: 'Invalid R2 video object path.' }, 400, request, env);
     }
 
-    const bucket = env.VIDEO_BUCKET;
+    const bucket = env.VIDEO_BUCKET || env.W41IT_VIDEO || env.R2_BUCKET || env.MY_BUCKET;
     if (!bucket) {
-        return jsonResponse({ error: 'R2 video bucket binding is not configured.' }, 500, request, env);
+        return jsonResponse(
+            { error: 'R2 video bucket binding is not configured.' },
+            500,
+            request,
+            env
+        );
     }
 
     try {
