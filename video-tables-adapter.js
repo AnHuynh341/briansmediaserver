@@ -108,7 +108,8 @@ videoTablesDB = {
             `/tablesdb/${encodeURIComponent(databaseId)}/tables/${encodeURIComponent(tableId)}/rows/${encodeURIComponent(rowId)}`,
             {
                 method: 'PUT',
-                data,
+                // TablesDB expects row fields under a top-level `data` property.
+                data: { data },
                 jwt: videoCatalogAdminJwt
             }
         );
