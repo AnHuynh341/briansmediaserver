@@ -102,7 +102,7 @@ videoTablesDB = {
         await videoTablesAccount.useCurrentSession();
 
         return videoTablesRequest(
-            `/tablesdb/${encodeURIComponent(databaseId)}/tables/${encodeURIComponent(tableId)}/rows/${encodeURIComponent(rowId)}`
+            `/tablesdb/${encodeURIComponent(databaseId)}/tables/${encodeURIComponent(tableId)}/rows/${encodeURIComponent(rowId)}`,
             {
                 // PATCH updates the existing row. Do not use PUT/upsert here.
                 method: 'PATCH',
