@@ -107,8 +107,10 @@ videoTablesDB = {
         return videoTablesRequest(
             `/tablesdb/${encodeURIComponent(databaseId)}/tables/${encodeURIComponent(tableId)}/rows/${encodeURIComponent(rowId)}`,
             {
-                method: 'PUT',
-                // TablesDB expects row fields under a top-level `data` property.
+                // Appwrite uses PATCH to update an existing row.
+                // PUT is upsert and can additionally require create permission,
+                // which caused the catalog update to return 403.
+                method: 'PATCH',
                 data: { data },
                 jwt: videoCatalogAdminJwt
             }
