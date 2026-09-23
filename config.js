@@ -43,7 +43,7 @@ async function loadVideoTablesSdk() {
         });
     } else {
         const script = document.createElement('script');
-        script.src = 'video-tables-adapter.js?v=verified-admin-20260818-1';
+        script.src = 'video-tables-adapter.js?v=r2-delete-20260923-1';
         script.dataset.w41itVideoTablesAdapter = 'true';
         script.async = false;
 
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const script = document.createElement('script');
-    script.src = 'video-catalog.js?v=tables-rest-catalog-20260817-2';
+    script.src = 'video-catalog.js?v=r2-delete-20260923-1';
     script.dataset.w41itVideoCatalog = 'true';
     script.async = false;
     document.body.appendChild(script);
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.querySelector('script[data-w41it-inline-admin]')) return;
 
     const script = document.createElement('script');
-    script.src = 'admin-inline.js?v=verified-admin-20260818-1';
+    script.src = 'admin-inline.js?v=r2-delete-20260923-1';
     script.dataset.w41itInlineAdmin = 'true';
     script.async = false;
 
@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.querySelector('script[data-w41it-admin-polish]')) return;
 
         const polish = document.createElement('script');
-        polish.src = 'admin-polish.js?v=admin-polish-20260818-1';
+        polish.src = 'admin-polish.js?v=r2-delete-20260923-1';
         polish.dataset.w41itAdminPolish = 'true';
         polish.async = false;
 
