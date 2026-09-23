@@ -64,6 +64,11 @@ videoTablesAccount = {
         return authUser;
     },
 
+    async getAdminJwt() {
+        await this.useCurrentSession();
+        return videoCatalogAdminJwt;
+    },
+
     async deleteSession({ sessionId }) {
         videoCatalogAdminJwt = '';
         return account.deleteSession(sessionId);
