@@ -298,7 +298,7 @@ function installVideoCardDecorators() {
                 },
                 {
                     icon: 'fas fa-trash-alt',
-                    title: `Remove ${episode.title} from catalog`,
+                    title: `Delete ${episode.title} from R2 and catalog`,
                     danger: true,
                     handler: () => removeVideoItemInline('youtube', groupId, itemId)
                 }
