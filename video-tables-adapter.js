@@ -12,10 +12,11 @@ const VIDEO_APPWRITE_SDK_SRC = 'https://cdn.jsdelivr.net/npm/appwrite@17.0.0';
 let videoCatalogAdminJwt = '';
 let videoTablesClient = null;
 let videoTablesSdkAccount = null;
+let videoTablesSdkDb = null;
 let videoTablesSdkReady = null;
 
 async function loadVideoTablesSdk() {
-    if (videoTablesDB && videoTablesAccount) return;
+    if (videoTablesSdkDb && videoTablesAccount) return;
     if (videoTablesSdkReady) {
         await videoTablesSdkReady;
         return;
@@ -40,7 +41,7 @@ async function loadVideoTablesSdk() {
                 );
                 document.head.appendChild(script);
             });
-        } else if (!videoTablesClient || !videoTablesSdkAccount || !videoTablesDB) {
+        } else if (!videoTablesClient || !videoTablesSdkAccount || !videoTablesSdkDb) {
             await new Promise((resolve, reject) => {
                 if (window.Appwrite?.TablesDB && window.Appwrite?.Account) {
                     resolve();
@@ -67,7 +68,7 @@ async function loadVideoTablesSdk() {
                 .setEndpoint(VIDEO_APPWRITE_ENDPOINT)
                 .setProject(VIDEO_APPWRITE_PROJECT_ID);
 
-            videoTablesDB = new sdk.TablesDB(videoTablesClient);
+            videoTablesSdkDb = new sdk.TablesDB(videoTablesClient);
             videoTablesSdkAccount = new sdk.Account(videoTablesClient);
             videoTablesAccount = {
                 async useCurrentSession() {
@@ -143,7 +144,7 @@ const originalVideoTablesDB = {
     async getRow({ databaseId, tableId, rowId }) {
         await loadVideoTablesSdk();
 
-        return videoTablesDB.getRow({
+        return videoTablesSdkDb.getRow({
             databaseId,
             tableId,
             rowId
@@ -155,7 +156,7 @@ const originalVideoTablesDB = {
 
         // Use Appwrite's official Web SDK here so it sends the existing
         // browser session using the SDK's normal authentication path.
-        return videoTablesDB.updateRow({
+        return videoTablesSdkDb.updateRow({
             databaseId,
             tableId,
             rowId,
