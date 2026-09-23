@@ -1,169 +1,115 @@
 // ==========================================================
 // W41IT TablesDB browser adapter
 // ==========================================================
-// Video metadata uses the Appwrite Web SDK's TablesDB service directly.
-// The main site still has its older Appwrite SDK loaded in window.Appwrite,
-// so the newer SDK is loaded into a temporary namespace and then restored.
+// Keep the site's existing Appwrite 14 SDK for audio/auth, but talk to the
+// current TablesDB REST API directly. This avoids loading a second Appwrite
+// browser SDK into the same global namespace.
 
 const VIDEO_APPWRITE_ENDPOINT = 'https://sgp.cloud.appwrite.io/v1';
 const VIDEO_APPWRITE_PROJECT_ID = '6a0878e40013d0103042';
-const VIDEO_APPWRITE_SDK_SRC = 'https://cdn.jsdelivr.net/npm/appwrite@17.0.0';
-
 let videoCatalogAdminJwt = '';
-let videoTablesClient = null;
-let videoTablesSdkAccount = null;
-let videoTablesSdkDb = null;
-let videoTablesSdkReady = null;
 
-async function loadVideoTablesSdk() {
-    if (videoTablesSdkDb && videoTablesAccount) return;
-    if (videoTablesSdkReady) {
-        await videoTablesSdkReady;
-        return;
-    }
+async function videoTablesRequest(path, { method = 'GET', data = null, jwt = '' } = {}) {
+    const headers = {
+        'X-Appwrite-Project': VIDEO_APPWRITE_PROJECT_ID
+    };
 
-    videoTablesSdkReady = (async () => {
-        const legacyNamespace = window.Appwrite;
-        let script = document.querySelector('script[data-w41it-video-tables-sdk]');
+    if (data !== null) headers['Content-Type'] = 'application/json';
+    if (jwt) headers['X-Appwrite-JWT'] = jwt;
 
-        if (!script) {
-            script = document.createElement('script');
-            script.src = VIDEO_APPWRITE_SDK_SRC;
-            script.dataset.w41itVideoTablesSdk = 'true';
-            script.async = false;
+    const response = await fetch(`${VIDEO_APPWRITE_ENDPOINT}${path}`, {
+        method,
+        headers,
+        body: data === null ? undefined : JSON.stringify(data),
+        credentials: 'include'
+    });
 
-            await new Promise((resolve, reject) => {
-                script.addEventListener('load', resolve, { once: true });
-                script.addEventListener(
-                    'error',
-                    () => reject(new Error('Could not load Appwrite TablesDB SDK')),
-                    { once: true }
-                );
-                document.head.appendChild(script);
-            });
-        } else if (!videoTablesClient || !videoTablesSdkAccount || !videoTablesSdkDb) {
-            await new Promise((resolve, reject) => {
-                if (window.Appwrite?.TablesDB && window.Appwrite?.Account) {
-                    resolve();
-                    return;
-                }
+    const text = await response.text();
+    let payload = null;
 
-                script.addEventListener('load', resolve, { once: true });
-                script.addEventListener(
-                    'error',
-                    () => reject(new Error('Could not load Appwrite TablesDB SDK')),
-                    { once: true }
-                );
-            });
-        }
-
+    if (text) {
         try {
-            const sdk = window.Appwrite;
-
-            if (!sdk?.Client || !sdk?.TablesDB || !sdk?.Account) {
-                throw new Error('Loaded Appwrite SDK does not expose TablesDB and Account.');
-            }
-
-            videoTablesClient = new sdk.Client()
-                .setEndpoint(VIDEO_APPWRITE_ENDPOINT)
-                .setProject(VIDEO_APPWRITE_PROJECT_ID);
-
-            videoTablesSdkDb = new sdk.TablesDB(videoTablesClient);
-            videoTablesSdkAccount = new sdk.Account(videoTablesClient);
-            videoTablesAccount = {
-                async useCurrentSession() {
-                    const authUser = await videoTablesSdkAccount.get();
-
-                    if (!isVerifiedAdminAccount(authUser)) {
-                        videoCatalogAdminJwt = '';
-                        throw new Error(
-                            'A verified W41IT administrator session is required.'
-                        );
-                    }
-
-                    const token = await videoTablesSdkAccount.createJWT();
-                    videoCatalogAdminJwt = token?.jwt || '';
-
-                    if (!videoCatalogAdminJwt) {
-                        throw new Error(
-                            'Appwrite admin session is active but no JWT was returned.'
-                        );
-                    }
-
-                    return authUser;
-                },
-
-                async getAdminJwt() {
-                    await this.useCurrentSession();
-                    return videoCatalogAdminJwt;
-                },
-
-                async deleteSession({ sessionId }) {
-                    videoCatalogAdminJwt = '';
-                    return videoTablesSdkAccount.deleteSession(sessionId);
-                },
-
-                async createEmailPasswordSession({ email, password }) {
-                    try {
-                        await videoTablesSdkAccount.deleteSession('current');
-                    } catch (_error) {
-                        // No current session.
-                    }
-
-                    const session = await videoTablesSdkAccount.createEmailPasswordSession(
-                        email,
-                        password
-                    );
-                    await this.useCurrentSession();
-                    return session;
-                },
-
-                async get() {
-                    return videoTablesSdkAccount.get();
-                }
-            };
-        } finally {
-            // The rest of the site's legacy Appwrite code expects its original
-            // namespace/version, so restore it after initializing TablesDB.
-            window.Appwrite = legacyNamespace;
+            payload = JSON.parse(text);
+        } catch {
+            payload = text;
         }
-    })();
-
-    try {
-        await videoTablesSdkReady;
-    } catch (error) {
-        videoTablesSdkReady = null;
-        throw error;
     }
+
+    if (!response.ok) {
+        const message = payload && typeof payload === 'object'
+            ? (payload.message || JSON.stringify(payload))
+            : (payload || `${response.status} ${response.statusText}`);
+        throw new Error(`Appwrite ${response.status}: ${message}`);
+    }
+
+    return payload;
 }
 
-videoTablesDB = null;
-videoTablesAccount = null;
+videoTablesAccount = {
+    async useCurrentSession() {
+        const authUser = await account.get();
 
-const originalVideoTablesDB = {
-    async getRow({ databaseId, tableId, rowId }) {
-        await loadVideoTablesSdk();
+        if (!isVerifiedAdminAccount(authUser)) {
+            videoCatalogAdminJwt = '';
+            throw new Error('A verified W41IT administrator session is required.');
+        }
 
-        return videoTablesSdkDb.getRow({
-            databaseId,
-            tableId,
-            rowId
-        });
+        const token = await account.createJWT();
+        videoCatalogAdminJwt = token?.jwt || '';
+
+        if (!videoCatalogAdminJwt) {
+            throw new Error('Appwrite admin session is active but no JWT was returned.');
+        }
+
+        return authUser;
     },
 
-    async updateRow({ databaseId, tableId, rowId, data }) {
-        await loadVideoTablesSdk();
+    async getAdminJwt() {
+        await this.useCurrentSession();
+        return videoCatalogAdminJwt;
+    },
 
-        // Use Appwrite's official Web SDK here so it sends the existing
-        // browser session using the SDK's normal authentication path.
-        return videoTablesSdkDb.updateRow({
-            databaseId,
-            tableId,
-            rowId,
-            data
-        });
+    async deleteSession({ sessionId }) {
+        videoCatalogAdminJwt = '';
+        return account.deleteSession(sessionId);
+    },
+
+    async createEmailPasswordSession({ email, password }) {
+        try {
+            await account.deleteSession('current');
+        } catch (_error) {
+            // No current session.
+        }
+
+        const session = await account.createEmailPasswordSession(email, password);
+        await this.useCurrentSession();
+        return session;
+    },
+
+    async get() {
+        return account.get();
     }
 };
 
-// Keep the global names expected by video-catalog.js.
-videoTablesDB = originalVideoTablesDB;
+videoTablesDB = {
+    async getRow({ databaseId, tableId, rowId }) {
+        return videoTablesRequest(
+            `/tablesdb/${encodeURIComponent(databaseId)}/tables/${encodeURIComponent(tableId)}/rows/${encodeURIComponent(rowId)}`
+        );
+    },
+
+    async updateRow({ databaseId, tableId, rowId, data }) {
+        await videoTablesAccount.useCurrentSession();
+
+        return videoTablesRequest(
+            `/tablesdb/${encodeURIComponent(databaseId)}/tables/${encodeURIComponent(tableId)}/rows/${encodeURIComponent(rowId)}`
+            {
+                // PATCH updates the existing row. Do not use PUT/upsert here.
+                method: 'PATCH',
+                // TablesDB row fields are wrapped in the request's data object.
+                data: { data },
+                jwt: videoCatalogAdminJwt
+            }
+        );
+    }
+};
