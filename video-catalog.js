@@ -10,6 +10,148 @@ const VIDEO_CATALOG_ROW_ID = 'current';
 let videoCatalogLoadedFromAppwrite = false;
 let liveVideoCatalog = null;
 
+
+const VIDEO_R2_DELETE_ALLOWED_EXTENSIONS = new Set([
+    '.mp4',
+    '.m4v',
+    '.webm',
+    '.mov',
+    '.mkv',
+    '.avi'
+]);
+
+function videoR2Url(pathOrUrl) {
+    if (!pathOrUrl || typeof VIDEO_MEDIA_ORIGIN !== 'string' || !VIDEO_MEDIA_ORIGIN) return null;
+
+    try {
+        const url = /^https?:\/\//i.test(String(pathOrUrl))
+            ? new URL(String(pathOrUrl))
+            : new URL(String(pathOrUrl), `${VIDEO_MEDIA_ORIGIN.replace(/\/+$/, '')}/`);
+
+        const workerOrigin = new URL(VIDEO_MEDIA_ORIGIN).origin;
+        if (url.origin !== workerOrigin) return null;
+        return url;
+    } catch (_error) {
+        return null;
+    }
+}
+
+function videoR2Key(pathOrUrl) {
+    const url = videoR2Url(pathOrUrl);
+    if (!url) return '';
+
+    let pathname;
+    try {
+        pathname = decodeURIComponent(url.pathname);
+    } catch (_error) {
+        return '';
+    }
+
+    const key = pathname.replace(/^\/+/, '');
+    const parts = key.split('/');
+    const extension = key.slice(key.lastIndexOf('.')).toLowerCase();
+
+    if (
+        !key
+        || parts.some(part => part === '.' || part === '..')
+        || !VIDEO_R2_DELETE_ALLOWED_EXTENSIONS.has(extension)
+    ) {
+        return '';
+    }
+
+    return key;
+}
+
+function collectVideoR2Keys(item) {
+    const paths = [
+        item?.videoPath,
+        item?.fileUrl,
+        item?.src
+    ];
+
+    if (Array.isArray(item?.subtitles)) {
+        item.subtitles.forEach(track => {
+            paths.push(track?.path, track?.src);
+        });
+    } else if (item?.subtitles && typeof item.subtitles === 'object') {
+        Object.values(item.subtitles).forEach(path => paths.push(path));
+    }
+
+    const thumbnailKey = (() => {
+        const url = videoR2Url(item?.thumbnailPath || item?.thumbnail);
+        if (!url) return '';
+        try {
+            return decodeURIComponent(url.pathname).replace(/^\/+/, '');
+        } catch (_error) {
+            return '';
+        }
+    })();
+
+    const mediaKeys = paths.map(videoR2Key).filter(Boolean);
+    const keys = [...new Set(mediaKeys)];
+
+    if (thumbnailKey && !thumbnailKey.endsWith('/series-thumbnail.jpg')) {
+        keys.push(thumbnailKey);
+    }
+
+    return [...new Set(keys)];
+}
+
+async function deleteVideoItemFromR2(item) {
+    if (!videoTablesAccount?.getAdminJwt) {
+        throw new Error('The Appwrite admin session helper is not ready.');
+    }
+
+    if (!item?.videoPath && !item?.fileUrl) {
+        throw new Error('This catalog item has no R2-backed video path; the catalog entry was not changed.');
+    }
+
+    const keys = collectVideoR2Keys(item);
+    const primaryKey = videoR2Key(item.videoPath || item.fileUrl);
+    if (!primaryKey) {
+        throw new Error(
+            'This video is not backed by the current R2 Worker path. The catalog entry was not changed.'
+        );
+    }
+
+    if (!keys.includes(primaryKey)) keys.unshift(primaryKey);
+
+    const jwt = await videoTablesAccount.getAdminJwt();
+
+    for (const key of keys) {
+        const url = new URL(
+            key.split('/').map(segment => encodeURIComponent(segment)).join('/'),
+            `${VIDEO_MEDIA_ORIGIN.replace(/\/+$/, '')}/`
+        );
+
+        let response;
+        try {
+            response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    Authorization: `Bearer ${jwt}`
+                },
+                credentials: 'omit'
+            });
+        } catch (error) {
+            throw new Error(`Could not reach the R2 Worker while deleting ${key}: ${error.message || error}`);
+        }
+
+        if (!response.ok) {
+            const responseText = await response.text().catch(() => '');
+            throw new Error(
+                `R2 deletion failed for ${key}: ${response.status} ${responseText || response.statusText}`
+            );
+        }
+    }
+
+    return keys;
+}
+
+async function removeVideoCatalogItemOnly(kind, groupId, itemId) {
+    return removeVideoCatalogItem(kind, groupId, itemId, { deleteMedia: false });
+}
+
 function normalizeLiveVideoCatalog(raw) {
     const catalog = raw && typeof raw === 'object' ? raw : {};
     const anime = Array.isArray(catalog.VIDEO_SERIES) ? catalog.VIDEO_SERIES : [];
@@ -120,7 +262,7 @@ function installVideoCatalogAdminUi() {
         <div id="videoCatalogAdminStatus" class="video-catalog-admin-status" aria-live="polite"></div>
         <div id="videoCatalogAdminList" class="video-catalog-admin-list"></div>
         <p class="video-catalog-admin-note">
-            Remove listing only removes the catalog entry; R2 and VPS media are kept as a recovery copy.
+            Delete removes the R2 media first, then updates the Appwrite catalog. Use “Catalog only” for legacy metadata cleanup without touching R2.
         </p>`;
     if (actions) modalContent.insertBefore(section, actions);
     else modalContent.appendChild(section);
@@ -243,25 +385,59 @@ async function editVideoCatalogItem(kind, groupId, itemId) {
     }
 }
 
-async function removeVideoCatalogItem(kind, groupId, itemId) {
+async function removeVideoCatalogItem(kind, groupId, itemId, { deleteMedia = true } = {}) {
     if (currentUserRole !== 'admin' || !liveVideoCatalog) return;
+
     const groups = kind === 'youtube' ? liveVideoCatalog.YOUTUBE_CHANNELS : liveVideoCatalog.VIDEO_SERIES;
     const group = groups.find(item => item.id === groupId);
     const key = kind === 'youtube' ? 'videos' : 'episodes';
     const items = group?.[key];
     if (!Array.isArray(items)) return;
+
     const index = items.findIndex(entry => String(entry.id || entry.number) === String(itemId));
     if (index < 0) return;
-    const item = items[index];
-    if (!window.confirm(`Remove “${item.title || itemId}” from W41IT?\n\nR2/VPS media will be kept.`)) return;
 
-    const removed = items.splice(index, 1)[0];
+    const item = items[index];
+    const accepted = window.confirm(
+        deleteMedia
+            ? `Delete “${item.title || itemId}” permanently?\n\nThis deletes its R2 video media first, then removes the catalog entry from Appwrite.\n\nThis cannot be undone.`
+            : `Remove “${item.title || itemId}” from the Appwrite catalog only?\n\nR2 media will be kept.`
+    );
+    if (!accepted) return;
+
+    let removed = null;
     try {
-        await saveLiveVideoCatalog('Removing catalog item…');
+        if (deleteMedia) {
+            const keys = await deleteVideoItemFromR2(item);
+            setVideoCatalogAdminStatus(
+                `R2 media deleted (${keys.length} object${keys.length === 1 ? '' : 's'}). Updating catalog…`,
+                false
+            );
+        }
+
+        removed = items.splice(index, 1)[0];
+        await saveLiveVideoCatalog(
+            deleteMedia ? 'R2 deleted. Updating catalog…' : 'Removing catalog item…'
+        );
+
+        setVideoCatalogAdminStatus(
+            deleteMedia
+                ? 'Video deleted from R2 and removed from the Appwrite catalog.'
+                : 'Catalog item removed. R2 media was kept.',
+            false
+        );
     } catch (error) {
-        items.splice(index, 0, removed);
+        if (removed) {
+            items.splice(index, 0, removed);
+        }
+
         console.error('Video catalog item removal failed:', error);
-        setVideoCatalogAdminStatus(`Delete denied. Click “Unlock editing” and sign in with the Appwrite admin account. ${error.message || error}`, true);
+        setVideoCatalogAdminStatus(
+            deleteMedia && removed
+                ? `R2 media was deleted, but the Appwrite catalog update failed. Retry the delete to finish cleanup: ${error.message || error}`
+                : `Delete failed: ${error.message || error}`,
+            true
+        );
     }
 }
 
@@ -328,10 +504,17 @@ function renderVideoCatalogAdmin() {
             edit.onclick = () => editVideoCatalogItem(kind, group.id, itemId);
             const remove = document.createElement('button');
             remove.type = 'button';
-            remove.textContent = 'Remove';
+            remove.textContent = 'Delete media';
             remove.className = 'danger';
             remove.onclick = () => removeVideoCatalogItem(kind, group.id, itemId);
-            buttons.append(edit, remove);
+
+            const catalogOnly = document.createElement('button');
+            catalogOnly.type = 'button';
+            catalogOnly.textContent = 'Catalog only';
+            catalogOnly.title = 'Remove the Appwrite listing but keep R2 media';
+            catalogOnly.onclick = () => removeVideoCatalogItemOnly(kind, group.id, itemId);
+
+            buttons.append(edit, remove, catalogOnly);
             row.append(itemCopy, buttons);
             itemsWrap.appendChild(row);
         });
