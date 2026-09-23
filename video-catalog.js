@@ -63,38 +63,8 @@ function videoR2Key(pathOrUrl) {
 }
 
 function collectVideoR2Keys(item) {
-    const paths = [
-        item?.videoPath,
-        item?.fileUrl,
-        item?.src
-    ];
-
-    if (Array.isArray(item?.subtitles)) {
-        item.subtitles.forEach(track => {
-            paths.push(track?.path, track?.src);
-        });
-    } else if (item?.subtitles && typeof item.subtitles === 'object') {
-        Object.values(item.subtitles).forEach(path => paths.push(path));
-    }
-
-    const thumbnailKey = (() => {
-        const url = videoR2Url(item?.thumbnailPath || item?.thumbnail);
-        if (!url) return '';
-        try {
-            return decodeURIComponent(url.pathname).replace(/^\/+/, '');
-        } catch (_error) {
-            return '';
-        }
-    })();
-
-    const mediaKeys = paths.map(videoR2Key).filter(Boolean);
-    const keys = [...new Set(mediaKeys)];
-
-    if (thumbnailKey && !thumbnailKey.endsWith('/series-thumbnail.jpg')) {
-        keys.push(thumbnailKey);
-    }
-
-    return [...new Set(keys)];
+    const primaryKey = videoR2Key(item?.videoPath || item?.fileUrl);
+    return primaryKey ? [primaryKey] : [];
 }
 
 async function deleteVideoItemFromR2(item) {
@@ -107,14 +77,11 @@ async function deleteVideoItemFromR2(item) {
     }
 
     const keys = collectVideoR2Keys(item);
-    const primaryKey = videoR2Key(item.videoPath || item.fileUrl);
-    if (!primaryKey) {
+    if (keys.length === 0) {
         throw new Error(
             'This video is not backed by the current R2 Worker path. The catalog entry was not changed.'
         );
     }
-
-    if (!keys.includes(primaryKey)) keys.unshift(primaryKey);
 
     const jwt = await videoTablesAccount.getAdminJwt();
 
@@ -134,7 +101,9 @@ async function deleteVideoItemFromR2(item) {
                 credentials: 'omit'
             });
         } catch (error) {
-            throw new Error(`Could not reach the R2 Worker while deleting ${key}: ${error.message || error}`);
+            throw new Error(
+                `Could not reach the R2 Worker while deleting ${key}: ${error.message || error}`
+            );
         }
 
         if (!response.ok) {
@@ -147,7 +116,6 @@ async function deleteVideoItemFromR2(item) {
 
     return keys;
 }
-
 async function removeVideoCatalogItemOnly(kind, groupId, itemId) {
     return removeVideoCatalogItem(kind, groupId, itemId, { deleteMedia: false });
 }
