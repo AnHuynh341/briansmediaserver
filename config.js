@@ -43,7 +43,7 @@ async function loadVideoTablesSdk() {
         });
     } else {
         const script = document.createElement('script');
-        script.src = 'video-tables-adapter.js?v=r2-delete-20260923-1';
+        script.src = 'video-tables-adapter.js?v=catalog-put-20260923-1';
         script.dataset.w41itVideoTablesAdapter = 'true';
         script.async = false;
 
