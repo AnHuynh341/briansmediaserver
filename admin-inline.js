@@ -398,7 +398,7 @@ function decorateVideoEpisodeRows(series, episodes) {
             ),
             makeInlineAdminIcon(
                 'fas fa-trash-alt',
-                `Remove ${episode.title} from catalog`,
+                `Delete ${episode.title} from R2 and catalog`,
                 () => removeVideoItemInline(youtube ? 'youtube' : 'anime', groupId, itemId),
                 { danger: true }
             )
