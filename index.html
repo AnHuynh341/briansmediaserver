@@ -7,6 +7,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=site-monitor-link-20260813-1">
   <link rel="stylesheet" href="video.css?v=youtube-channel-view-20260816-1">
+  <link rel="stylesheet" href="wordle.css?v=wordle-20261111-1">
 </head>
 <body>
 <div id="loginPage">
@@ -36,6 +37,9 @@
         </div>
         <div class="nav-item media-mode-nav" id="navVideo" onclick="switchMediaMode('video')" title="Video library">
           <i class="fas fa-play-circle"></i><span class="nav-item-label">Video</span>
+        </div>
+        <div class="nav-item" id="navWordle" onclick="openWordle()" title="Play Wordle">
+          <i class="fas fa-th"></i><span class="nav-item-label">Wordle</span>
         </div>
         <div id="uploadNavBtn" class="nav-item" onclick="openUploadModal()" style="display: none;">
             <i class="fas fa-cloud-upload-alt"></i> Upload Signal
@@ -347,6 +351,42 @@
       <output id="volumePercent" class="volume-percent" for="volumebar">100%</output>
     </div>
   </div>
+  <!-- Wordle: independent overlay; the persistent audio player remains above it. -->
+  <section id="wordleOverlay" class="wordle-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="wordleTitle">
+    <div class="wordle-shell">
+      <header class="wordle-topbar">
+        <div class="wordle-brand">
+          <span class="wordle-brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+          <span>W41IT / GAMES</span>
+        </div>
+        <button id="wordleCloseButton" class="wordle-close" type="button">
+          <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to music
+        </button>
+      </header>
+
+      <div class="wordle-heading">
+        <span class="wordle-kicker">A little break between tracks</span>
+        <h1 id="wordleTitle">WORDLE</h1>
+        <p>Guess the five-letter word in six tries.</p>
+      </div>
+
+      <div class="wordle-stats" aria-label="Current session statistics">
+        <div class="wordle-stat"><strong id="wordlePlayed">0</strong><span>Played</span></div>
+        <div class="wordle-stat"><strong id="wordleWins">0</strong><span>Wins</span></div>
+        <div class="wordle-stat"><strong id="wordleRate">0%</strong><span>Win rate</span></div>
+        <div class="wordle-stat"><strong id="wordleStreak">0</strong><span>Streak</span></div>
+      </div>
+
+      <div id="wordleBoard" class="wordle-board" aria-label="Wordle guesses"></div>
+      <p id="wordleMessage" class="wordle-message" role="status" aria-live="polite">Type a five-letter word to begin.</p>
+      <p id="wordleAnswer" class="wordle-answer" aria-live="polite"></p>
+      <div class="wordle-next-wrap">
+        <button id="wordleNextButton" class="wordle-next hidden" type="button">Next word <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+      </div>
+      <div id="wordleKeyboard" class="wordle-keyboard" aria-label="On-screen keyboard"></div>
+      <p class="wordle-footnote">Green = right letter, right place · Yellow = right letter, wrong place</p>
+    </div>
+  </section>
 </div>
 
 <!-- Playlist Add/Edit Modal -->
@@ -464,6 +504,8 @@
 <script src="ui.js?v=whats-new-queue-20260809-1"></script>
 <script src="video.js?v=youtube-channel-view-20260816-1"></script>
 <script src="mobile.js"></script>
+<script src="wordle-words.js?v=wordle-20261111-1"></script>
+<script src="wordle.js?v=wordle-20261111-1"></script>
 
 
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "219dfc8c317f4db98bcb2eed12f03c90"}'></script><!-- End Cloudflare Web Analytics -->
