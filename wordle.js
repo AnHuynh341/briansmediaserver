@@ -223,6 +223,7 @@
         answerReveal.textContent = `The word was ${state.answer.toUpperCase()}.`;
       }
       nextButton.classList.remove('hidden');
+      keyboard.querySelector('[data-key="Enter"]')?.setAttribute('aria-label', 'Start next word');
       updateStats();
       return;
     }
@@ -233,7 +234,10 @@
   }
 
   function handleKey(key) {
-    if (state.finished) return;
+    if (state.finished) {
+      if (key === 'Enter') startNextRound();
+      return;
+    }
     if (key === 'Enter') {
       submitGuess();
       return;
@@ -259,6 +263,7 @@
     state.guesses = [];
     state.keyboard.clear();
     nextButton.classList.add('hidden');
+    keyboard.querySelector('[data-key="Enter"]')?.setAttribute('aria-label', 'Submit guess');
     answerReveal.textContent = '';
     setMessage('Type a five-letter word to begin.');
     buildBoard();
@@ -299,7 +304,30 @@
     }
   }
 
+  function setupLayout() {
+    const shell = overlay.querySelector('.wordle-shell');
+    const nextWrap = nextButton.closest('.wordle-next-wrap');
+    const footnote = shell.querySelector('.wordle-footnote');
+    if (!shell || !nextWrap || !footnote || board.closest('.wordle-game-column')) return;
+
+    const playArea = document.createElement('div');
+    playArea.className = 'wordle-play-area';
+
+    const gameColumn = document.createElement('div');
+    gameColumn.className = 'wordle-game-column';
+
+    const keyboardPanel = document.createElement('aside');
+    keyboardPanel.className = 'wordle-keyboard-panel';
+    keyboardPanel.setAttribute('aria-label', 'Wordle keyboard');
+
+    shell.insertBefore(playArea, board);
+    gameColumn.append(board, message, answerReveal, nextWrap);
+    keyboardPanel.append(keyboard, footnote);
+    playArea.append(gameColumn, keyboardPanel);
+  }
+
   function initialize() {
+    setupLayout();
     buildBoard();
     buildKeyboard();
     startNextRound();
