@@ -228,3 +228,35 @@
   .wordle-row { gap: 4px; }
   .wordle-key { height: 40px; }
 }
+
+
+/* Desktop play layout: board on the left, on-screen keyboard on the right. */
+@media (min-width: 761px) {
+  .wordle-shell { width: min(100%, 900px); }
+  .wordle-play-area {
+    display: grid;
+    grid-template-columns: minmax(300px, 1fr) minmax(360px, 1.2fr);
+    align-items: center;
+    gap: clamp(28px, 4vw, 64px);
+    width: min(100%, 850px);
+    margin: 0 auto;
+  }
+  .wordle-game-column {
+    width: min(100%, 330px);
+    justify-self: end;
+  }
+  .wordle-board {
+    margin-left: 0;
+    margin-right: 0;
+  }
+  .wordle-keyboard-panel {
+    width: min(100%, 500px);
+    justify-self: start;
+  }
+  .wordle-keyboard { width: 100%; }
+  .wordle-footnote { text-align: center; }
+}
+@media (max-width: 760px) {
+  .wordle-play-area { display: flex; flex-direction: column; align-items: center; }
+  .wordle-game-column, .wordle-keyboard-panel { width: 100%; }
+}
