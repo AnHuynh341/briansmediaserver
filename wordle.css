@@ -181,8 +181,8 @@
   padding: 0 4px;
   border: 0;
   border-radius: 5px;
-  color: var(--text-main, #fff);
-  background: #747b84;
+  color: #fff !important;
+  background: #747b84 !important;
   font: inherit;
   font-size: .82rem;
   font-weight: 850;
@@ -193,9 +193,9 @@
 .wordle-key:hover { filter: brightness(1.12); }
 .wordle-key:active { transform: translateY(1px); }
 .wordle-key-wide { flex: 1.5 1 0; font-size: .68rem; }
-.wordle-key.is-correct { background: #538d68; }
-.wordle-key.is-present { background: #b59a45; }
-.wordle-key.is-absent { background: #3a3a3c; color: rgba(255,255,255,.68); }
+.wordle-key.is-correct { background: #538d68 !important; color: #fff !important; }
+.wordle-key.is-present { background: #b59a45 !important; color: #fff !important; }
+.wordle-key.is-absent { background: #3a3a3c !important; color: rgba(255,255,255,.82) !important; }
 .wordle-footnote {
   margin: 16px 0 0;
   color: var(--text-sub, #a1a1aa);
