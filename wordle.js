@@ -132,7 +132,7 @@
       const value = key.dataset.key;
       if (value.length !== 1) return;
       key.classList.remove('is-correct', 'is-present', 'is-absent');
-      const status = state.keyboard.get(value);
+      const status = state.keyboard.get(value.toLowerCase());
       if (status) key.classList.add(`is-${status}`);
     });
   }
