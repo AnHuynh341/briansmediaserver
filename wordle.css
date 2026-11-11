@@ -195,7 +195,7 @@
 .wordle-key-wide { flex: 1.5 1 0; font-size: .68rem; }
 .wordle-key.is-correct { background: #538d68; }
 .wordle-key.is-present { background: #b59a45; }
-.wordle-key.is-absent { background: #454a52; color: rgba(255,255,255,.55); }
+.wordle-key.is-absent { background: #3a3a3c; color: rgba(255,255,255,.68); }
 .wordle-footnote {
   margin: 16px 0 0;
   color: var(--text-sub, #a1a1aa);
