@@ -216,7 +216,7 @@
       state.finished = true;
       state.stats.played += 1;
       if (won) {
-        state.stats.wins += state.hintRevealed ? 0.5 : 1;
+        state.stats.wins += 1;
         state.stats.streak += 1;
         setMessage(state.hintRevealed ? 'You got it! Half credit — the hint was out.' : 'You got it! Nice work.', 'success');
       } else {
