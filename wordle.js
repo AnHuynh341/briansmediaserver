@@ -19,7 +19,8 @@
     finished: false,
     guesses: [],
     keyboard: new Map(),
-    stats: { played: 0, wins: 0, streak: 0 }
+    stats: { played: 0, wins: 0, streak: 0 },
+    hintRevealed: false
   };
 
   const overlay = document.getElementById('wordleOverlay');
@@ -28,6 +29,7 @@
   const message = document.getElementById('wordleMessage');
   const nextButton = document.getElementById('wordleNextButton');
   const answerReveal = document.getElementById('wordleAnswer');
+  const hintElement = document.getElementById('wordleHint');
   const statsPlayed = document.getElementById('wordlePlayed');
   const statsWins = document.getElementById('wordleWins');
   const statsRate = document.getElementById('wordleRate');
@@ -111,7 +113,7 @@
 
   function updateStats() {
     statsPlayed.textContent = String(state.stats.played);
-    statsWins.textContent = String(state.stats.wins);
+    statsWins.textContent = Number.isInteger(state.stats.wins) ? String(state.stats.wins) : state.stats.wins.toFixed(1);
     statsRate.textContent = state.stats.played
       ? `${Math.round((state.stats.wins / state.stats.played) * 100)}%`
       : '0%';
@@ -214,9 +216,9 @@
       state.finished = true;
       state.stats.played += 1;
       if (won) {
-        state.stats.wins += 1;
+        state.stats.wins += state.hintRevealed ? 0.5 : 1;
         state.stats.streak += 1;
-        setMessage('You got it! Nice work.', 'success');
+        setMessage(state.hintRevealed ? 'You got it! Half credit — the hint was out.' : 'You got it! Nice work.', 'success');
       } else {
         state.stats.streak = 0;
         setMessage('Out of guesses. Better luck next round.', 'failure');
@@ -230,6 +232,12 @@
 
     state.row += 1;
     state.currentGuess = '';
+    if (!state.hintRevealed && state.guesses.length >= 3) {
+      const clue = window.WORDLE_HINTS?.[state.answer] || 'Clue not available.';
+      hintElement.textContent = `Hint: ${clue}`;
+      hintElement.hidden = false;
+      state.hintRevealed = true;
+    }
     setMessage('');
   }
 
@@ -261,6 +269,9 @@
     state.currentGuess = '';
     state.finished = false;
     state.guesses = [];
+    state.hintRevealed = false;
+    hintElement.textContent = '';
+    hintElement.hidden = true;
     state.keyboard.clear();
     nextButton.classList.add('hidden');
     keyboard.querySelector('[data-key="Enter"]')?.setAttribute('aria-label', 'Submit guess');
@@ -321,7 +332,7 @@
     keyboardPanel.setAttribute('aria-label', 'Wordle keyboard');
 
     shell.insertBefore(playArea, board);
-    gameColumn.append(board, message, answerReveal, nextWrap);
+    gameColumn.append(board, message, answerReveal, hintElement, nextWrap);
     keyboardPanel.append(keyboard, footnote);
     playArea.append(gameColumn, keyboardPanel);
   }

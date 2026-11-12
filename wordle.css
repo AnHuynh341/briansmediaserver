@@ -260,3 +260,17 @@
   .wordle-play-area { display: flex; flex-direction: column; align-items: center; }
   .wordle-game-column, .wordle-keyboard-panel { width: 100%; }
 }
+
+
+.wordle-hint {
+  margin: 10px 0 14px;
+  padding: 9px 12px;
+  border: 1px solid rgba(214, 178, 76, .42);
+  border-radius: 8px;
+  background: rgba(214, 178, 76, .08);
+  color: var(--wordle-text, inherit);
+  font-size: .92rem;
+  line-height: 1.45;
+  text-align: center;
+}
+.wordle-hint[hidden] { display: none; }
