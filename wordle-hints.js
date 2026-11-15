@@ -1,4 +1,5 @@
-{
+/* Wordle clue bank. Every answer has a curated clue. */
+window.WORDLE_HINTS = {
   "aback": "Caught by surprise, as if pushed a step backward.",
   "abase": "Make someone feel lower or less respected.",
   "abate": "Become less strong, intense, or severe.",
