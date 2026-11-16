@@ -4,7 +4,7 @@
 
   const WORD_LENGTH = 5;
   const MAX_GUESSES = 6;
-  const HINT_REVEAL_AFTER_GUESSES = 3;
+  const HINT_REVEAL_AFTER_GUESSES = 4;
   const answerWords = Array.isArray(window.WORDLE_ANSWER_WORDS) ? window.WORDLE_ANSWER_WORDS : [];
   const validWords = new Set([
     ...(Array.isArray(window.WORDLE_VALID_GUESSES) ? window.WORDLE_VALID_GUESSES : []),
@@ -333,8 +333,8 @@
     keyboardPanel.setAttribute('aria-label', 'Wordle keyboard');
 
     shell.insertBefore(playArea, board);
-    gameColumn.append(board, message, answerReveal, nextWrap);
-    keyboardPanel.append(hintElement, keyboard, footnote);
+    gameColumn.append(board, message, nextWrap);
+    keyboardPanel.append(answerReveal, hintElement, keyboard, footnote);
     playArea.append(gameColumn, keyboardPanel);
   }
 
