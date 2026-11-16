@@ -274,3 +274,7 @@
   text-align: center;
 }
 .wordle-hint[hidden] { display: none; }
+
+/* Keep the clue directly above the on-screen keyboard. */
+.wordle-keyboard-panel > .wordle-hint { margin: 0 0 12px; }
+@media (max-width: 760px) { .wordle-keyboard-panel > .wordle-hint { width: min(100%, 500px); margin: 2px auto 12px; } }
