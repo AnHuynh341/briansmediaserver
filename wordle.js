@@ -4,6 +4,7 @@
 
   const WORD_LENGTH = 5;
   const MAX_GUESSES = 6;
+  const HINT_REVEAL_AFTER_GUESSES = 3;
   const answerWords = Array.isArray(window.WORDLE_ANSWER_WORDS) ? window.WORDLE_ANSWER_WORDS : [];
   const validWords = new Set([
     ...(Array.isArray(window.WORDLE_VALID_GUESSES) ? window.WORDLE_VALID_GUESSES : []),
@@ -19,7 +20,7 @@
     finished: false,
     guesses: [],
     keyboard: new Map(),
-    stats: { played: 0, wins: 0, streak: 0 },
+    stats: { played: 0, score: 0, streak: 0 },
     hintRevealed: false
   };
 
@@ -113,9 +114,9 @@
 
   function updateStats() {
     statsPlayed.textContent = String(state.stats.played);
-    statsWins.textContent = Number.isInteger(state.stats.wins) ? String(state.stats.wins) : state.stats.wins.toFixed(1);
+    statsWins.textContent = String(state.stats.score);
     statsRate.textContent = state.stats.played
-      ? `${Math.round((state.stats.wins / state.stats.played) * 100)}%`
+      ? `${Math.round((state.stats.score / state.stats.played) * 100)}%`
       : '0%';
     statsStreak.textContent = String(state.stats.streak);
   }
@@ -216,9 +217,9 @@
       state.finished = true;
       state.stats.played += 1;
       if (won) {
-        state.stats.wins += 1;
+        state.stats.score += 1;
         state.stats.streak += 1;
-        setMessage(state.hintRevealed ? 'You got it! Half credit — the hint was out.' : 'You got it! Nice work.', 'success');
+        setMessage('You got it! +1 point.', 'success');
       } else {
         state.stats.streak = 0;
         setMessage('Out of guesses. Better luck next round.', 'failure');
@@ -232,7 +233,7 @@
 
     state.row += 1;
     state.currentGuess = '';
-    if (!state.hintRevealed && state.guesses.length >= 3) {
+    if (!state.hintRevealed && state.guesses.length >= HINT_REVEAL_AFTER_GUESSES) {
       const clue = window.WORDLE_HINTS?.[state.answer] || 'Clue not available.';
       hintElement.textContent = `Hint: ${clue}`;
       hintElement.hidden = false;
@@ -332,8 +333,8 @@
     keyboardPanel.setAttribute('aria-label', 'Wordle keyboard');
 
     shell.insertBefore(playArea, board);
-    gameColumn.append(board, message, answerReveal, hintElement, nextWrap);
-    keyboardPanel.append(keyboard, footnote);
+    gameColumn.append(board, message, answerReveal, nextWrap);
+    keyboardPanel.append(hintElement, keyboard, footnote);
     playArea.append(gameColumn, keyboardPanel);
   }
 
