@@ -2297,7 +2297,7 @@ window.WORDLE_HINTS = {
   "spilt": "Split apart, or spilled out in a sudden mess.",
   "strew": "Scatter things over an area instead of gathering them.",
   "swipe": "Move a finger across a screen, or steal quickly.",
-  "scuff": "Leave a dull mark by scraping shoes against something."
+  "scuff": "Leave a dull mark by scraping shoes against something.",
   "bumpy": "A ride that keeps your drink from sitting still.",
   "chewy": "A bite that keeps your jaw busy.",
   "clunk": "The dull sound of something heavy landing.",
