@@ -2314,5 +2314,5 @@ window.WORDLE_HINTS = {
   "aspen": "A pale-barked tree whose leaves tremble in the breeze.",
   "lemur": "A big-eyed island animal known for its long tail.",
   "doozy": "Something unusually impressive, surprising, or hard to forget.",
-  "gutsy": "Willing to face danger without backing down.",
+  "gutsy": "Willing to face danger without backing down."
 };
