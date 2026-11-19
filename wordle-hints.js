@@ -2314,5 +2314,5 @@ window.WORDLE_HINTS = {
   "gates": "Openings in fences that can swing shut.",
   "grips": "Holds tightly, often with your fingers.",
   "falls": "Drops from a higher place toward the ground.",
-  "fleas": "Tiny jumping pests that make pets scratch.",
+  "fleas": "Tiny jumping pests that make pets scratch."
 };
